@@ -54,11 +54,8 @@ async function searchDuckDuckGo(
   settings: SearchSettings
 ): Promise<WebSearchResponse> {
   const maxResults = settings.maxResults || 8;
-  const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}&ia=web`;
   const proxyUrls = [
-    // CORS-friendly public mirrors of DuckDuckGo lite/html
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    `https://corsproxy.io/?url=${encodeURIComponent(url)}`
+    `/api/search/duckduckgo?q=${encodeURIComponent(query)}`
   ];
 
   let html = '';
@@ -90,7 +87,12 @@ async function searchDuckDuckGo(
       const snippetMatch = block.match(/<a[^>]*class=["']result__snippet["'][^>]*>([\s\S]*?)<\/a>/);
 
       const title = titleMatch ? stripHtml(titleMatch[1]) : '';
-      const url = urlMatch ? decodeURIComponent(urlMatch[1].replace(/^\/\//, 'https://')) : '';
+      let url = urlMatch ? decodeURIComponent(urlMatch[1].replace(/^\/\//, 'https://')) : '';
+      if (url.includes('uddg=')) {
+        try {
+          url = decodeURIComponent(url.split('uddg=')[1].split('&')[0]);
+        } catch {}
+      }
       const snippet = snippetMatch ? stripHtml(snippetMatch[1]) : '';
 
       if (title && url) {

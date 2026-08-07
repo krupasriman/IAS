@@ -13,7 +13,8 @@ export interface WebSearchResponse {
 }
 
 export interface GenerationProgress {
-  stage: 'idle' | 'searching_web' | 'processing_llm' | 'validating' | 'complete' | 'error';
+  stage: 'idle' | 'searching_web' | 'processing_llm' | 'streaming_llm' | 'validating' | 'complete' | 'error';
   message: string;
   progressPercentage: number;
+  rawStreamText?: string;
 }

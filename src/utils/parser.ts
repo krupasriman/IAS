@@ -9,8 +9,13 @@ export function parseMarkdownToTopic(
 
   // Helper to extract section using regex
   const getSection = (heading: string, nextHeadings: string[]): string => {
-    const nextRegex = nextHeadings.length > 0 ? `(?=${nextHeadings.map(h => `(?:#+\\s*|\\*\\*|\\b)${h}`).join('|')})` : '$';
-    const regex = new RegExp(`(?:#+\\s*|\\*\\*|\\b)${heading}[:\\s]*\\n+([\\s\\S]*?)${nextRegex}`, 'i');
+    const nextPart = nextHeadings.length > 0
+      ? `(?=(?:(?:^|\\n)(?:#+\\s*|\\*\\*)?\\s*(?:${nextHeadings.join('|')}))|$)`
+      : '(?=$)';
+    const regex = new RegExp(
+      `(?:^|\\n)(?:#+\\s*|\\*\\*)?\\s*${heading}(?:\\*\\*)?[:\\s]*\\n+([\\s\\S]*?)${nextPart}`,
+      'i'
+    );
     const match = clean.match(regex);
     return match ? match[1].trim() : '';
   };
@@ -69,7 +74,9 @@ export function parseMarkdownToTopic(
   const rawConsSection = getSection('Cons', ['Way Forward', 'Conclusion']);
 
   const pros = parseItems(rawProsSection);
-  const cons = parseItems(rawConsSection);
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const proTitles = new Set(pros.map(p => normalize(p.title)));
+  const cons = parseItems(rawConsSection).filter(c => !proTitles.has(normalize(c.title)));
 
   // 4. Way Forward
   const rawWayForward = getSection('Way Forward', ['Conclusion']);

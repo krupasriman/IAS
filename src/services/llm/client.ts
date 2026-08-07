@@ -1,4 +1,5 @@
 import type { LLMProvider, LLMSettings } from '../../types/settings.types';
+import type { Topic } from '../../types/topic.types';
 
 export interface LLMConfig {
   provider: LLMProvider;
@@ -10,9 +11,130 @@ export interface LLMConfig {
 
 const isBrowser = typeof window !== 'undefined';
 const PROXY_URL = '/api/llm';
+const GENERATE_URL = '/api/generate';
 
 function getApiKey(settings: LLMSettings): string {
-  return settings.apiKeys?.[settings.provider] || '';
+  return (settings.apiKeys?.[settings.provider] || '').trim();
+}
+
+export interface GenerateTopicOptions {
+  topic: string;
+  category?: string;
+  webContext?: string;
+  maxRetries?: number;
+}
+
+export async function generateStructuredTopic(
+  options: GenerateTopicOptions,
+  settings: LLMSettings
+): Promise<Topic> {
+  const apiKey = getApiKey(settings);
+  if (!apiKey) {
+    throw new Error('API key not configured. Please add your API key in Settings.');
+  }
+
+  const { provider, model, temperature, baseUrl } = settings;
+
+  if (isBrowser) {
+    const response = await fetch(GENERATE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topic: options.topic,
+        category: options.category,
+        webContext: options.webContext,
+        provider,
+        apiKey,
+        model,
+        temperature,
+        baseUrl,
+        maxRetries: options.maxRetries,
+      })
+    });
+
+    let data: any;
+    try {
+      data = await response.json();
+    } catch {
+      const text = await response.text().catch(() => '');
+      throw new Error(`Server returned invalid JSON: ${text.slice(0, 200)}`);
+    }
+
+    if (!response.ok) {
+      throw new Error(data?.error || `Topic generation failed: ${response.status} ${response.statusText}`);
+    }
+    if (!data?.topic) {
+      throw new Error('Topic generation returned no topic');
+    }
+    return data.topic as Topic;
+  }
+
+  throw new Error('Structured topic generation is only available via the backend proxy.');
+}
+
+export async function streamStructuredTopic(
+  options: GenerateTopicOptions,
+  settings: LLMSettings,
+  onChunk: (text: string) => void
+): Promise<string> {
+  const apiKey = getApiKey(settings);
+  if (!apiKey) {
+    throw new Error('API key not configured. Please add your API key in Settings.');
+  }
+
+  const { provider, model, temperature, baseUrl } = settings;
+  const STREAM_URL = '/api/generate/stream';
+
+  const response = await fetch(STREAM_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      topic: options.topic,
+      category: options.category,
+      webContext: options.webContext,
+      provider,
+      apiKey,
+      model,
+      temperature,
+      baseUrl,
+    })
+  });
+
+  if (!response.ok || !response.body) {
+    const text = await response.text().catch(() => '');
+    throw new Error(`Stream request failed: ${response.status} ${text.slice(0, 200)}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let accumulatedText = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const chunk = decoder.decode(value, { stream: true });
+    const lines = chunk.split('\n');
+    
+    for (const line of lines) {
+      if (line.trim() === '' || line.trim() === 'data: [DONE]') continue;
+      
+      if (line.startsWith('data: ')) {
+        try {
+          const data = JSON.parse(line.slice(6));
+          if (data.error) throw new Error(data.error);
+          if (data.content) {
+            accumulatedText += data.content;
+            onChunk(accumulatedText);
+          }
+        } catch (e) {
+          // ignore parsing error for chunk
+        }
+      }
+    }
+  }
+
+  return accumulatedText;
 }
 
 /**
@@ -88,7 +210,7 @@ async function callLLMDirect(
       model,
       messages,
       temperature: temperature ?? 0.3,
-      max_tokens: 1500
+      max_tokens: 4000
     })
   });
 

@@ -16,9 +16,23 @@ import TopicDetail from '../components/TopicDetail';
 export default function HomePage() {
   const { topics, loading, addTopic } = useTopics();
   const { llmConfigured } = useSettings();
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(() => {
+    try {
+      const raw = localStorage.getItem('ias_web_search_state');
+      return raw ? JSON.parse(raw).query || '' : '';
+    } catch {
+      return '';
+    }
+  });
   const [activeCategory, setActiveCategory] = useState<'All' | CategoryType>('All');
-  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(() => {
+    try { return localStorage.getItem('ias_web_search_enabled') === 'true'; } catch { return false; }
+  });
+
+  const handleToggleWebSearch = (enabled: boolean) => {
+    setWebSearchEnabled(enabled);
+    try { localStorage.setItem('ias_web_search_enabled', String(enabled)); } catch {}
+  };
   const [savedFromWeb, setSavedFromWeb] = useState(false);
 
   const webSearch = useWebSearch({
@@ -44,8 +58,10 @@ export default function HomePage() {
 
   const handleSearch = (q: string, webEnabled: boolean) => {
     setQuery(q);
-    if (webEnabled && llmConfigured) {
+    if (webEnabled) {
       webSearch.process(q, activeCategory !== 'All' ? activeCategory : undefined);
+    } else {
+      webSearch.processLLMOnly(q, activeCategory !== 'All' ? activeCategory : undefined);
     }
   };
 
@@ -55,7 +71,7 @@ export default function HomePage() {
       setSavedFromWeb(true);
       setTimeout(() => setSavedFromWeb(false), 2000);
       webSearch.reset();
-      setWebSearchEnabled(false);
+      handleToggleWebSearch(false);
     }
   };
 
@@ -79,7 +95,7 @@ export default function HomePage() {
         onSearch={handleSearch}
         webSearchEnabled={webSearchEnabled}
         onToggleWebSearch={(enabled) => {
-          setWebSearchEnabled(enabled);
+          handleToggleWebSearch(enabled);
           if (enabled && query.trim() && llmConfigured) {
             webSearch.process(query.trim(), activeCategory !== 'All' ? activeCategory : undefined);
           }
@@ -117,7 +133,7 @@ export default function HomePage() {
       </div>
 
       {/* AI Generation Progress / Results */}
-      {webSearchEnabled && (webSearch.progress.stage === 'searching_web' || webSearch.progress.stage === 'processing_llm') && (
+      {(webSearch.progress.stage === 'searching_web' || webSearch.progress.stage === 'processing_llm' || webSearch.progress.stage === 'streaming_llm') && (
         <div className="mb-8">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
             <div className="flex items-center gap-3 mb-4">
@@ -140,12 +156,23 @@ export default function HomePage() {
                 <>
                   <Globe className="w-4 h-4 animate-spin" /> Fetching recent web results...
                 </>
+              ) : webSearch.progress.stage === 'streaming_llm' ? (
+                <>
+                  <Sparkles className="w-4 h-4 animate-pulse text-yellow-500" /> Generating response stream...
+                </>
               ) : (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" /> Analyzing with LLM and structuring your study note...
                 </>
               )}
             </div>
+
+            {/* Real-time Streaming View */}
+            {webSearch.progress.stage === 'streaming_llm' && webSearch.progress.rawStreamText && (
+              <div className="mt-6 p-4 bg-slate-900 rounded-xl overflow-x-auto text-sm font-mono text-emerald-400 max-h-96 overflow-y-auto shadow-inner">
+                <pre className="whitespace-pre-wrap">{webSearch.progress.rawStreamText}<span className="animate-pulse">|</span></pre>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -161,7 +188,7 @@ export default function HomePage() {
       )}
 
       {/* AI Generated Result */}
-      {webSearchEnabled && webSearch.generatedTopic && (
+      {webSearch.generatedTopic && (
         <div className="mb-10">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -183,7 +210,7 @@ export default function HomePage() {
                 {savedFromWeb ? 'Saved!' : 'Save to My Notes'}
               </button>
               <button
-                onClick={() => { webSearch.reset(); setWebSearchEnabled(false); }}
+                onClick={() => { webSearch.reset(); handleToggleWebSearch(false); }}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200"
               >
                 <RotateCcw className="w-4 h-4" /> Clear
@@ -255,7 +282,7 @@ export default function HomePage() {
             </Link>
             {llmConfigured && (
               <button
-                onClick={() => setWebSearchEnabled(true)}
+                onClick={() => handleToggleWebSearch(true)}
                 className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-semibold hover:opacity-90"
               >
                 <Sparkles className="w-4 h-4 inline mr-1" />
