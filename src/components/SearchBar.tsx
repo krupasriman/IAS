@@ -29,14 +29,13 @@ export default function SearchBar({
   };
 
   const dynamicPlaceholder = webSearchEnabled
-    ? 'Search web + AI analysis... (e.g. Current Affairs, Policy Updates)'
-    : 'Search topic for AI analysis... (e.g. UCC, One Nation One Election)';
+    ? 'Search web...'
+    : 'Search topic...';
 
 
 return (
   <div className="relative w-full max-w-3xl mx-auto">
     <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white shadow-sm px-3 py-2.5 focus-within:ring-2 focus-within:ring-blue-500/40 focus-within:border-blue-400 transition-all">
-      <Search className="w-5 h-5 text-slate-400 flex-shrink-0" />
       <input
         ref={inputRef}
         type="text"
@@ -48,6 +47,7 @@ return (
       />
       {value && (
         <button
+          type="button"
           onClick={() => onChange('')}
           className="p-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
         >
@@ -58,43 +58,34 @@ return (
       {/* Search Actions */}
       <div className="flex items-center gap-1.5 border-l border-slate-200 pl-2">
         <button
+          type="button"
           onClick={() => {
-            onToggleWebSearch(false);
-            if (value.trim()) onSearch(value.trim(), false);
+            onToggleWebSearch(!webSearchEnabled);
+            inputRef.current?.focus();
           }}
-          title="Search with AI Only"
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-            !webSearchEnabled
-              ? 'bg-blue-100 text-blue-700 shadow-sm'
-              : 'bg-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-700'
-          }`}
-        >
-          {loading && !webSearchEnabled ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Sparkles className="w-4 h-4" />
-          )}
-          AI Only
-        </button>
-
-        <button
-          onClick={() => {
-            onToggleWebSearch(true);
-            if (value.trim()) onSearch(value.trim(), true);
-          }}
-          title="Search the Web + AI"
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+          title={webSearchEnabled ? "Web Search Enabled" : "Enable Web Search"}
+          className={`flex items-center justify-center p-2 rounded-xl transition-all ${
             webSearchEnabled
               ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
               : 'bg-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-700'
           }`}
         >
-          {loading && webSearchEnabled ? (
+          <Globe className="w-4 h-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (value.trim()) onSearch(value.trim(), webSearchEnabled);
+          }}
+          title="Search"
+          className="flex items-center justify-center p-2 rounded-xl transition-all bg-blue-100 text-blue-700 hover:bg-blue-200 shadow-sm"
+        >
+          {loading ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
-            <Globe className="w-4 h-4" />
+            <Search className="w-4 h-4" />
           )}
-          Web Search
         </button>
       </div>
     </div>

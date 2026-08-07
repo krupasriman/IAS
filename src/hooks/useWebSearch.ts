@@ -3,7 +3,7 @@ import type { Topic } from '../types/topic.types';
 import type { GenerationProgress, WebSearchResponse } from '../types/search.types';
 import { useSettings } from '../context/SettingsContext';
 import { webSearch } from '../services/search';
-import { streamStructuredTopic } from '../services/llm/client';
+import { generateStructuredTopic } from '../services/llm/client';
 import { validateTopic } from '../utils/validator';
 
 interface UseWebSearchOptions {
@@ -71,7 +71,7 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
       console.warn('Web search failed, proceeding without results:', e);
     }
 
-    setProgress({ stage: 'processing_llm', message: 'Analyzing with LLM...', progressPercentage: 40 });
+    setProgress({ stage: 'processing_llm', message: 'Generating study note...', progressPercentage: 50 });
 
     const webContext = results?.results?.length
       ? results.results
@@ -81,25 +81,10 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
       : '';
 
     try {
-      setProgress({ stage: 'streaming_llm', message: 'Generating study note...', progressPercentage: 50, rawStreamText: '' });
-      
-      const rawText = await streamStructuredTopic(
+      const topic = await generateStructuredTopic(
         { topic: topicQuery, category, webContext },
-        settings.llm,
-        (text) => {
-          setProgress(prev => ({ ...prev, rawStreamText: text }));
-        }
+        settings.llm
       );
-
-      setProgress({ stage: 'processing_llm', message: 'Structuring output...', progressPercentage: 80 });
-      
-      // Parse the JSON manually since streamStructuredTopic returns raw text
-      const firstBrace = rawText.indexOf('{');
-      const lastBrace = rawText.lastIndexOf('}');
-      if (firstBrace === -1 || lastBrace === -1) throw new Error('Response contained no JSON');
-      const jsonText = rawText.slice(firstBrace, lastBrace + 1);
-      
-      const topic = JSON.parse(jsonText);
 
       const validation = validateTopic(topic);
       setProgress({ stage: 'validating', message: 'Validating against IAS format...', progressPercentage: 90 });
@@ -128,27 +113,14 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
     setGeneratedTopic(null);
     setSearchResults(null);
 
-    setProgress({ stage: 'processing_llm', message: 'Analyzing with LLM...', progressPercentage: 20 });
+    setProgress({ stage: 'processing_llm', message: 'Generating study note...', progressPercentage: 30 });
 
     try {
-      setProgress({ stage: 'streaming_llm', message: 'Generating study note...', progressPercentage: 30, rawStreamText: '' });
-
-      const rawText = await streamStructuredTopic(
+      const topic = await generateStructuredTopic(
         { topic: topicQuery, category, webContext: '' },
-        settings.llm,
-        (text) => {
-          setProgress(prev => ({ ...prev, rawStreamText: text }));
-        }
+        settings.llm
       );
 
-      setProgress({ stage: 'processing_llm', message: 'Structuring output...', progressPercentage: 80 });
-      
-      const firstBrace = rawText.indexOf('{');
-      const lastBrace = rawText.lastIndexOf('}');
-      if (firstBrace === -1 || lastBrace === -1) throw new Error('Response contained no JSON');
-      const jsonText = rawText.slice(firstBrace, lastBrace + 1);
-      
-      const topic = JSON.parse(jsonText);
       const validation = validateTopic(topic);
       setProgress({ stage: 'validating', message: 'Validating against IAS format...', progressPercentage: 80 });
 

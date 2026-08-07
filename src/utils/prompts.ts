@@ -78,7 +78,7 @@ export function buildUserPrompt(topic: string, category?: string, webContext?: s
   if (category) {
     prompt += `Category: ${category}\n`;
   }
-  
+
   if (webContext && webContext.trim().length > 0) {
     prompt += `\nWeb Search Results for context:\n${webContext}\n`;
     prompt += `\nPlease utilize key facts, recent statistics, and real-world incidents from the web search context above to enrich your Examples, Way Forward, and Quote sections.\n`;

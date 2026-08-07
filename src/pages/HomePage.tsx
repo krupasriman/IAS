@@ -82,10 +82,6 @@ export default function HomePage() {
         <h1 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight mb-2">
           IAS Study Notes <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Generator</span>
         </h1>
-        <p className="text-slate-500 max-w-2xl mx-auto">
-          Search any UPSC topic — get a structured analysis with Meaning, Quote, Pros & Cons, Way Forward, and Conclusion.
-          Enable <span className="font-semibold text-blue-600">AI Search</span> for web + LLM-powered analysis.
-        </p>
       </div>
 
       {/* Search Bar */}
@@ -96,9 +92,6 @@ export default function HomePage() {
         webSearchEnabled={webSearchEnabled}
         onToggleWebSearch={(enabled) => {
           handleToggleWebSearch(enabled);
-          if (enabled && query.trim() && llmConfigured) {
-            webSearch.process(query.trim(), activeCategory !== 'All' ? activeCategory : undefined);
-          }
         }}
         loading={webSearch.progress.stage === 'searching_web' || webSearch.progress.stage === 'processing_llm'}
       />
@@ -132,50 +125,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* AI Generation Progress / Results */}
-      {(webSearch.progress.stage === 'searching_web' || webSearch.progress.stage === 'processing_llm' || webSearch.progress.stage === 'streaming_llm') && (
-        <div className="mb-8">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center animate-pulse">
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-900">{webSearch.progress.message}</h3>
-                <p className="text-sm text-slate-500">Searching for "{webSearch.query}"</p>
-              </div>
-            </div>
-            <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-500"
-                style={{ width: `${webSearch.progress.progressPercentage}%` }}
-              />
-            </div>
-            <div className="flex items-center gap-2 mt-3 text-sm text-slate-500">
-              {webSearch.progress.stage === 'searching_web' ? (
-                <>
-                  <Globe className="w-4 h-4 animate-spin" /> Fetching recent web results...
-                </>
-              ) : webSearch.progress.stage === 'streaming_llm' ? (
-                <>
-                  <Sparkles className="w-4 h-4 animate-pulse text-yellow-500" /> Generating response stream...
-                </>
-              ) : (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Analyzing with LLM and structuring your study note...
-                </>
-              )}
-            </div>
-
-            {/* Real-time Streaming View */}
-            {webSearch.progress.stage === 'streaming_llm' && webSearch.progress.rawStreamText && (
-              <div className="mt-6 p-4 bg-slate-900 rounded-xl overflow-x-auto text-sm font-mono text-emerald-400 max-h-96 overflow-y-auto shadow-inner">
-                <pre className="whitespace-pre-wrap">{webSearch.progress.rawStreamText}<span className="animate-pulse">|</span></pre>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {webSearch.error && (
         <div className="mb-8 bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
@@ -210,7 +159,7 @@ export default function HomePage() {
                 {savedFromWeb ? 'Saved!' : 'Save to My Notes'}
               </button>
               <button
-                onClick={() => { webSearch.reset(); handleToggleWebSearch(false); }}
+                onClick={() => { webSearch.reset(); handleToggleWebSearch(false); setQuery(''); }}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200"
               >
                 <RotateCcw className="w-4 h-4" /> Clear
