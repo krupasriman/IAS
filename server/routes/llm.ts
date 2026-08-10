@@ -1,27 +1,58 @@
-import { Router } from 'express';
-import type { Request as ExpressRequest, Response } from 'express';
-import { validateLLMRequest } from '../validation/llm.middleware.ts';
-import { proxyChatCompletion } from '../services/llm.ts';
-import { logger } from '../../src/utils/logger.ts';
-import type { LLMRequest } from '../validation/llm.ts';
-import { sendServerError } from '../utils/errors.ts';
+import { generateText } from "ai";
+import type { Request as ExpressRequest, Response } from "express";
+import { Router } from "express";
+import { getLanguageModel } from "../../src/services/llm/provider.ts";
+import { logger } from "../../src/utils/logger.ts";
+import { resolveLlmApiKey } from "../services/keyResolver.ts";
+import { sendError, sendServerError } from "../utils/errors.ts";
+import { validateLLMRequest } from "../validation/llm.middleware.ts";
+import type { LLMRequest } from "../validation/llm.ts";
 
 const router = Router();
 
-router.post('/llm', validateLLMRequest, async (req: ExpressRequest, res: Response) => {
-  try {
-    const request = req.body as LLMRequest;
-    logger.info({ provider: request.provider, model: request.model }, 'LLM proxy request');
+router.post(
+	"/llm",
+	validateLLMRequest,
+	async (req: ExpressRequest, res: Response) => {
+		try {
+			const request = req.body as LLMRequest;
+			const resolvedApiKey = await resolveLlmApiKey(
+				request.provider,
+				request.apiKey,
+			);
+			if (!resolvedApiKey) {
+				sendError(res, 400, "No API key configured for this provider");
+				return;
+			}
+			logger.info(
+				{ provider: request.provider, model: request.model },
+				"LLM proxy request",
+			);
 
-    const result = await proxyChatCompletion(request);
-    if (result.status >= 400) {
-      logger.warn({ status: result.status, provider: request.provider }, 'LLM proxy returned error response');
-    }
-    res.status(result.status).json(result.body);
-  } catch (error: any) {
-    logger.error({ err: error }, 'Failed to process LLM request');
-    sendServerError(res, error?.message || 'Failed to process LLM request');
-  }
-});
+			const model = getLanguageModel({
+				provider: request.provider,
+				apiKey: resolvedApiKey,
+				model: request.model,
+				baseUrl: request.baseUrl,
+			});
+
+			const result = await generateText({
+				model,
+				messages: request.messages,
+				temperature: request.temperature,
+				maxOutputTokens: 4000,
+			});
+
+			res.status(200).json({ content: result.text });
+		} catch (error: unknown) {
+			const message =
+				typeof error === "object" && error !== null && "message" in error
+					? String((error as { message: unknown }).message)
+					: "Failed to process LLM request";
+			logger.error({ err: message }, "Failed to process LLM request");
+			sendServerError(res, message);
+		}
+	},
+);
 
 export default router;

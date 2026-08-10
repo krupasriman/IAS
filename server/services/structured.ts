@@ -1,136 +1,72 @@
-import type { ZodType, z } from 'zod';
-import type { LLMRequest } from '../validation/llm.ts';
-import { buildChatCompletionUrl, buildChatCompletionBody, buildChatCompletionHeaders } from './llm.ts';
-import { logger } from '../../src/utils/logger.ts';
+import { generateObject, NoObjectGeneratedError } from "ai";
+import type { ZodType } from "zod";
+import {
+	getLanguageModel,
+	type ProviderConfig,
+} from "../../src/services/llm/provider.ts";
+import {
+	DEFAULT_MAX_TOKENS,
+	DEFAULT_TEMPERATURE,
+} from "../../src/services/llm/providerDefaults.ts";
+import { logger } from "../../src/utils/logger.ts";
 
-export const MAX_STRUCTURED_RETRIES = 5;
+export const MAX_STRUCTURED_RETRIES = 2;
 
 export class StructuredLLMError extends Error {
-  lastValidation: string[];
-  constructor(message: string, lastValidation: string[]) {
-    super(message);
-    this.name = 'StructuredLLMError';
-    this.lastValidation = lastValidation;
-  }
+	lastValidation: string[];
+	constructor(message: string, lastValidation: string[]) {
+		super(message);
+		this.name = "StructuredLLMError";
+		this.lastValidation = lastValidation;
+	}
 }
 
-function extractJsonContent(content: string): string {
-  const trimmed = content.trim();
-  const fenceMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fenceMatch) return fenceMatch[1].trim();
-  const firstBrace = trimmed.indexOf('{');
-  const lastBrace = trimmed.lastIndexOf('}');
-  if (firstBrace !== -1 && lastBrace > firstBrace) {
-    return trimmed.slice(firstBrace, lastBrace + 1);
-  }
-  return trimmed;
-}
-
-function formatZodError(error: z.ZodError): string {
-  return error.issues
-    .slice(0, 5)
-    .map((issue) => {
-      const path = issue.path.length > 0 ? issue.path.join('.') : 'root';
-      return `${path}: ${issue.message}`;
-    })
-    .join('; ');
+export interface StructuredGenerateOptions {
+	maxRetries?: number;
 }
 
 export async function generateStructuredCompletion<T>(
-  request: LLMRequest,
-  schema: ZodType<T>,
-  options: { maxRetries?: number } = {}
+	config: ProviderConfig,
+	schema: ZodType<T>,
+	messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
+	options: StructuredGenerateOptions = {},
 ): Promise<T> {
-  const maxRetries = options.maxRetries ?? MAX_STRUCTURED_RETRIES;
-  const url = buildChatCompletionUrl(request.provider, request.baseUrl);
-  const headers = buildChatCompletionHeaders(request);
+	const maxRetries = options.maxRetries ?? MAX_STRUCTURED_RETRIES;
+	const model = getLanguageModel(config);
 
-  let correctiveMessages: Array<{ role: 'system'; content: string }> = [];
-  let lastErrors: string[] = [];
-
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    if (attempt > 0) {
-      logger.warn({ attempt, retries: maxRetries }, 'LLM structured output retry');
-    }
-
-    const messages = [...request.messages, ...correctiveMessages];
-    const body = buildChatCompletionBody({ ...request, messages }, true);
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      const responseText = await response.text().catch(() => '');
-      let errorMessage: string;
-      try {
-        const data = JSON.parse(responseText);
-        errorMessage = data?.error?.message || responseText || `LLM request failed: ${response.status}`;
-      } catch {
-        errorMessage = responseText || `LLM request failed: ${response.status}`;
-      }
-
-      if (attempt >= maxRetries) {
-        throw new StructuredLLMError(`LLM request failed after ${maxRetries} retries: ${errorMessage}`, lastErrors);
-      }
-      correctiveMessages.push({
-        role: 'system',
-        content: `Your previous request failed with an upstream error: ${errorMessage.slice(0, 500)}. RETRY by producing a valid JSON response matching the required schema.`,
-      });
-      continue;
-    }
-
-    const responseText = await response.text();
-    let content = '';
-    try {
-      const data = JSON.parse(responseText);
-      content = data?.choices?.[0]?.message?.content || '';
-    } catch {
-      content = '';
-    }
-
-    if (!content) {
-      lastErrors.push('LLM response contained no content');
-    } else {
-      const jsonText = extractJsonContent(content);
-      let parsed: unknown;
-      let parseError = '';
-      try {
-        parsed = JSON.parse(jsonText);
-      } catch {
-        parseError = 'Response was not valid JSON';
-      }
-
-      if (parseError || parsed === undefined) {
-        lastErrors.push(parseError || 'Response was not valid JSON');
-      } else {
-        const result = schema.safeParse(parsed);
-        if (result.success) {
-          logger.info({ attempt: attempt + 1 }, 'LLM structured output validated');
-          return result.data;
-        }
-        const formatted = formatZodError(result.error);
-        lastErrors.push(formatted);
-      }
-    }
-
-    if (attempt >= maxRetries) {
-      throw new StructuredLLMError(
-        `Failed to get a valid structured response after ${maxRetries} retries. Last errors: ${lastErrors.join(' | ')}`,
-        lastErrors
-      );
-    }
-
-    correctiveMessages = [
-      ...correctiveMessages,
-      {
-        role: 'system',
-        content: `Your previous response failed validation with these errors: ${lastErrors[lastErrors.length - 1]}. Return ONLY a valid JSON object that exactly matches the requested schema. Do not include markdown, prose, or explanations outside the JSON.`,
-      },
-    ];
-  }
-
-  throw new StructuredLLMError(`Failed to get a valid structured response after ${maxRetries} retries`, lastErrors);
+	let lastError = "";
+	for (let attempt = 0; attempt <= maxRetries; attempt++) {
+		if (attempt > 0) {
+			logger.warn({ attempt, maxRetries }, "LLM structured output retry");
+		}
+		try {
+			const { object } = await generateObject({
+				model,
+				schema,
+				messages,
+				temperature: DEFAULT_TEMPERATURE,
+				maxOutputTokens: DEFAULT_MAX_TOKENS,
+			});
+			logger.info({ attempt: attempt + 1 }, "LLM structured output validated");
+			return object as T;
+		} catch (err) {
+			if (NoObjectGeneratedError.isInstance(err)) {
+				lastError = err.message;
+				logger.warn({ attempt, err: err.message }, "NoObjectGeneratedError");
+			} else {
+				const message = err instanceof Error ? err.message : String(err);
+				lastError = message;
+				if (attempt === maxRetries) {
+					throw new StructuredLLMError(
+						`Failed to get a valid structured response after ${maxRetries} retries: ${message}`,
+						[message],
+					);
+				}
+			}
+		}
+	}
+	throw new StructuredLLMError(
+		`Failed to get a valid structured response after ${maxRetries} retries`,
+		[lastError],
+	);
 }

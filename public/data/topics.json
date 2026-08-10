@@ -1,191 +1,191 @@
 [
-  {
-    "id": "honour-killing",
-    "title": "Honour Killing",
-    "category": "Society",
-    "meaning": "Honour killing is the murder of a family member by relatives or community members, believing the victim brought profound shame upon their caste, clan, or patriarchal social order.",
-    "quote": {
-      "text": "Honour killings are nothing but barbaric and shameful acts of murder committed by brutal, feudal-minded persons.",
-      "source": "Supreme Court of India"
-    },
-    "pros": [
-      {
-        "title": "Reinforces Social Order",
-        "explanation": "Perpetrators believe these acts maintain rigid patriarchal structures and community cohesion by strictly enforcing traditional endogamy norms.",
-        "example": "Recent Khap rulings in Haryana continuously endorse social boycotts and violence to deter inter-caste marriages."
-      },
-      {
-        "title": "Cultural Deterrence",
-        "explanation": "It acts as a brutal deterrent against youth defying conservative family decrees, ensuring absolute obedience to elders' marriage dictates.",
-        "example": "The 2021 Dindigul honour killing in Tamil Nadu served as a violent warning against lower-caste alliances in villages."
-      },
-      {
-        "title": "Wealth Consolidation",
-        "explanation": "It prevents the transfer of ancestral land and familial wealth to marginalized castes through unapproved inter-caste or inter-faith marriages.",
-        "example": "Recent murders of Dalit grooms in Maharashtra highlight upper-caste anxieties regarding land fragmentation and socioeconomic mobility."
-      },
-      {
-        "title": "Preservation of Lineage",
-        "explanation": "Orthodox communities utilize lethal violence to protect perceived ethnic purity and prevent the dilution of their dominant caste identity.",
-        "example": "The 2022 Hyderabad public murder of Nagaraju demonstrates the extreme lengths communities go to preserve religious endogamy."
-      }
-    ],
-    "cons": [
-      {
-        "title": "Gross Constitutional Violation",
-        "explanation": "These murders directly infringe upon Article 21, stripping individuals of the fundamental right to life and personal liberty.",
-        "example": "The 2023 murder of a Dalit youth in Someshwara explicitly violated his constitutional right to freely choose a partner."
-      },
-      {
-        "title": "Law Enforcement Complicity",
-        "explanation": "Local police often act as mute spectators or actively collude with dominant caste perpetrators due to shared social biases.",
-        "example": "In the 2022 Vanchiyoor honour killing case, initial police negligence allowed perpetrators to destroy crucial forensic evidence."
-      },
-      {
-        "title": "Subjugation of Women",
-        "explanation": "It violently suppresses women's agency, reducing them to mere repositories of family honour devoid of independent reproductive choices.",
-        "example": "The 2024 Bareilly case, where a father killed his daughter for a self-chosen alliance, underscores this patriarchal control."
-      },
-      {
-        "title": "Global Reputational Damage",
-        "explanation": "The persistence of such extrajudicial killings tarnishes India's global democratic standing and violates UN conventions on human rights.",
-        "example": "Recent Amnesty International reports heavily criticized India's failure to protect inter-faith couples, impacting its global human rights index."
-      }
-    ],
-    "wayForward": "Parliament must promptly enact dedicated anti-honour killing legislation, completely criminalizing Khap dictates, as recommended by the 242nd Law Commission Report. States must strictly implement the Supreme Court’s Shakti Vahini guidelines by establishing secure safe houses, activating preventive intelligence cells, and imposing strict penal accountability on district officials failing to protect vulnerable couples.",
-    "conclusion": {
-      "negative": "Deep-rooted caste prejudices relentlessly fuel these brutal extrajudicial murders across rural India.",
-      "positive": "However, proactive judicial interventions and progressive youth are slowly dismantling these archaic structures."
-    },
-    "source": "local",
-    "tags": ["Caste", "Gender", "Article 21", "Khap Panchayat"],
-    "createdAt": "2026-01-10T10:00:00.000Z",
-    "updatedAt": "2026-01-10T10:00:00.000Z"
-  },
-  {
-    "id": "uniform-civil-code",
-    "title": "Uniform Civil Code (UCC)",
-    "category": "Polity",
-    "meaning": "Uniform Civil Code refers to a single set of personal laws governing marriage, divorce, succession, and adoption applicable to all Indian citizens regardless of religion.",
-    "quote": {
-      "text": "The State shall endeavour to secure for the citizens a Uniform Civil Code throughout the territory of India.",
-      "source": "Article 44, Directive Principles of State Policy"
-    },
-    "pros": [
-      {
-        "title": "Gender Equality",
-        "explanation": "UCC eliminates patriarchal practices in personal laws, granting equal inheritance, maintenance, and custody rights to women across all religious communities.",
-        "example": "Uttarakhand's 2024 UCC legislation guaranteed equal property rights to daughters and banned polygamy across communities."
-      },
-      {
-        "title": "National Integration",
-        "explanation": "Replacing diverse personal laws fosters a unified national identity and eliminates legal fragmentation based on religious affiliation.",
-        "example": "Goa's long-standing Uniform Civil Code has successfully integrated diverse religious groups under a civil framework for decades."
-      },
-      {
-        "title": "Legal Simplification",
-        "explanation": "A common civil code streamlines judicial administration, reduces litigation complexity, and removes archaic personal laws from courts.",
-        "example": "The Law Commission highlighted how conflicting personal succession laws overload civil courts with protracted inheritance disputes."
-      },
-      {
-        "title": "Secular Governance",
-        "explanation": "UCC reinforces the secular principle by separating personal legal rights from religious dogma, aligning with modern democratic standards.",
-        "example": "Recent Supreme Court rulings in Shah Bano and Shayara Bano emphasized secular civil rights over discriminatory personal practices."
-      }
-    ],
-    "cons": [
-      {
-        "title": "Religious Freedom Concerns",
-        "explanation": "Minority groups fear that a uniform code may impose majority cultural norms, infringing upon Article 25 freedom of religion.",
-        "example": "Protests by tribal bodies in the Northeast led to exemptions for Sixth Schedule areas in proposed UCC frameworks."
-      },
-      {
-        "title": "Plurality Undermined",
-        "explanation": "India's rich socio-cultural diversity and customary tribal practices risk being eroded under a standardized uniform legal regime.",
-        "example": "Customary land inheritance practices among Nagas and Garos face legal friction under proposed standardized inheritance rules."
-      },
-      {
-        "title": "Implementation Friction",
-        "explanation": "Drafting a code acceptable to all communities requires unprecedented political consensus and delicate negotiations across diverse groups.",
-        "example": "The 21st Law Commission concluded in 2018 that UCC was 'neither necessary nor desirable at this stage' due to diversity."
-      },
-      {
-        "title": "Potential State Encroachment",
-        "explanation": "Over-regulation of personal relationships and mandatory registration of live-in relationships raise privacy and individual liberty concerns.",
-        "example": "Uttarakhand UCC's mandatory live-in relationship registration clause faced criticism for state surveillance and police interference."
-      }
-    ],
-    "wayForward": "The government should adopt an incremental reform approach by codifying and amending discriminatory aspects within individual personal laws first. Parliament must consult religious heads, tribal councils, and women's rights groups to build broad consensus, incorporating progressive customary practices into a flexible civil framework.",
-    "conclusion": {
-      "negative": "Deep-seated religious sensitivities and fears of majority hegemony continue to impede a universal civil code.",
-      "positive": "While gradual consensus-building and gender-focused reform of personal laws remain the pragmatically viable path forward."
-    },
-    "source": "local",
-    "tags": ["Article 44", "Gender Rights", "Secularism", "Personal Laws"],
-    "createdAt": "2026-01-12T10:00:00.000Z",
-    "updatedAt": "2026-01-12T10:00:00.000Z"
-  },
-  {
-    "id": "one-nation-one-election",
-    "title": "One Nation One Election",
-    "category": "Governance",
-    "meaning": "One Nation One Election proposes synchronizing Lok Sabha and state assembly elections into a single cycle to streamline governance and reduce electoral expenditure.",
-    "quote": {
-      "text": "Simultaneous elections would save financial resources and prevent policy paralysis caused by frequent model code of conduct enforcement.",
-      "source": "Kovind Committee Report on Simultaneous Elections (2024)"
-    },
-    "pros": [
-      {
-        "title": "Financial Savings",
-        "explanation": "Combining state and central elections significantly reduces public expenditure incurred on election management, security deployment, and campaign spending.",
-        "example": "The Election Commission estimated potential savings of over ₹4,500 crore in administrative costs during simultaneous polls."
-      },
-      {
-        "title": "Governance Continuity",
-        "explanation": "Minimizes frequent imposition of the Model Code of Conduct, allowing governments to focus on long-term policy execution without election pauses.",
-        "example": "The 2024 Kovind Committee noted that states face over 200 days of Model Code freezes every five-year cycle."
-      },
-      {
-        "title": "Reduced Populism",
-        "explanation": "Prevents governments from constantly making short-term populist policy announcements aimed at upcoming state elections.",
-        "example": "Frequent state election cycles often lead to recurring farm loan waivers that strain state exchequer finances."
-      },
-      {
-        "title": "Administrative Efficiency",
-        "explanation": "Releases security forces, teachers, and civil administrators from recurring election duties, restoring them to core public services.",
-        "example": "Over 10 lakh paramilitary personnel and central officers are deployed annually across recurring state assembly polls."
-      }
-    ],
-    "cons": [
-      {
-        "title": "Federalism Erosion",
-        "explanation": "Premature dissolution of state assemblies or central government failure undermines federal structure and state legislative independence.",
-        "example": "Opposition parties argued that constitutional amendments required to alter assembly tenures violate basic federal principles."
-      },
-      {
-        "title": "National Issue Dominance",
-        "explanation": "Voters may prioritize national issues over regional concerns, marginalizing local problems and smaller regional political parties.",
-        "example": "Studies of simultaneous elections in 2019 showed over 77% voter overlap choosing the same party for state and center."
-      },
-      {
-        "title": "Logistical Nightmares",
-        "explanation": "Requires massive procurement of EVMs, VVPATs, security deployment, and polling personnel simultaneously across 1.4 billion citizens.",
-        "example": "The Election Commission stated that simultaneous elections require 30 lakh additional EVMs costing over ₹10,000 crore."
-      },
-      {
-        "title": "Constitutional Hurdles",
-        "explanation": "Requires extensive constitutional amendments to Articles 83, 85, 172, and 174, needing ratification by at least half of the states.",
-        "example": "The 2024 High-Level Committee recommended a two-phase implementation plan requiring 5 major constitutional amendment bills."
-      }
-    ],
-    "wayForward": "The government must adopt a phased implementation strategy as recommended by the Ram Nath Kovind Committee, starting with synchronizing assembly polls first. Constitutional safeguards must be built to address hung assemblies or early dissolutions through construct-of-no-confidence votes.",
-    "conclusion": {
-      "negative": "Complex constitutional amendments and opposition skepticism pose formidable hurdles to simultaneous electoral cycles.",
-      "positive": "However, prudent consensus-building and incremental synchronization can drastically reduce wasteful administrative expenditure."
-    },
-    "source": "local",
-    "tags": ["Elections", "Federalism", "Kovind Committee", "Governance"],
-    "createdAt": "2026-01-15T10:00:00.000Z",
-    "updatedAt": "2026-01-15T10:00:00.000Z"
-  }
+	{
+		"id": "honour-killing",
+		"title": "Honour Killing",
+		"category": "Society",
+		"meaning": "Honour killing is the murder of a family member by relatives or community members, believing the victim brought profound shame upon their caste, clan, or patriarchal social order.",
+		"quote": {
+			"text": "Honour killings are nothing but barbaric and shameful acts of murder committed by brutal, feudal-minded persons.",
+			"source": "Supreme Court of India"
+		},
+		"pros": [
+			{
+				"title": "Reinforces Social Order",
+				"explanation": "Perpetrators believe these acts maintain rigid patriarchal structures and community cohesion by strictly enforcing traditional endogamy norms.",
+				"example": "Recent Khap rulings in Haryana continuously endorse social boycotts and violence to deter inter-caste marriages."
+			},
+			{
+				"title": "Cultural Deterrence",
+				"explanation": "It acts as a brutal deterrent against youth defying conservative family decrees, ensuring absolute obedience to elders' marriage dictates.",
+				"example": "The 2021 Dindigul honour killing in Tamil Nadu served as a violent warning against lower-caste alliances in villages."
+			},
+			{
+				"title": "Wealth Consolidation",
+				"explanation": "It prevents the transfer of ancestral land and familial wealth to marginalized castes through unapproved inter-caste or inter-faith marriages.",
+				"example": "Recent murders of Dalit grooms in Maharashtra highlight upper-caste anxieties regarding land fragmentation and socioeconomic mobility."
+			},
+			{
+				"title": "Preservation of Lineage",
+				"explanation": "Orthodox communities utilize lethal violence to protect perceived ethnic purity and prevent the dilution of their dominant caste identity.",
+				"example": "The 2022 Hyderabad public murder of Nagaraju demonstrates the extreme lengths communities go to preserve religious endogamy."
+			}
+		],
+		"cons": [
+			{
+				"title": "Gross Constitutional Violation",
+				"explanation": "These murders directly infringe upon Article 21, stripping individuals of the fundamental right to life and personal liberty.",
+				"example": "The 2023 murder of a Dalit youth in Someshwara explicitly violated his constitutional right to freely choose a partner."
+			},
+			{
+				"title": "Law Enforcement Complicity",
+				"explanation": "Local police often act as mute spectators or actively collude with dominant caste perpetrators due to shared social biases.",
+				"example": "In the 2022 Vanchiyoor honour killing case, initial police negligence allowed perpetrators to destroy crucial forensic evidence."
+			},
+			{
+				"title": "Subjugation of Women",
+				"explanation": "It violently suppresses women's agency, reducing them to mere repositories of family honour devoid of independent reproductive choices.",
+				"example": "The 2024 Bareilly case, where a father killed his daughter for a self-chosen alliance, underscores this patriarchal control."
+			},
+			{
+				"title": "Global Reputational Damage",
+				"explanation": "The persistence of such extrajudicial killings tarnishes India's global democratic standing and violates UN conventions on human rights.",
+				"example": "Recent Amnesty International reports heavily criticized India's failure to protect inter-faith couples, impacting its global human rights index."
+			}
+		],
+		"wayForward": "Parliament must promptly enact dedicated anti-honour killing legislation, completely criminalizing Khap dictates, as recommended by the 242nd Law Commission Report. States must strictly implement the Supreme Court’s Shakti Vahini guidelines by establishing secure safe houses, activating preventive intelligence cells, and imposing strict penal accountability on district officials failing to protect vulnerable couples.",
+		"conclusion": {
+			"negative": "Deep-rooted caste prejudices relentlessly fuel these brutal extrajudicial murders across rural India.",
+			"positive": "However, proactive judicial interventions and progressive youth are slowly dismantling these archaic structures."
+		},
+		"source": "local",
+		"tags": ["Caste", "Gender", "Article 21", "Khap Panchayat"],
+		"createdAt": "2026-01-10T10:00:00.000Z",
+		"updatedAt": "2026-01-10T10:00:00.000Z"
+	},
+	{
+		"id": "uniform-civil-code",
+		"title": "Uniform Civil Code (UCC)",
+		"category": "Polity",
+		"meaning": "Uniform Civil Code refers to a single set of personal laws governing marriage, divorce, succession, and adoption applicable to all Indian citizens regardless of religion.",
+		"quote": {
+			"text": "The State shall endeavour to secure for the citizens a Uniform Civil Code throughout the territory of India.",
+			"source": "Article 44, Directive Principles of State Policy"
+		},
+		"pros": [
+			{
+				"title": "Gender Equality",
+				"explanation": "UCC eliminates patriarchal practices in personal laws, granting equal inheritance, maintenance, and custody rights to women across all religious communities.",
+				"example": "Uttarakhand's 2024 UCC legislation guaranteed equal property rights to daughters and banned polygamy across communities."
+			},
+			{
+				"title": "National Integration",
+				"explanation": "Replacing diverse personal laws fosters a unified national identity and eliminates legal fragmentation based on religious affiliation.",
+				"example": "Goa's long-standing Uniform Civil Code has successfully integrated diverse religious groups under a civil framework for decades."
+			},
+			{
+				"title": "Legal Simplification",
+				"explanation": "A common civil code streamlines judicial administration, reduces litigation complexity, and removes archaic personal laws from courts.",
+				"example": "The Law Commission highlighted how conflicting personal succession laws overload civil courts with protracted inheritance disputes."
+			},
+			{
+				"title": "Secular Governance",
+				"explanation": "UCC reinforces the secular principle by separating personal legal rights from religious dogma, aligning with modern democratic standards.",
+				"example": "Recent Supreme Court rulings in Shah Bano and Shayara Bano emphasized secular civil rights over discriminatory personal practices."
+			}
+		],
+		"cons": [
+			{
+				"title": "Religious Freedom Concerns",
+				"explanation": "Minority groups fear that a uniform code may impose majority cultural norms, infringing upon Article 25 freedom of religion.",
+				"example": "Protests by tribal bodies in the Northeast led to exemptions for Sixth Schedule areas in proposed UCC frameworks."
+			},
+			{
+				"title": "Plurality Undermined",
+				"explanation": "India's rich socio-cultural diversity and customary tribal practices risk being eroded under a standardized uniform legal regime.",
+				"example": "Customary land inheritance practices among Nagas and Garos face legal friction under proposed standardized inheritance rules."
+			},
+			{
+				"title": "Implementation Friction",
+				"explanation": "Drafting a code acceptable to all communities requires unprecedented political consensus and delicate negotiations across diverse groups.",
+				"example": "The 21st Law Commission concluded in 2018 that UCC was 'neither necessary nor desirable at this stage' due to diversity."
+			},
+			{
+				"title": "Potential State Encroachment",
+				"explanation": "Over-regulation of personal relationships and mandatory registration of live-in relationships raise privacy and individual liberty concerns.",
+				"example": "Uttarakhand UCC's mandatory live-in relationship registration clause faced criticism for state surveillance and police interference."
+			}
+		],
+		"wayForward": "The government should adopt an incremental reform approach by codifying and amending discriminatory aspects within individual personal laws first. Parliament must consult religious heads, tribal councils, and women's rights groups to build broad consensus, incorporating progressive customary practices into a flexible civil framework.",
+		"conclusion": {
+			"negative": "Deep-seated religious sensitivities and fears of majority hegemony continue to impede a universal civil code.",
+			"positive": "While gradual consensus-building and gender-focused reform of personal laws remain the pragmatically viable path forward."
+		},
+		"source": "local",
+		"tags": ["Article 44", "Gender Rights", "Secularism", "Personal Laws"],
+		"createdAt": "2026-01-12T10:00:00.000Z",
+		"updatedAt": "2026-01-12T10:00:00.000Z"
+	},
+	{
+		"id": "one-nation-one-election",
+		"title": "One Nation One Election",
+		"category": "Governance",
+		"meaning": "One Nation One Election proposes synchronizing Lok Sabha and state assembly elections into a single cycle to streamline governance and reduce electoral expenditure.",
+		"quote": {
+			"text": "Simultaneous elections would save financial resources and prevent policy paralysis caused by frequent model code of conduct enforcement.",
+			"source": "Kovind Committee Report on Simultaneous Elections (2024)"
+		},
+		"pros": [
+			{
+				"title": "Financial Savings",
+				"explanation": "Combining state and central elections significantly reduces public expenditure incurred on election management, security deployment, and campaign spending.",
+				"example": "The Election Commission estimated potential savings of over ₹4,500 crore in administrative costs during simultaneous polls."
+			},
+			{
+				"title": "Governance Continuity",
+				"explanation": "Minimizes frequent imposition of the Model Code of Conduct, allowing governments to focus on long-term policy execution without election pauses.",
+				"example": "The 2024 Kovind Committee noted that states face over 200 days of Model Code freezes every five-year cycle."
+			},
+			{
+				"title": "Reduced Populism",
+				"explanation": "Prevents governments from constantly making short-term populist policy announcements aimed at upcoming state elections.",
+				"example": "Frequent state election cycles often lead to recurring farm loan waivers that strain state exchequer finances."
+			},
+			{
+				"title": "Administrative Efficiency",
+				"explanation": "Releases security forces, teachers, and civil administrators from recurring election duties, restoring them to core public services.",
+				"example": "Over 10 lakh paramilitary personnel and central officers are deployed annually across recurring state assembly polls."
+			}
+		],
+		"cons": [
+			{
+				"title": "Federalism Erosion",
+				"explanation": "Premature dissolution of state assemblies or central government failure undermines federal structure and state legislative independence.",
+				"example": "Opposition parties argued that constitutional amendments required to alter assembly tenures violate basic federal principles."
+			},
+			{
+				"title": "National Issue Dominance",
+				"explanation": "Voters may prioritize national issues over regional concerns, marginalizing local problems and smaller regional political parties.",
+				"example": "Studies of simultaneous elections in 2019 showed over 77% voter overlap choosing the same party for state and center."
+			},
+			{
+				"title": "Logistical Nightmares",
+				"explanation": "Requires massive procurement of EVMs, VVPATs, security deployment, and polling personnel simultaneously across 1.4 billion citizens.",
+				"example": "The Election Commission stated that simultaneous elections require 30 lakh additional EVMs costing over ₹10,000 crore."
+			},
+			{
+				"title": "Constitutional Hurdles",
+				"explanation": "Requires extensive constitutional amendments to Articles 83, 85, 172, and 174, needing ratification by at least half of the states.",
+				"example": "The 2024 High-Level Committee recommended a two-phase implementation plan requiring 5 major constitutional amendment bills."
+			}
+		],
+		"wayForward": "The government must adopt a phased implementation strategy as recommended by the Ram Nath Kovind Committee, starting with synchronizing assembly polls first. Constitutional safeguards must be built to address hung assemblies or early dissolutions through construct-of-no-confidence votes.",
+		"conclusion": {
+			"negative": "Complex constitutional amendments and opposition skepticism pose formidable hurdles to simultaneous electoral cycles.",
+			"positive": "However, prudent consensus-building and incremental synchronization can drastically reduce wasteful administrative expenditure."
+		},
+		"source": "local",
+		"tags": ["Elections", "Federalism", "Kovind Committee", "Governance"],
+		"createdAt": "2026-01-15T10:00:00.000Z",
+		"updatedAt": "2026-01-15T10:00:00.000Z"
+	}
 ]

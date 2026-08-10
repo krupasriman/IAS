@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { parseMarkdownToTopic } from './parser';
+import { describe, expect, it } from "vitest";
+import { parseMarkdownToTopicAsync } from "./parseMarkdown";
+import { parseMarkdownToTopic } from "./parser";
 
 const SAMPLE_OUTPUT = `Meaning
 Judicial review is the power of courts to examine the constitutionality of legislative and executive actions. It serves as a cornerstone of constitutional democracy.
@@ -43,36 +44,49 @@ Conclusion
 Judicial overreach and case pendency remain persistent challenges.
 However, judicial review remains the bedrock of Indian constitutional democracy.`;
 
-describe('parseMarkdownToTopic', () => {
-  it('parses all five sections from a full LLM response', () => {
-    const topic = parseMarkdownToTopic(SAMPLE_OUTPUT, 'Judicial Review', 'Polity');
+describe("parseMarkdownToTopic", () => {
+	it("parses all five sections from a full LLM response", () => {
+		const topic = parseMarkdownToTopic(
+			SAMPLE_OUTPUT,
+			"Judicial Review",
+			"Polity",
+		);
 
-    expect(topic.title).toBe('Judicial Review');
-    expect(topic.category).toBe('Polity');
-    expect(topic.meaning).toContain('Judicial review is the power of courts');
-    expect(topic.quote!.text).toBe('The Constitution is the supreme law of the land.');
-    expect(topic.quote!.source).toBe('Dr. B.R. Ambedkar');
-    expect(topic.pros).toHaveLength(4);
-    expect(topic.cons).toHaveLength(4);
-    expect(topic.wayForward).toContain('National Litigation Policy');
-    expect(topic.conclusion).toEqual({
-      negative: 'Judicial overreach and case pendency remain persistent challenges.',
-      positive: 'However, judicial review remains the bedrock of Indian constitutional democracy.',
-    });
-  });
+		expect(topic.title).toBe("Judicial Review");
+		expect(topic.category).toBe("Polity");
+		expect(topic.meaning).toContain("Judicial review is the power of courts");
+		expect(topic.quote?.text).toBe(
+			"The Constitution is the supreme law of the land.",
+		);
+		expect(topic.quote?.source).toBe("Dr. B.R. Ambedkar");
+		expect(topic.pros).toHaveLength(4);
+		expect(topic.cons).toHaveLength(4);
+		expect(topic.wayForward).toContain("National Litigation Policy");
+		expect(topic.conclusion).toEqual({
+			negative:
+				"Judicial overreach and case pendency remain persistent challenges.",
+			positive:
+				"However, judicial review remains the bedrock of Indian constitutional democracy.",
+		});
+	});
 
-  it('parses quoted items and their examples', () => {
-    const topic = parseMarkdownToTopic(SAMPLE_OUTPUT, 'Judicial Review', 'Polity');
+	it("parses quoted items and their examples", () => {
+		const topic = parseMarkdownToTopic(
+			SAMPLE_OUTPUT,
+			"Judicial Review",
+			"Polity",
+		);
 
-    expect(topic.pros![0]).toEqual({
-      title: 'Protection of Rights',
-      explanation: 'Courts can strike down unconstitutional laws.',
-      example: 'Kesavananda Bharati case established the basic structure doctrine.',
-    });
-  });
+		expect(topic.pros?.[0]).toEqual({
+			title: "Protection of Rights",
+			explanation: "Courts can strike down unconstitutional laws.",
+			example:
+				"Kesavananda Bharati case established the basic structure doctrine.",
+		});
+	});
 
-  it('dedupes cons that mirror pro titles', () => {
-    const text = `Meaning
+	it("dedupes cons that mirror pro titles", () => {
+		const text = `Meaning
 Some meaning text.
 
 Quote
@@ -95,27 +109,31 @@ Example: Duplicate example.
 2. Delays in Justice: Cases take too long.
 Example: Example three.`;
 
-    const topic = parseMarkdownToTopic(text, 'Test Topic', 'Polity');
+		const topic = parseMarkdownToTopic(text, "Test Topic", "Polity");
 
-    const consTitles = topic.cons!.map((c) => c.title.toLowerCase());
-    expect(consTitles).not.toContain('checks executive power');
-    expect(consTitles).toContain('delays in justice');
-  });
+		const consTitles = topic.cons?.map((c) => c.title.toLowerCase());
+		expect(consTitles).not.toContain("checks executive power");
+		expect(consTitles).toContain("delays in justice");
+	});
 
-  it('applies default fallbacks when sections are missing', () => {
-    const topic = parseMarkdownToTopic('Meaning\nSome text here.', 'Minimal Topic', 'Economy');
+	it("applies default fallbacks when sections are missing", () => {
+		const topic = parseMarkdownToTopic(
+			"Meaning\nSome text here.",
+			"Minimal Topic",
+			"Economy",
+		);
 
-    expect(topic.meaning).toBe('Some text here.');
-    expect(topic.quote!.text).toBeTruthy();
-    expect(topic.quote!.source).toBeTruthy();
-    expect(topic.pros).toEqual([]);
-    expect(topic.cons).toEqual([]);
-    expect(topic.wayForward).toBeTruthy();
-    expect(typeof topic.conclusion).toBe('string');
-  });
+		expect(topic.meaning).toBe("Some text here.");
+		expect(topic.quote?.text).toBeTruthy();
+		expect(topic.quote?.source).toBeTruthy();
+		expect(topic.pros).toEqual([]);
+		expect(topic.cons).toEqual([]);
+		expect(topic.wayForward).toBeTruthy();
+		expect(typeof topic.conclusion).toBe("string");
+	});
 
-  it('handles asterisk-marked section headers', () => {
-    const text = `**Meaning**
+	it("handles asterisk-marked section headers", () => {
+		const text = `**Meaning**
 Bold-styled meaning definition here.
 **Quote**
 "Quote text" - Source
@@ -131,19 +149,38 @@ Some path forward.
 Negative line.
 Positive line.`;
 
-    const topic = parseMarkdownToTopic(text, 'Bold Topic', 'Governance');
+		const topic = parseMarkdownToTopic(text, "Bold Topic", "Governance");
 
-    expect(topic.meaning).toContain('Bold-styled meaning');
-    expect(topic.quote!.text).toBe('Quote text');
-    expect(topic.pros).toHaveLength(1);
-    expect(topic.cons).toHaveLength(1);
-    expect(topic.wayForward).toContain('Some path forward');
-  });
+		expect(topic.meaning).toContain("Bold-styled meaning");
+		expect(topic.quote?.text).toBe("Quote text");
+		expect(topic.pros).toHaveLength(1);
+		expect(topic.cons).toHaveLength(1);
+		expect(topic.wayForward).toContain("Some path forward");
+	});
 
-  it('returns ISO timestamps', () => {
-    const topic = parseMarkdownToTopic(SAMPLE_OUTPUT, 'Judicial Review', 'Polity');
+	it("returns ISO timestamps", () => {
+		const topic = parseMarkdownToTopic(
+			SAMPLE_OUTPUT,
+			"Judicial Review",
+			"Polity",
+		);
 
-    expect(new Date(topic.createdAt!).getTime()).not.toBeNaN();
-    expect(new Date(topic.updatedAt!).getTime()).not.toBeNaN();
-  });
+		expect(new Date(topic.createdAt ?? "").getTime()).not.toBeNaN();
+		expect(new Date(topic.updatedAt ?? "").getTime()).not.toBeNaN();
+	});
+});
+
+describe("parseMarkdownToTopicAsync", () => {
+	it("parses via worker with same result as sync parser", async () => {
+		const topic = await parseMarkdownToTopicAsync(
+			SAMPLE_OUTPUT,
+			"Judicial Review",
+			"Polity",
+		);
+
+		expect(topic.meaning).toContain("Judicial review is the power");
+		expect(topic.pros).toHaveLength(4);
+		expect(topic.cons).toHaveLength(4);
+		expect(topic.wayForward).toContain("National Litigation Policy");
+	});
 });

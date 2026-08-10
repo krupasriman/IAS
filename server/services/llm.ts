@@ -1,69 +1,58 @@
-import type { LLMRequest } from '../validation/llm.ts';
+import type { ProviderConfig } from "../../src/services/llm/provider.ts";
 
-export const PROVIDER_DEFAULTS: Record<string, string> = {
-  openrouter: 'https://openrouter.ai/api/v1',
-  groq: 'https://api.groq.com/openai/v1',
-  generalcompute: 'https://api.generalcompute.com/v1',
-};
+export { getLanguageModel } from "../../src/services/llm/provider.ts";
+export {
+	DEFAULT_MAX_TOKENS,
+	DEFAULT_TEMPERATURE,
+	PROVIDER_DEFAULTS,
+} from "../../src/services/llm/providerDefaults.ts";
 
-export const DEFAULT_MAX_TOKENS = 4000;
-export const DEFAULT_TEMPERATURE = 0.3;
+export type { ProviderConfig };
 
-export interface ProxyResult {
-  status: number;
-  body: any;
+export function buildChatCompletionUrl(
+	_provider: string,
+	_baseUrl?: string,
+): string {
+	throw new Error(
+		"buildChatCompletionUrl is deprecated; use getLanguageModel() from AI SDK",
+	);
 }
 
-export function buildChatCompletionBody(request: LLMRequest, structured = false): any {
-  return {
-    model: request.model,
-    messages: request.messages,
-    temperature: request.temperature ?? DEFAULT_TEMPERATURE,
-    max_tokens: DEFAULT_MAX_TOKENS,
-    ...(structured ? { response_format: { type: 'json_object' as const } } : {}),
-  };
+export function buildChatCompletionHeaders(
+	_request: Record<string, unknown>,
+): Record<string, string> {
+	throw new Error(
+		"buildChatCompletionHeaders is deprecated; use getLanguageModel() from AI SDK",
+	);
 }
 
-export function buildChatCompletionUrl(provider: string, baseUrl?: string): string {
-  const base = baseUrl || PROVIDER_DEFAULTS[provider] || 'https://api.openai.com/v1';
-  return `${base.replace(/\/$/, '')}/chat/completions`;
+export function buildChatCompletionBody(
+	_request: Record<string, unknown>,
+	_structured = false,
+): Record<string, unknown> {
+	throw new Error(
+		"buildChatCompletionBody is deprecated; use generateObject/streamText from AI SDK",
+	);
 }
 
-export function buildChatCompletionHeaders(request: LLMRequest): Record<string, string> {
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${request.apiKey}`
-  };
+export async function proxyChatCompletion(
+	_request: Record<string, unknown>,
+): Promise<{ status: number; body: unknown }> {
+	throw new Error(
+		"proxyChatCompletion is deprecated; use generateText from AI SDK",
+	);
 }
 
-export async function proxyChatCompletion(request: LLMRequest): Promise<ProxyResult> {
-  const url = buildChatCompletionUrl(request.provider, request.baseUrl);
-  const headers = buildChatCompletionHeaders(request);
-  const body = buildChatCompletionBody(request);
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-  });
-
-  const responseText = await response.text();
-  let data: any;
-  try {
-    data = JSON.parse(responseText);
-  } catch {
-    data = { raw: responseText };
-  }
-
-  if (!response.ok) {
-    const message = data?.error?.message || data.raw || `LLM request failed: ${response.status} ${response.statusText}`;
-    return { status: response.status, body: { error: message } };
-  }
-
-  const content = data?.choices?.[0]?.message?.content || '';
-  if (!content) {
-    return { status: 500, body: { error: 'LLM response contained no content' } };
-  }
-
-  return { status: 200, body: { content } };
+export function _configFromLegacy(request: {
+	provider: string;
+	apiKey: string;
+	model: string;
+	baseUrl?: string;
+}): ProviderConfig {
+	return {
+		provider: request.provider as ProviderConfig["provider"],
+		apiKey: request.apiKey,
+		model: request.model,
+		baseUrl: request.baseUrl,
+	};
 }
