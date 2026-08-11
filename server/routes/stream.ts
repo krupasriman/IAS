@@ -1,5 +1,6 @@
 import {
 	createTextStreamResponse,
+	type ModelMessage,
 	pipeTextStreamToResponse,
 	streamText,
 } from "ai";
@@ -67,6 +68,11 @@ router.post("/generate/stream", async (req: ExpressRequest, res: Response) => {
 			sendError(res, 400, "No API key configured for this provider");
 			return;
 		}
+		const systemMessage = messages.find((m) => m.role === "system")?.content;
+		const otherMessages = messages.filter(
+			(m) => m.role !== "system",
+		) as ModelMessage[];
+
 		const languageModel = getLanguageModel({
 			provider,
 			apiKey: resolvedApiKey,
@@ -76,7 +82,8 @@ router.post("/generate/stream", async (req: ExpressRequest, res: Response) => {
 
 		const result = streamText({
 			model: languageModel,
-			messages,
+			system: systemMessage,
+			messages: otherMessages,
 			temperature: temperature ?? 0.3,
 			onError: ({ error }) => {
 				logger.error({ err: String(error) }, "AI SDK stream error");

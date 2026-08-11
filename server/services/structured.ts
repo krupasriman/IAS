@@ -1,4 +1,4 @@
-import { generateObject, NoObjectGeneratedError } from "ai";
+import { generateObject, type ModelMessage, NoObjectGeneratedError } from "ai";
 import type { ZodType } from "zod";
 import {
 	getLanguageModel,
@@ -34,6 +34,11 @@ export async function generateStructuredCompletion<T>(
 	const maxRetries = options.maxRetries ?? MAX_STRUCTURED_RETRIES;
 	const model = getLanguageModel(config);
 
+	const systemMessage = messages.find((m) => m.role === "system")?.content;
+	const otherMessages = messages.filter(
+		(m) => m.role !== "system",
+	) as ModelMessage[];
+
 	let lastError = "";
 	for (let attempt = 0; attempt <= maxRetries; attempt++) {
 		if (attempt > 0) {
@@ -43,7 +48,8 @@ export async function generateStructuredCompletion<T>(
 			const { object } = await generateObject({
 				model,
 				schema,
-				messages,
+				system: systemMessage,
+				messages: otherMessages,
 				temperature: DEFAULT_TEMPERATURE,
 				maxOutputTokens: DEFAULT_MAX_TOKENS,
 			});

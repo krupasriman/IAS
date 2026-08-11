@@ -1,4 +1,4 @@
-import { generateText } from "ai";
+import { generateText, type ModelMessage } from "ai";
 import type { Request as ExpressRequest, Response } from "express";
 import { Router } from "express";
 import { getLanguageModel } from "../../src/services/llm/provider.ts";
@@ -36,9 +36,17 @@ router.post(
 				baseUrl: request.baseUrl,
 			});
 
+			const systemMessage = request.messages.find(
+				(m) => m.role === "system",
+			)?.content;
+			const otherMessages = request.messages.filter(
+				(m) => m.role !== "system",
+			) as ModelMessage[];
+
 			const result = await generateText({
 				model,
-				messages: request.messages,
+				system: systemMessage,
+				messages: otherMessages,
 				temperature: request.temperature,
 				maxOutputTokens: 4000,
 			});
