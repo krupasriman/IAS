@@ -34,7 +34,9 @@ function defaultFormValues(initial?: Topic): TopicFormValues {
 			meaning: initial.meaning,
 			quoteText: initial.quote?.text ?? "",
 			quoteSource: initial.quote?.source ?? "",
-			wayForward: initial.wayForward,
+			wayForward: Array.isArray(initial.wayForward)
+				? initial.wayForward.join("\n")
+				: initial.wayForward,
 			conclusionNegative:
 				typeof initial.conclusion === "object"
 					? initial.conclusion.negative
@@ -117,7 +119,10 @@ export default function TopicForm({
 			},
 			pros: cleanPros,
 			cons: cleanCons,
-			wayForward: values.wayForward.trim(),
+			wayForward: values.wayForward
+				.split("\n")
+				.map((s) => s.trim())
+				.filter(Boolean),
 			conclusion: {
 				negative: values.conclusionNegative.trim(),
 				positive: values.conclusionPositive.trim(),

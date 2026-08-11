@@ -21,12 +21,14 @@
 - **Persistence**: SQLite via **better-sqlite3** + **Drizzle ORM** (`data/ias.db`, WAL mode). Migrations auto-run at boot from `drizzle/*.sql`; generate new ones with `npx drizzle-kit generate`
 - **Shared code**: `src/utils/`, `src/types/`, `src/services/` imported by both client and server
 - **Path alias**: `@` → `./src` (configured in `vite.config.ts` and `tsconfig.app.json`)
+- **LLM framework**: **LangChain** for structured topic generation (`server/services/structured.ts`), AI SDK for chat/streaming (`server/routes/llm.ts`, `stream.ts`)
 
 ## Key Commands & Order
 - CI order: **lint → test → build** (see `.github/workflows/ci.yml`)
 - Run `npm run lint` before `npm run build` locally
 - TypeScript project references: `tsconfig.json` references `tsconfig.app.json` + `tsconfig.node.json`
 - `data/` is gitignored — DB + dev encryption key never committed
+- **New deps**: `@langchain/openai` (for structured topic generation)
 
 ## Testing
 - Framework: **vitest** (config in `vite.config.ts`)
@@ -53,7 +55,10 @@
 - **pino** for structured logging (configured in `src/utils/logger.ts`)
 - **React 19** + **React Router v7** (data router mode)
 - **API keys**: `src/stores/settingsStore.ts` keeps keys in localStorage and syncs to the server; server stores them encrypted (AES-256-GCM, `server/utils/crypto.ts`). LLM routes accept an optional `apiKey` and fall back to the encrypted store via `resolveLlmApiKey`
-- **Topics**: `src/hooks/useTopics.ts` loads server-first, falls back to localStorage/seed file; `server/services/topics.ts` seeds from `public/data/topics.json` on empty DB
+- **Topics & Navigation**: `src/hooks/useTopics.ts` loads server-first, falls back to localStorage/seed file. Topic details render in the main canvas via React Router (`/topic/:id`), eliminating the legacy inspector drawer for a focused 2-panel reading layout.
+- **Search History & Caching**: `useWebSearch.ts` uses `sessionStorage` to retain up to 6 recently searched/generated topics per tab session. Page refreshes preserve history, while tab closure clears un-saved session data.
+- **Performance & LLM Defaults**: Parallel search execution via `Promise.any` fetches web results in sub-second time. `DEFAULT_MAX_TOKENS = 2500` and `DEFAULT_TEMPERATURE = 0.2` ensure optimal token allocation without truncation risk.
+- **Way Forward**: `wayForward` is structured as a `string[]` (3-4 bullet points) across schemas, database adapters, and components.
 
 ## Common Gotchas
 - Port conflicts: Vite (5173) + Express (3001) — ensure both free
@@ -61,6 +66,7 @@
 - Shared imports from `src/` in server use `.ts` extensions (required by tsx)
 - CI uses Node 22; ensure local version matches
 - better-sqlite3 is a native module — new installs may require `npm approve-scripts better-sqlite3`
+- **LangChain JSON mode**: structured topic generation uses `jsonMode` to support Zod schemas with transforms (e.g., `z.preprocess` for category normalization). If switching models, ensure the provider supports `jsonMode` (OpenRouter, Groq, GeneralCompute do).
 
 ## File Structure Highlights
 ```
@@ -70,13 +76,15 @@ src/
   hooks/            # Custom React hooks (useTopics, useSettings)
   utils/            # Shared utilities (validator, parser, prompts, logger)
   services/         # API clients (LLM, search, topicsApi, settingsApi)
+    llm/
+      langchainProvider.ts  # LangChain ChatOpenAI factory
   stores/           # Zustand stores (settingsStore)
   types/            # Shared TypeScript types
   config/           # Provider configs
 server/
   index.ts          # Express entrypoint
   routes/           # API routes (auth, topics, settings, llm, generate, stream, models, search)
-  services/         # Server-only services (topics, apiKeys, auth, keyResolver)
+  services/         # Server-only services (topics, apiKeys, auth, keyResolver, structured)
   db/               # Drizzle schema + client (schema.ts, index.ts)
   middleware/       # attachAuthUser, maybeRequireAuth
   validation/       # Zod schemas for API

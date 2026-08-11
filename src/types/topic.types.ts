@@ -28,7 +28,7 @@ export interface Topic {
 	};
 	pros: ProConItem[];
 	cons: ProConItem[];
-	wayForward: string;
+	wayForward: string[];
 	conclusion:
 		| {
 				negative: string;

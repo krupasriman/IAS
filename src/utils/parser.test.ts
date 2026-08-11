@@ -61,7 +61,7 @@ describe("parseMarkdownToTopic", () => {
 		expect(topic.quote?.source).toBe("Dr. B.R. Ambedkar");
 		expect(topic.pros).toHaveLength(4);
 		expect(topic.cons).toHaveLength(4);
-		expect(topic.wayForward).toContain("National Litigation Policy");
+		expect(topic.wayForward?.[0]).toContain("National Litigation Policy");
 		expect(topic.conclusion).toEqual({
 			negative:
 				"Judicial overreach and case pendency remain persistent challenges.",
@@ -155,7 +155,7 @@ Positive line.`;
 		expect(topic.quote?.text).toBe("Quote text");
 		expect(topic.pros).toHaveLength(1);
 		expect(topic.cons).toHaveLength(1);
-		expect(topic.wayForward).toContain("Some path forward");
+		expect(topic.wayForward?.[0]).toContain("Some path forward");
 	});
 
 	it("returns ISO timestamps", () => {
@@ -181,6 +181,6 @@ describe("parseMarkdownToTopicAsync", () => {
 		expect(topic.meaning).toContain("Judicial review is the power");
 		expect(topic.pros).toHaveLength(4);
 		expect(topic.cons).toHaveLength(4);
-		expect(topic.wayForward).toContain("National Litigation Policy");
+		expect(topic.wayForward?.[0]).toContain("National Litigation Policy");
 	});
 });

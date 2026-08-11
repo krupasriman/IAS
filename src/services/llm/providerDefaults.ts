@@ -6,5 +6,5 @@ export const PROVIDER_DEFAULTS: Record<LLMProvider, string> = {
 	generalcompute: "https://api.generalcompute.com/v1",
 };
 
-export const DEFAULT_MAX_TOKENS = 4000;
-export const DEFAULT_TEMPERATURE = 0.3;
+export const DEFAULT_MAX_TOKENS = 2500;
+export const DEFAULT_TEMPERATURE = 0.2;

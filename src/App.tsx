@@ -1,5 +1,7 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import Header from "./components/layout/Header";
+import TopBar from "./components/layout/TopBar";
+import WorkspaceShell from "./components/layout/WorkspaceShell";
+import { WorkspaceProvider } from "./context/WorkspaceContext";
 import AddTopicPage from "./pages/AddTopicPage";
 import AllTopicsPage from "./pages/AllTopicsPage";
 import EditTopicPage from "./pages/EditTopicPage";
@@ -9,10 +11,10 @@ import TopicPage from "./pages/TopicPage";
 
 export default function App() {
 	return (
-		<BrowserRouter>
-			<div className="min-h-screen flex flex-col">
-				<Header />
-				<main className="flex-1">
+		<WorkspaceProvider>
+			<BrowserRouter>
+				<WorkspaceShell>
+					<TopBar />
 					<Routes>
 						<Route path="/" element={<HomePage />} />
 						<Route path="/topics" element={<AllTopicsPage />} />
@@ -22,14 +24,8 @@ export default function App() {
 						<Route path="/settings" element={<SettingsPage />} />
 						<Route path="*" element={<HomePage />} />
 					</Routes>
-				</main>
-				<footer className="border-t border-slate-200 bg-white py-4 mt-auto">
-					<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs text-slate-400">
-						IAS Study App · Personal UPSC Mains Preparation Tool · Built with
-						React
-					</div>
-				</footer>
-			</div>
-		</BrowserRouter>
+				</WorkspaceShell>
+			</BrowserRouter>
+		</WorkspaceProvider>
 	);
 }

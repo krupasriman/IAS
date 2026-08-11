@@ -32,7 +32,7 @@ const TopicSchema = z.object({
 	}),
 	pros: z.array(ProConItemSchema),
 	cons: z.array(ProConItemSchema),
-	wayForward: z.string(),
+	wayForward: z.array(z.string()),
 	conclusion: z.union([
 		z.object({
 			negative: z.string(),

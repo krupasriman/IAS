@@ -106,7 +106,10 @@ export function parseMarkdownToTopic(
 
 	// 4. Way Forward
 	const rawWayForward = getSection("Way Forward", ["Conclusion"]);
-	const wayForward = rawWayForward.trim();
+	const wayForward = rawWayForward
+		.split("\n")
+		.map((l) => l.trim().replace(/^- /, ""))
+		.filter(Boolean);
 
 	// 5. Conclusion
 	const rawConclusion = getSection("Conclusion", []);
@@ -135,8 +138,11 @@ export function parseMarkdownToTopic(
 		pros,
 		cons,
 		wayForward:
-			wayForward ||
-			"Implementation requires inter-departmental synergy and judicial oversight.",
+			wayForward.length > 0
+				? wayForward
+				: [
+						"Implementation requires inter-departmental synergy and judicial oversight.",
+					],
 		conclusion: conclusionObj,
 		source: "web",
 		createdAt: new Date().toISOString(),

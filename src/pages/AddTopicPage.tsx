@@ -5,8 +5,10 @@ export default function AddTopicPage() {
 	const { addTopic } = useTopics();
 
 	return (
-		<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-			<TopicForm onSave={addTopic} />
+		<div className="flex-1 overflow-y-auto" style={{ background: "var(--bg)" }}>
+			<div className="max-w-3xl mx-auto px-4 py-6">
+				<TopicForm onSave={addTopic} />
+			</div>
 		</div>
 	);
 }

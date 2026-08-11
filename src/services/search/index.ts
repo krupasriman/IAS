@@ -5,6 +5,7 @@ import type {
 import type { SearchSettings } from "../../types/settings.types";
 
 type SearchAttempt = () => Promise<WebSearchResponse>;
+type LabeledAttempt = { label: string; run: SearchAttempt };
 
 /**
  * Client-side web search with a resilient fallback chain.
@@ -13,63 +14,92 @@ type SearchAttempt = () => Promise<WebSearchResponse>;
  *   2. The explicitly selected provider if it has a usable API key
  *   3. DuckDuckGo (free, no key needed)
  *   4. Wikipedia (free, reliable for factual topics)
- * The first attempt that returns non-empty results wins.
+ * The first attempt that returns non-empty results wins. If every attempt
+ * fails, the empty result (with no web context) is returned so the LLM can
+ * still generate a note from its own knowledge.
  */
 export async function webSearch(
 	query: string,
 	settings: SearchSettings,
 ): Promise<WebSearchResponse> {
 	const provider = settings.provider || "duckduckgo";
-	const attempts: SearchAttempt[] = [];
+	const attempts: LabeledAttempt[] = [];
 
 	if (settings.apiKeys?.tavily) {
-		attempts.push(() => searchTavily(query, settings));
-	}
-
-	if (provider !== "duckduckgo" && provider !== "tavily") {
-		attempts.push(() => {
-			switch (provider) {
-				case "serpapi":
-					if (!settings.apiKeys?.serpapi) {
-						throw new Error("SerpAPI API key not configured");
-					}
-					return searchSerpApi(query, settings);
-				case "brave":
-					if (!settings.apiKeys?.brave) {
-						throw new Error("Brave API key not configured");
-					}
-					return searchBrave(query, settings);
-				case "langsearch":
-					if (!settings.apiKeys?.langsearch) {
-						throw new Error("LangSearch API key not configured");
-					}
-					return searchLangSearch(query, settings);
-				default:
-					throw new Error(`Unknown search provider: ${provider}`);
-			}
+		attempts.push({
+			label: "Tavily",
+			run: () => searchTavily(query, settings),
 		});
 	}
 
-	attempts.push(() => searchDuckDuckGo(query, settings));
-	attempts.push(() => searchWikipedia(query, settings));
-
-	for (const attempt of attempts) {
-		try {
-			const response = await attempt();
-			if (response.results.length > 0) {
-				return response;
-			}
-		} catch (error) {
-			console.warn("Search attempt failed, trying next fallback:", error);
-		}
+	if (provider !== "duckduckgo" && provider !== "tavily") {
+		const label = provider.charAt(0).toUpperCase() + provider.slice(1);
+		attempts.push({
+			label,
+			run: () => {
+				switch (provider) {
+					case "serpapi":
+						if (!settings.apiKeys?.serpapi) {
+							throw new Error("SerpAPI API key not configured");
+						}
+						return searchSerpApi(query, settings);
+					case "brave":
+						if (!settings.apiKeys?.brave) {
+							throw new Error("Brave API key not configured");
+						}
+						return searchBrave(query, settings);
+					case "langsearch":
+						if (!settings.apiKeys?.langsearch) {
+							throw new Error("LangSearch API key not configured");
+						}
+						return searchLangSearch(query, settings);
+					default:
+						throw new Error(`Unknown search provider: ${provider}`);
+				}
+			},
+		});
 	}
 
-	return {
-		query,
-		results: [],
-		provider,
-		timestamp: new Date().toISOString(),
-	};
+	attempts.push({
+		label: "DuckDuckGo",
+		run: () => searchDuckDuckGo(query, settings),
+	});
+	attempts.push({
+		label: "Wikipedia",
+		run: () => searchWikipedia(query, settings),
+	});
+
+	if (attempts.length === 0) {
+		return {
+			query,
+			results: [],
+			provider,
+			timestamp: new Date().toISOString(),
+		};
+	}
+
+	try {
+		const fastestSuccess = await Promise.any(
+			attempts.map(async ({ label, run }) => {
+				const response = await run();
+				if (response.results && response.results.length > 0) {
+					return response;
+				}
+				throw new Error(`${label} returned no results`);
+			}),
+		);
+		return fastestSuccess;
+	} catch {
+		console.warn(
+			"All web search providers failed, proceeding without web context:",
+		);
+		return {
+			query,
+			results: [],
+			provider,
+			timestamp: new Date().toISOString(),
+		};
+	}
 }
 
 async function searchDuckDuckGo(
@@ -77,57 +107,39 @@ async function searchDuckDuckGo(
 	settings: SearchSettings,
 ): Promise<WebSearchResponse> {
 	const maxResults = settings.maxResults || 8;
-	const proxyUrls = [`/api/search/duckduckgo?q=${encodeURIComponent(query)}`];
+	const proxyUrl = `/api/search/duckduckgo?q=${encodeURIComponent(query)}`;
+
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 3500);
 
 	let html = "";
-	for (const proxyUrl of proxyUrls) {
-		try {
-			const controller = new AbortController();
-			const timeout = setTimeout(() => controller.abort(), 10000);
-			const res = await fetch(proxyUrl, {
-				signal: controller.signal,
-				headers: { Accept: "text/html,application/xhtml+xml" },
-			});
-			clearTimeout(timeout);
-			if (res.ok) {
-				html = await res.text();
-				break;
-			}
-		} catch {}
-	}
-
-	const results: WebSearchResultItem[] = [];
-	if (html) {
-		// Parse DuckDuckGo HTML results
-		const blocks = html.split(/<div class=["']result['"]/).slice(1);
-		for (const block of blocks.slice(0, maxResults)) {
-			const titleMatch = block.match(
-				/<a[^>]*class=["']result__a["'][^>]*>([\s\S]*?)<\/a>/,
-			);
-			const urlMatch = block.match(/href=["']([^"']*?)["']/);
-			const snippetMatch = block.match(
-				/<a[^>]*class=["']result__snippet["'][^>]*>([\s\S]*?)<\/a>/,
-			);
-
-			const title = titleMatch ? stripHtml(titleMatch[1]) : "";
-			let url = urlMatch
-				? decodeURIComponent(urlMatch[1].replace(/^\/\//, "https://"))
-				: "";
-			if (url.includes("uddg=")) {
-				try {
-					url = decodeURIComponent(url.split("uddg=")[1].split("&")[0]);
-				} catch {}
-			}
-			const snippet = snippetMatch ? stripHtml(snippetMatch[1]) : "";
-
-			if (title && url) {
-				results.push({ title, url, snippet });
-			}
+	try {
+		const res = await fetch(proxyUrl, {
+			signal: controller.signal,
+			headers: { Accept: "text/html,application/xhtml+xml" },
+		});
+		if (res.ok) {
+			html = await res.text();
+		} else if (res.status === 429) {
+			throw new Error(`DuckDuckGo unreachable (rate-limited ${res.status})`);
+		} else {
+			throw new Error(`DuckDuckGo request failed with status ${res.status}`);
 		}
+	} catch (error) {
+		if (error instanceof Error && error.name === "AbortError") {
+			throw new Error("DuckDuckGo unreachable (request timed out)");
+		}
+		throw error;
+	} finally {
+		clearTimeout(timeout);
 	}
 
-	// If DuckDuckGo parsing produced no results, the outer fallback chain
-	// will continue to Wikipedia.
+	if (!html) {
+		throw new Error("DuckDuckGo unreachable (no response body)");
+	}
+
+	const results = parseDuckDuckGoResults(html, maxResults);
+
 	if (results.length === 0) {
 		throw new Error("DuckDuckGo returned no results");
 	}
@@ -138,6 +150,71 @@ async function searchDuckDuckGo(
 		provider: "duckduckgo",
 		timestamp: new Date().toISOString(),
 	};
+}
+
+export function parseDuckDuckGoResults(html: string, maxResults: number) {
+	const blocks = splitResultBlocks(html);
+	const results: WebSearchResultItem[] = [];
+
+	for (const block of blocks.slice(0, maxResults)) {
+		const title = extractAnchorText(block, "result__a");
+		const snippet = extractAnchorText(block, "result__snippet");
+		const url = extractDuckDuckGoUrl(block);
+
+		if (title && url) {
+			results.push({ title, url, snippet: snippet || "" });
+		}
+	}
+
+	return results;
+}
+
+function splitResultBlocks(html: string): string[] {
+	const re = /<div class="[^"]*\bresult\b[^"]*">/g;
+	const blocks: string[] = [];
+	let prevEnd: number | undefined;
+	for (const match of html.matchAll(re)) {
+		if (match.index === undefined) {
+			continue;
+		}
+		if (prevEnd !== undefined) {
+			blocks.push(html.slice(prevEnd, match.index));
+		}
+		prevEnd = match.index + match[0].length;
+	}
+	if (prevEnd !== undefined) {
+		blocks.push(html.slice(prevEnd));
+	}
+	return blocks;
+}
+
+function extractAnchorText(block: string, className: string): string {
+	const match = block.match(
+		new RegExp(
+			`<a[^>]*class=["'][^"']*\\b${className}\\b[^"']*["'][^>]*>([\\s\\S]*?)<\\/a>`,
+		),
+	);
+	return match ? stripHtml(match[1]) : "";
+}
+
+function extractDuckDuckGoUrl(block: string): string {
+	const titleAnchor = block.match(
+		/<a[^>]*class=["'][^"']*\bresult__a\b[^"']*["'][^>]*href=["']([^"']*)["']/,
+	);
+	if (titleAnchor) {
+		return decodeDuckDuckGoUrl(titleAnchor[1]);
+	}
+	const hrefMatch = block.match(/href=["']([^"']*)["']/);
+	return hrefMatch ? decodeDuckDuckGoUrl(hrefMatch[1]) : "";
+}
+
+function decodeDuckDuckGoUrl(raw: string): string {
+	let url = decodeURIComponent(raw).replace(/^\/\//, "https://");
+	if (url.includes("uddg=")) {
+		const decoded = url.split("uddg=")[1].split("&")[0];
+		url = decodeURIComponent(decoded);
+	}
+	return url;
 }
 
 async function searchWikipedia(

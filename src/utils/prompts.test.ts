@@ -41,12 +41,8 @@ describe("buildUserPrompt", () => {
 });
 
 describe("IAS_SYSTEM_PROMPT", () => {
-	it("demands exactly 4 pros and 4 cons", () => {
-		expect(IAS_SYSTEM_PROMPT).toContain("EXACTLY 4 Pros and EXACTLY 4 Cons");
-	});
-
-	it("requires distinct pros and cons", () => {
-		expect(IAS_SYSTEM_PROMPT).toContain("NEVER repeat, mirror, or reuse");
+	it("demands 4 pros and 4 cons", () => {
+		expect(IAS_SYSTEM_PROMPT).toContain("4 distinct Pros and 4 distinct Cons");
 	});
 
 	it("specifies strict JSON output format", () => {

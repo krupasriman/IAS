@@ -1,379 +1,379 @@
 import {
 	AlertTriangle,
-	ArrowLeft,
-	Bookmark,
-	BookmarkPlus,
 	CheckCircle2,
-	Clock,
-	Download,
-	FileText,
+	Copy,
 	Flag,
-	Globe,
 	Lightbulb,
-	Pencil,
 	Quote,
-	Trash2,
 	TrendingUp,
-	X,
 } from "lucide-react";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import type { Topic } from "../types/topic.types";
-import { getCategoryInfo } from "../utils/categoryHelpers";
-import { validateTopic } from "../utils/validator";
 
 interface TopicDetailProps {
 	topic: Topic;
-	onDelete?: (id: string) => void;
 }
 
-export default function TopicDetail({ topic, onDelete }: TopicDetailProps) {
-	const navigate = useNavigate();
-	const categoryInfo = getCategoryInfo(topic.category);
-	const Icon = categoryInfo.icon;
-	const validation = validateTopic(topic);
-	const [showValidation, setShowValidation] = useState(false);
-	const [saved, setSaved] = useState(false);
-
-	const handleDelete = () => {
-		if (window.confirm(`Delete "${topic.title}"? This cannot be undone.`)) {
-			onDelete?.(topic.id);
-			navigate("/");
-		}
-	};
-
-	const handleExport = () => {
-		const blob = new Blob([JSON.stringify(topic, null, 2)], {
-			type: "application/json",
+function useCopy() {
+	const [copied, setCopied] = useState<string | null>(null);
+	const copy = (text: string, key: string) => {
+		navigator.clipboard.writeText(text).then(() => {
+			setCopied(key);
+			setTimeout(() => setCopied(null), 1500);
 		});
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement("a");
-		a.href = url;
-		a.download = `${topic.title.toLowerCase().replace(/\s+/g, "-")}.json`;
-		a.click();
-		URL.revokeObjectURL(url);
 	};
+	return { copied, copy };
+}
+
+function SectionBlock({
+	id,
+	label,
+	icon: Icon,
+	iconColor,
+	children,
+}: {
+	id: string;
+	label: string;
+	icon: React.ComponentType<{
+		className?: string;
+		style?: React.CSSProperties;
+	}>;
+	iconColor: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<div id={id} className="mb-6">
+			<div
+				className="flex items-center gap-2.5 px-5 py-3 border-b"
+				style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+			>
+				<Icon className="w-5 h-5 flex-shrink-0" style={{ color: iconColor }} />
+				<span
+					className="text-base font-bold uppercase tracking-wider"
+					style={{ color: "var(--muted)" }}
+				>
+					{label}
+				</span>
+			</div>
+			<div className="section-content p-5 bg-transparent">{children}</div>
+		</div>
+	);
+}
+
+export default function TopicDetail({ topic }: TopicDetailProps) {
+	const { copy, copied } = useCopy();
+
+	const conclusionText =
+		typeof topic.conclusion === "string"
+			? topic.conclusion
+			: `${topic.conclusion.negative} ${topic.conclusion.positive}`;
 
 	return (
-		<div className="max-w-4xl mx-auto">
-			{/* Breadcrumb */}
-			<div className="flex items-center gap-2 text-sm text-slate-500 mb-6">
-				<Link to="/" className="hover:text-blue-600 flex items-center gap-1">
-					<ArrowLeft className="w-4 h-4" /> Dashboard
-				</Link>
-				<span>/</span>
-				<span className="text-slate-700 font-medium">{topic.title}</span>
-			</div>
-
-			{/* Header Card */}
-			<div className="relative bg-white rounded-2xl border border-slate-200 shadow-sm p-6 md:p-8 mb-6 overflow-hidden">
-				<div
-					className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${categoryInfo.gradient}`}
-				/>
-				<div className="flex flex-wrap items-center justify-between gap-4">
-					<div>
-						<div className="flex items-center gap-3 mb-2">
-							<span
-								className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${categoryInfo.bgLight}`}
-							>
-								<Icon className="w-4 h-4" />
-								{topic.category}
-							</span>
-							<span
-								className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide ${
-									topic.source === "web"
-										? "bg-purple-50 text-purple-600"
-										: "bg-emerald-50 text-emerald-600"
-								}`}
-							>
-								{topic.source === "web" ? (
-									<Globe className="w-3 h-3" />
-								) : (
-									<FileText className="w-3 h-3" />
-								)}
-								{topic.source === "web"
-									? "From Web Search"
-									: "From Local Notes"}
-							</span>
-						</div>
-						<h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight mb-2">
-							{topic.title}
-						</h1>
-						<div className="flex items-center gap-4 text-xs text-slate-400">
-							<span className="flex items-center gap-1">
-								<Clock className="w-3.5 h-3.5" /> Updated{" "}
-								{formatDate(topic.updatedAt)}
-							</span>
-							<span className="flex items-center gap-1">
-								<CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-								{topic.pros?.length ?? 0} Pros
-							</span>
-							<span className="flex items-center gap-1">
-								<AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-								{topic.cons?.length ?? 0} Cons
-							</span>
-						</div>
-					</div>
-
-					{/* Actions */}
-					<div className="flex flex-wrap gap-2">
-						<button
-							type="button"
-							onClick={() => setShowValidation((v) => !v)}
-							className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-								validation.isValid
-									? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-									: "bg-amber-50 text-amber-600 hover:bg-amber-100"
-							}`}
-							title="Check format validation"
-						>
-							<CheckCircle2 className="w-4 h-4" />
-							{validation.score}%
-						</button>
-						<button
-							type="button"
-							onClick={() => {
-								setSaved(true);
-								setTimeout(() => setSaved(false), 1500);
-							}}
-							className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
-						>
-							{saved ? (
-								<Bookmark className="w-4 h-4" />
-							) : (
-								<BookmarkPlus className="w-4 h-4" />
-							)}
-							{saved ? "Saved" : "Bookmark"}
-						</button>
-						<button
-							type="button"
-							onClick={handleExport}
-							className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-						>
-							<Download className="w-4 h-4" /> Export
-						</button>
-						<Link
-							to={`/edit/${topic.id}`}
-							className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-						>
-							<Pencil className="w-4 h-4" /> Edit
-						</Link>
-						<button
-							type="button"
-							onClick={handleDelete}
-							className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-						>
-							<Trash2 className="w-4 h-4" /> Delete
-						</button>
-					</div>
-				</div>
-
-				{/* Validation panel */}
-				{showValidation && (
-					<div
-						className={`mt-4 rounded-xl p-4 text-sm ${validation.isValid ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}
+		<div className="ws-section">
+			{/* ── Meaning ── */}
+			<SectionBlock
+				id="sec-meaning"
+				label="Meaning"
+				icon={Lightbulb}
+				iconColor="var(--accent)"
+			>
+				<div className="copy-trigger relative group">
+					<p
+						className="text-base leading-relaxed"
+						style={{ color: "var(--text-2)" }}
 					>
-						<div className="flex items-center justify-between mb-1">
-							<span className="font-bold">
-								{validation.isValid
-									? "✓ Format looks good"
-									: "⚠ Format improvements suggested"}
-							</span>
-							<button
-								type="button"
-								onClick={() => setShowValidation(false)}
-								className="hover:opacity-70"
-							>
-								<X className="w-4 h-4" />
-							</button>
-						</div>
-						{validation.warnings.length > 0 ? (
-							<ul className="list-disc pl-5 mt-1 space-y-0.5">
-								{validation.warnings.map((w, i) => (
-									// biome-ignore lint/suspicious/noArrayIndexKey: warning strings have no stable identity
-									<li key={i}>{w}</li>
-								))}
-							</ul>
+						{topic.meaning}
+					</p>
+					<button
+						type="button"
+						className="copy-btn absolute top-0 right-0 p-1 rounded text-xs"
+						style={{ color: "var(--muted)", background: "var(--surface-2)" }}
+						onClick={() => copy(topic.meaning, "meaning")}
+						title="Copy"
+					>
+						{copied === "meaning" ? (
+							<CheckCircle2
+								className="w-3.5 h-3.5"
+								style={{ color: "var(--success)" }}
+							/>
 						) : (
-							<p>
-								Word counts: Meaning {validation.wordCounts.meaning}, Quote{" "}
-								{validation.wordCounts.quote}, Way Forward{" "}
-								{validation.wordCounts.wayForward}, Conclusion{" "}
-								{validation.wordCounts.conclusion}
-							</p>
+							<Copy className="w-3.5 h-3.5" />
 						)}
-					</div>
-				)}
-			</div>
-
-			{/* Meaning Section */}
-			<Section title="Meaning" icon={Lightbulb} accent="blue">
-				<p className="text-slate-700 leading-relaxed">{topic.meaning}</p>
-			</Section>
-
-			{/* Quote Section */}
-			<Section title="Quote" icon={Quote} accent="purple">
-				<div className="relative bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-6 border border-purple-100">
-					<Quote className="absolute top-3 left-3 w-8 h-8 text-purple-200" />
-					<p className="text-lg text-purple-900 font-medium italic pl-6 leading-relaxed">
-						"{topic.quote.text}"
-					</p>
-					<p className="text-sm text-purple-600 font-semibold mt-3 pl-6">
-						— {topic.quote.source}
-					</p>
+					</button>
 				</div>
-			</Section>
+			</SectionBlock>
 
-			{/* Pros & Cons */}
-			<div className="grid md:grid-cols-2 gap-6 mb-6">
-				{/* Pros */}
-				<Section title="Pros" icon={TrendingUp} accent="emerald">
-					<div className="space-y-3">
-						{topic.pros?.map((pro, i) => (
-							<div
-								// biome-ignore lint/suspicious/noArrayIndexKey: pros/cons are statically rendered lists
-								key={i}
-								className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100"
-							>
-								<div className="flex items-start gap-2">
-									<span className="w-6 h-6 flex-shrink-0 rounded-full bg-emerald-500 text-white text-xs font-bold flex items-center justify-center mt-0.5">
+			{/* ── Quote ── */}
+			<SectionBlock
+				id="sec-quote"
+				label="Quote"
+				icon={Quote}
+				iconColor="#a855f7"
+			>
+				<div className="copy-trigger relative group">
+					<div
+						className="ws-quote p-4 rounded-lg"
+						style={{ background: "var(--surface-2)" }}
+					>
+						<p
+							className="italic font-medium text-base leading-relaxed"
+							style={{
+								color: "var(--text)",
+							}}
+						>
+							"{topic.quote.text}"
+						</p>
+						<p
+							className="mt-2 text-sm font-bold"
+							style={{ color: "var(--accent)" }}
+						>
+							— {topic.quote.source}
+						</p>
+					</div>
+					<button
+						type="button"
+						className="copy-btn absolute top-0 right-0 p-1 rounded text-xs"
+						style={{ color: "var(--muted)", background: "var(--surface-2)" }}
+						onClick={() =>
+							copy(`"${topic.quote.text}" — ${topic.quote.source}`, "quote")
+						}
+						title="Copy"
+					>
+						{copied === "quote" ? (
+							<CheckCircle2
+								className="w-3.5 h-3.5"
+								style={{ color: "var(--success)" }}
+							/>
+						) : (
+							<Copy className="w-3.5 h-3.5" />
+						)}
+					</button>
+				</div>
+			</SectionBlock>
+
+			{/* ── Pros & Cons Grid ── */}
+			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+				{/* ── Pros ── */}
+				<SectionBlock
+					id="sec-pros"
+					label="Advantages"
+					icon={TrendingUp}
+					iconColor="var(--success)"
+				>
+					{topic.pros && topic.pros.length > 0 ? (
+						<ol className="space-y-4">
+							{topic.pros.map((pro, i) => (
+								// biome-ignore lint/suspicious/noArrayIndexKey: static list
+								<li key={i} className="flex gap-3 text-base">
+									<span
+										className="w-6 h-6 rounded flex-shrink-0 flex items-center justify-center text-xs font-black mt-0.5"
+										style={{
+											background: "var(--success-bg)",
+											color: "var(--success)",
+										}}
+									>
 										{i + 1}
 									</span>
-									<div>
-										<h4 className="font-bold text-emerald-800 text-sm">
+									<div className="min-w-0 flex-1">
+										<p
+											className="font-bold text-base"
+											style={{ color: "var(--text)" }}
+										>
 											{pro.title}
-										</h4>
-										<p className="text-slate-600 text-sm mt-1">
+										</p>
+										<p
+											className="text-sm leading-relaxed mt-1"
+											style={{ color: "var(--text-2)" }}
+										>
 											{pro.explanation}
 										</p>
 										{pro.example && (
-											<div className="mt-2 text-xs bg-white rounded-lg p-2.5 border border-emerald-100">
-												<span className="font-semibold text-emerald-600">
-													Example:{" "}
+											<p
+												className="text-sm mt-2 px-3 py-1.5 rounded-md"
+												style={{
+													background: "var(--surface-2)",
+													color: "var(--muted)",
+												}}
+											>
+												<span
+													className="font-bold"
+													style={{ color: "var(--success)" }}
+												>
+													Eg:{" "}
 												</span>
-												<span className="text-slate-600">{pro.example}</span>
-											</div>
+												{pro.example}
+											</p>
 										)}
 									</div>
-								</div>
-							</div>
-						))}
-						{(!topic.pros || topic.pros.length === 0) && (
-							<p className="text-sm text-slate-400 italic">
-								No pros available.
-							</p>
-						)}
-					</div>
-				</Section>
+								</li>
+							))}
+						</ol>
+					) : (
+						<p className="text-sm italic" style={{ color: "var(--faint)" }}>
+							No advantages listed.
+						</p>
+					)}
+				</SectionBlock>
 
-				{/* Cons */}
-				<Section title="Cons" icon={AlertTriangle} accent="red">
-					<div className="space-y-3">
-						{topic.cons?.map((con, i) => (
-							<div
-								// biome-ignore lint/suspicious/noArrayIndexKey: pros/cons are statically rendered lists
-								key={i}
-								className="bg-red-50/50 rounded-xl p-4 border border-red-100"
-							>
-								<div className="flex items-start gap-2">
-									<span className="w-6 h-6 flex-shrink-0 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center mt-0.5">
+				{/* ── Cons ── */}
+				<SectionBlock
+					id="sec-cons"
+					label="Challenges"
+					icon={AlertTriangle}
+					iconColor="var(--danger)"
+				>
+					{topic.cons && topic.cons.length > 0 ? (
+						<ol className="space-y-4">
+							{topic.cons.map((con, i) => (
+								// biome-ignore lint/suspicious/noArrayIndexKey: static list
+								<li key={i} className="flex gap-3 text-base">
+									<span
+										className="w-6 h-6 rounded flex-shrink-0 flex items-center justify-center text-xs font-black mt-0.5"
+										style={{
+											background: "var(--danger-bg)",
+											color: "var(--danger)",
+										}}
+									>
 										{i + 1}
 									</span>
-									<div>
-										<h4 className="font-bold text-red-800 text-sm">
+									<div className="min-w-0 flex-1">
+										<p
+											className="font-bold text-base"
+											style={{ color: "var(--text)" }}
+										>
 											{con.title}
-										</h4>
-										<p className="text-slate-600 text-sm mt-1">
+										</p>
+										<p
+											className="text-sm leading-relaxed mt-1"
+											style={{ color: "var(--text-2)" }}
+										>
 											{con.explanation}
 										</p>
 										{con.example && (
-											<div className="mt-2 text-xs bg-white rounded-lg p-2.5 border border-red-100">
-												<span className="font-semibold text-red-600">
-													Example:{" "}
+											<p
+												className="text-sm mt-2 px-3 py-1.5 rounded-md"
+												style={{
+													background: "var(--surface-2)",
+													color: "var(--muted)",
+												}}
+											>
+												<span
+													className="font-bold"
+													style={{ color: "var(--danger)" }}
+												>
+													Eg:{" "}
 												</span>
-												<span className="text-slate-600">{con.example}</span>
-											</div>
+												{con.example}
+											</p>
 										)}
 									</div>
-								</div>
-							</div>
-						))}
-						{(!topic.cons || topic.cons.length === 0) && (
-							<p className="text-sm text-slate-400 italic">
-								No cons available.
-							</p>
+								</li>
+							))}
+						</ol>
+					) : (
+						<p className="text-sm italic" style={{ color: "var(--faint)" }}>
+							No challenges listed.
+						</p>
+					)}
+				</SectionBlock>
+			</div>
+
+			{/* ── Way Forward ── */}
+			<SectionBlock
+				id="sec-wayforward"
+				label="Way Forward"
+				icon={Flag}
+				iconColor="var(--accent)"
+			>
+				<div className="copy-trigger relative group">
+					<ul
+						className="list-disc pl-5 space-y-2.5 text-base leading-relaxed"
+						style={{ color: "var(--text-2)" }}
+					>
+						{Array.isArray(topic.wayForward) ? (
+							topic.wayForward.map((step, i) => (
+								// biome-ignore lint/suspicious/noArrayIndexKey: order is stable
+								<li key={i}>{step}</li>
+							))
+						) : (
+							<li>{topic.wayForward}</li>
 						)}
-					</div>
-				</Section>
-			</div>
+					</ul>
+					<button
+						type="button"
+						className="copy-btn absolute top-0 right-0 p-1 rounded text-xs"
+						style={{ color: "var(--muted)", background: "var(--surface-2)" }}
+						onClick={() =>
+							copy(
+								Array.isArray(topic.wayForward)
+									? topic.wayForward.map((s) => `- ${s}`).join("\n")
+									: topic.wayForward,
+								"way",
+							)
+						}
+						title="Copy"
+					>
+						{copied === "way" ? (
+							<CheckCircle2
+								className="w-3.5 h-3.5"
+								style={{ color: "var(--success)" }}
+							/>
+						) : (
+							<Copy className="w-3.5 h-3.5" />
+						)}
+					</button>
+				</div>
+			</SectionBlock>
 
-			{/* Way Forward */}
-			<Section title="Way Forward" icon={Flag} accent="indigo">
-				<p className="text-slate-700 leading-relaxed">{topic.wayForward}</p>
-			</Section>
-
-			{/* Conclusion */}
-			<Section title="Conclusion" icon={CheckCircle2} accent="amber">
-				{typeof topic.conclusion === "string" ? (
-					<p className="text-slate-700 leading-relaxed">{topic.conclusion}</p>
-				) : (
-					<div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-5 border border-amber-100">
-						<p className="text-slate-700 leading-relaxed">
-							{topic.conclusion.negative}
+			{/* ── Conclusion ── */}
+			<SectionBlock
+				id="sec-conclusion"
+				label="Conclusion"
+				icon={CheckCircle2}
+				iconColor="var(--warn)"
+			>
+				<div className="copy-trigger relative group">
+					{typeof topic.conclusion === "string" ? (
+						<p
+							className="text-base leading-relaxed"
+							style={{ color: "var(--text-2)" }}
+						>
+							{topic.conclusion}
 						</p>
-						<p className="text-slate-800 font-medium leading-relaxed mt-2">
-							{topic.conclusion.positive}
-						</p>
-					</div>
-				)}
-			</Section>
+					) : (
+						<div className="space-y-3">
+							<p
+								className="text-base leading-relaxed"
+								style={{ color: "var(--text-2)" }}
+							>
+								{topic.conclusion.negative}
+							</p>
+							<p
+								className="text-base font-semibold leading-relaxed"
+								style={{ color: "var(--text)" }}
+							>
+								{topic.conclusion.positive}
+							</p>
+						</div>
+					)}
+					<button
+						type="button"
+						className="copy-btn absolute top-0 right-0 p-1 rounded text-xs"
+						style={{ color: "var(--muted)", background: "var(--surface-2)" }}
+						onClick={() => copy(conclusionText, "conc")}
+						title="Copy"
+					>
+						{copied === "conc" ? (
+							<CheckCircle2
+								className="w-3.5 h-3.5"
+								style={{ color: "var(--success)" }}
+							/>
+						) : (
+							<Copy className="w-3.5 h-3.5" />
+						)}
+					</button>
+				</div>
+			</SectionBlock>
 		</div>
 	);
-}
-
-function Section({
-	title,
-	icon: Icon,
-	accent,
-	children,
-}: {
-	title: string;
-	icon: React.ComponentType<{ className?: string }>;
-	accent: "blue" | "purple" | "emerald" | "red" | "indigo" | "amber";
-	children: React.ReactNode;
-}) {
-	const accentMap: Record<string, string> = {
-		blue: "text-blue-600 bg-blue-50",
-		purple: "text-purple-600 bg-purple-50",
-		emerald: "text-emerald-600 bg-emerald-50",
-		red: "text-red-600 bg-red-50",
-		indigo: "text-indigo-600 bg-indigo-50",
-		amber: "text-amber-600 bg-amber-50",
-	};
-
-	return (
-		<div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
-			<div className="flex items-center gap-2.5 mb-4">
-				<span
-					className={`w-8 h-8 rounded-lg flex items-center justify-center ${accentMap[accent]}`}
-				>
-					<Icon className="w-4.5 h-4.5" />
-				</span>
-				<h2 className="text-lg font-bold text-slate-900">{title}</h2>
-			</div>
-			{children}
-		</div>
-	);
-}
-
-function formatDate(iso: string): string {
-	try {
-		return new Date(iso).toLocaleDateString("en-IN", {
-			day: "numeric",
-			month: "short",
-			year: "numeric",
-		});
-	} catch {
-		return "";
-	}
 }

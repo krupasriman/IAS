@@ -5,6 +5,7 @@ import { logger } from "../../src/utils/logger.ts";
 import { buildUserPrompt, IAS_SYSTEM_PROMPT } from "../../src/utils/prompts.ts";
 import {
 	CategorySchema,
+	LlmTopicSchema,
 	StructuredTopicSchema,
 } from "../../src/utils/topicSchema.ts";
 import { resolveLlmApiKey } from "../services/keyResolver.ts";
@@ -68,15 +69,17 @@ router.post("/generate", async (req: ExpressRequest, res: Response) => {
 		}
 		const structured = await generateStructuredCompletion(
 			{ provider, apiKey: resolvedApiKey, model, baseUrl },
-			StructuredTopicSchema,
+			LlmTopicSchema,
 			messages,
 			{ maxRetries },
 		);
 
+		const validatedTopic = StructuredTopicSchema.parse(structured);
+
 		const now = new Date().toISOString();
 		res.status(200).json({
 			topic: {
-				...structured,
+				...validatedTopic,
 				id: crypto.randomUUID(),
 				source: "web",
 				createdAt: now,

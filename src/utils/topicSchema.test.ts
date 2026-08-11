@@ -42,8 +42,11 @@ const validTopic = {
 		},
 		{ title: "C4", explanation: "Short con four", example: "Example con four" },
 	],
-	wayForward:
+	wayForward: [
 		"The government should implement the National Litigation Policy and establish specialized benches.",
+		"Alternative dispute resolution mechanisms must be promoted to reduce pendency.",
+		"Legal aid should be expanded through the National Legal Services Authority to improve access to justice.",
+	],
 	conclusion: {
 		negative: "Judicial overreach remains a challenge.",
 		positive: "However, judicial review is a bedrock.",

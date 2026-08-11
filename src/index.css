@@ -1,26 +1,420 @@
 @import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
+/* ─── Design Tokens ─── */
+:root {
+	--sidebar-w: 232px;
+	--sidebar-rail: 48px;
+	--inspector-w: 320px;
+	--topbar-h: 40px;
+	--querybar-h: 52px;
+
+	/* Light palette */
+	--bg: #f5f6f9;
+	--surface: #ffffff;
+	--surface-2: #f0f2f7;
+	--surface-3: #e4e8f2;
+	--border: #e1e5ef;
+	--border-2: #c8cfe0;
+	--text: #0f1623;
+	--text-2: #2e3a52;
+	--muted: #64748b;
+	--faint: #94a3b8;
+	--accent: #4f46e5;
+	--accent-2: #eef2ff;
+	--success: #059669;
+	--success-bg: #ecfdf5;
+	--danger: #dc2626;
+	--danger-bg: #fef2f2;
+	--warn: #d97706;
+	--warn-bg: #fffbeb;
+	--scroll-bg: #edf0f6;
+	--scroll-fg: #c5cdd8;
+}
+
+html.dark {
+	--bg: #0c0e15;
+	--surface: #131620;
+	--surface-2: #1b1e2d;
+	--surface-3: #242840;
+	--border: #25283a;
+	--border-2: #333750;
+	--text: #e6e9f8;
+	--text-2: #9099c2;
+	--muted: #5c668a;
+	--faint: #363b5a;
+	--accent: #6366f1;
+	--accent-2: #1a1c32;
+	--success: #10b981;
+	--success-bg: #052e1a;
+	--danger: #f87171;
+	--danger-bg: #1c0b0b;
+	--warn: #fbbf24;
+	--warn-bg: #1a1005;
+	--scroll-bg: #1b1e2d;
+	--scroll-fg: #2d3148;
+}
+
+/* ─── Base ─── */
 @layer base {
+	*,
+	*::before,
+	*::after {
+		box-sizing: border-box;
+	}
+	html {
+		height: 100%;
+	}
 	body {
-		@apply bg-slate-50 text-slate-900 antialiased min-h-screen;
-		font-family:
-			system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-			Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+		font-family: "Inter", system-ui, -apple-system, sans-serif;
+		background-color: var(--bg);
+		color: var(--text);
+		min-height: 100%;
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+		line-height: 1.5;
+	}
+	#root {
+		height: 100vh;
+		overflow: hidden;
 	}
 }
 
-/* Custom scrollbar */
+/* ─── Scrollbars ─── */
 ::-webkit-scrollbar {
-	width: 8px;
-	height: 8px;
+	width: 5px;
+	height: 5px;
 }
 ::-webkit-scrollbar-track {
-	background: #f1f5f9;
+	background: var(--scroll-bg);
 }
 ::-webkit-scrollbar-thumb {
-	background: #cbd5e1;
-	border-radius: 4px;
+	background: var(--scroll-fg);
+	border-radius: 99px;
 }
 ::-webkit-scrollbar-thumb:hover {
-	background: #94a3b8;
+	background: var(--border-2);
+}
+
+/* ─── Shell Layout ─── */
+.ws-shell {
+	display: flex;
+	height: 100vh;
+	overflow: hidden;
+	position: relative;
+}
+
+/* ─── Sidebar ─── */
+.ws-sidebar {
+	width: var(--sidebar-w);
+	min-width: var(--sidebar-w);
+	background-color: var(--surface);
+	border-right: 1px solid var(--border);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	transition:
+		width 0.2s ease,
+		min-width 0.2s ease;
+	flex-shrink: 0;
+	z-index: 40;
+}
+.ws-sidebar.rail {
+	width: var(--sidebar-rail);
+	min-width: var(--sidebar-rail);
+}
+
+/* ─── Main Canvas ─── */
+.ws-main {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	background-color: var(--bg);
+}
+
+/* ─── Topbar ─── */
+.ws-topbar {
+	height: var(--topbar-h);
+	min-height: var(--topbar-h);
+	background-color: var(--surface);
+	border-bottom: 1px solid var(--border);
+	display: flex;
+	align-items: center;
+	padding: 0 12px;
+	gap: 8px;
+	flex-shrink: 0;
+}
+
+/* ─── Query Bar ─── */
+.ws-querybar {
+	background-color: var(--surface);
+	border-bottom: 1px solid var(--border);
+	padding: 8px 12px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-shrink: 0;
+}
+
+/* ─── Progress strip ─── */
+.ws-progress {
+	height: 2px;
+	background-color: var(--border);
+	flex-shrink: 0;
+	overflow: hidden;
+}
+.ws-progress-fill {
+	height: 100%;
+	background-color: var(--accent);
+	transition: width 0.35s ease;
+}
+.ws-progress-fill.animate {
+	animation: progress-run 1.6s ease-in-out infinite;
+}
+@keyframes progress-run {
+	0% {
+		width: 15%;
+		transform: translateX(-5%);
+	}
+	50% {
+		width: 60%;
+		transform: translateX(50%);
+	}
+	100% {
+		width: 15%;
+		transform: translateX(700%);
+	}
+}
+
+/* ─── Inspector Panel ─── */
+.ws-inspector {
+	width: var(--inspector-w);
+	min-width: var(--inspector-w);
+	background-color: var(--surface);
+	border-left: 1px solid var(--border);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	flex-shrink: 0;
+	transition:
+		transform 0.22s ease,
+		opacity 0.22s ease;
+}
+.ws-inspector.hidden {
+	display: none;
+}
+
+/* ─── Topic Row ─── */
+.topic-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 9px 14px;
+	border-bottom: 1px solid var(--border);
+	cursor: pointer;
+	transition: background 0.1s;
+	min-width: 0;
+}
+.topic-row:hover {
+	background-color: var(--surface-2);
+}
+.topic-row.active {
+	background-color: var(--accent-2);
+}
+
+/* ─── Sidebar nav item ─── */
+.nav-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 5px 10px;
+	border-radius: 5px;
+	font-size: 0.8125rem;
+	font-weight: 500;
+	color: var(--muted);
+	cursor: pointer;
+	text-decoration: none;
+	transition:
+		background 0.1s,
+		color 0.1s;
+	white-space: nowrap;
+	overflow: hidden;
+}
+.nav-item:hover {
+	background: var(--surface-2);
+	color: var(--text);
+}
+.nav-item.active {
+	background: var(--accent-2);
+	color: var(--accent);
+}
+
+/* ─── Collapsible section (details/summary) ─── */
+.ws-section details {
+	border-bottom: 1px solid var(--border);
+}
+.ws-section details summary {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 14px;
+	font-size: 0.75rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--muted);
+	cursor: pointer;
+	user-select: none;
+	list-style: none;
+	transition: background 0.1s;
+}
+.ws-section details summary::-webkit-details-marker {
+	display: none;
+}
+.ws-section details summary:hover {
+	background: var(--surface-2);
+}
+.ws-section details summary .chevron {
+	margin-left: auto;
+	transition: transform 0.15s;
+	color: var(--faint);
+	flex-shrink: 0;
+}
+.ws-section details[open] summary .chevron {
+	transform: rotate(90deg);
+}
+.ws-section .section-content {
+	padding: 14px 16px;
+	font-size: 0.875rem;
+	line-height: 1.65;
+	color: var(--text-2);
+}
+
+/* ─── Quote block ─── */
+.ws-quote {
+	border-left: 2px solid var(--accent);
+	padding: 10px 14px;
+	background: var(--accent-2);
+	border-radius: 0 4px 4px 0;
+}
+
+/* ─── Micro-copy button ─── */
+.copy-trigger .copy-btn {
+	opacity: 0;
+	transition: opacity 0.15s;
+}
+.copy-trigger:hover .copy-btn {
+	opacity: 1;
+}
+
+/* ─── Badge ─── */
+.badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	padding: 2px 6px;
+	border-radius: 99px;
+	font-size: 0.6875rem;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+}
+.badge-accent {
+	background: var(--accent-2);
+	color: var(--accent);
+}
+.badge-success {
+	background: var(--success-bg);
+	color: var(--success);
+}
+.badge-danger {
+	background: var(--danger-bg);
+	color: var(--danger);
+}
+.badge-warn {
+	background: var(--warn-bg);
+	color: var(--warn);
+}
+.badge-neutral {
+	background: var(--surface-3);
+	color: var(--muted);
+}
+
+/* ─── Score bar ─── */
+.score-bar-track {
+	height: 3px;
+	background: var(--surface-3);
+	border-radius: 99px;
+	overflow: hidden;
+}
+.score-bar-fill {
+	height: 100%;
+	border-radius: 99px;
+	transition: width 0.3s;
+}
+
+/* ─── Mobile Overlay ─── */
+.mobile-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.45);
+	z-index: 90;
+	backdrop-filter: blur(2px);
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 1023px) {
+	.ws-sidebar {
+		position: fixed;
+		top: 0;
+		left: 0;
+		bottom: 0;
+		width: var(--sidebar-w);
+		min-width: var(--sidebar-w);
+		transform: translateX(-100%);
+		transition: transform 0.25s ease;
+		z-index: 100;
+	}
+	.ws-sidebar.mobile-open {
+		transform: translateX(0);
+	}
+
+	.ws-inspector {
+		position: fixed;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		transform: translateX(100%);
+		transition: transform 0.25s ease;
+		z-index: 100;
+	}
+	.ws-inspector.mobile-open {
+		transform: translateX(0);
+	}
+	.ws-inspector.hidden {
+		display: flex;
+		transform: translateX(100%);
+	}
+}
+
+@media (max-width: 767px) {
+	:root {
+		--inspector-w: 100vw;
+	}
+	.ws-inspector {
+		top: auto;
+		width: 100vw;
+		height: 88vh;
+		border-radius: 14px 14px 0 0;
+		transform: translateY(100%);
+		border-left: none;
+		border-top: 1px solid var(--border);
+	}
+	.ws-inspector.mobile-open {
+		transform: translateY(0);
+	}
+	.ws-inspector.hidden {
+		transform: translateY(100%);
+	}
 }

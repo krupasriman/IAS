@@ -41,8 +41,12 @@ const makeTopic = (overrides: Partial<Topic> = {}): Topic => ({
 		},
 		{ title: "C4", explanation: "Short con four", example: "Example con four" },
 	],
-	wayForward:
-		"The government should implement the National Litigation Policy and establish specialized benches for constitutional matters. Alternative dispute resolution mechanisms must be promoted to reduce pendency. Legal aid should be expanded through the National Legal Services Authority to improve access to justice for marginalized citizens. This requires adequate funding and timely appointments of judges at all levels.",
+	wayForward: [
+		"The government should implement the National Litigation Policy and establish specialized benches for constitutional matters.",
+		"Alternative dispute resolution mechanisms must be promoted to reduce pendency.",
+		"Legal aid should be expanded through the National Legal Services Authority to improve access to justice for marginalized citizens.",
+		"This requires adequate funding and timely appointments of judges at all levels.",
+	],
 	conclusion: {
 		negative:
 			"Judicial overreach and enormous case pendency remain persistent structural challenges.",
@@ -124,7 +128,7 @@ describe("validateTopic", () => {
 				quote: { text: "hi", source: "x" },
 				pros: [],
 				cons: [],
-				wayForward: "short",
+				wayForward: [],
 				conclusion: "just one",
 			}),
 		);

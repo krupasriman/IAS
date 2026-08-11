@@ -35,7 +35,15 @@ function toTopic(row: TopicRow): Topic {
 		quote: { text: row.quoteText, source: row.quoteSource },
 		pros: JSON.parse(row.pros),
 		cons: JSON.parse(row.cons),
-		wayForward: row.wayForward,
+		wayForward: (() => {
+			try {
+				const parsed = JSON.parse(row.wayForward);
+				if (Array.isArray(parsed)) return parsed;
+				return [String(parsed)];
+			} catch {
+				return [row.wayForward];
+			}
+		})(),
 		conclusion: row.conclusionRaw
 			? row.conclusionRaw
 			: {
@@ -59,7 +67,7 @@ function fromTopic(topic: Topic): Omit<TopicRow, "createdAt" | "updatedAt"> {
 		quoteSource: topic.quote.source,
 		pros: JSON.stringify(topic.pros),
 		cons: JSON.stringify(topic.cons),
-		wayForward: topic.wayForward,
+		wayForward: JSON.stringify(topic.wayForward),
 		conclusionNegative:
 			typeof topic.conclusion === "string" ? "" : topic.conclusion.negative,
 		conclusionPositive:

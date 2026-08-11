@@ -43,6 +43,9 @@ if %errorlevel% neq 0 (
     echo.
     pause
     exit /b 1
+:: Ensure data directory exists
+if not exist data (
+    mkdir data >nul
 )
 
 echo.

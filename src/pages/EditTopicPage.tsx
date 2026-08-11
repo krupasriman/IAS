@@ -12,7 +12,10 @@ export default function EditTopicPage() {
 	if (loading) {
 		return (
 			<div className="flex items-center justify-center py-32">
-				<Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+				<Loader2
+					className="w-8 h-8 animate-spin"
+					style={{ color: "var(--accent)" }}
+				/>
 			</div>
 		);
 	}
@@ -38,12 +41,14 @@ export default function EditTopicPage() {
 	}
 
 	return (
-		<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-			<TopicForm
-				initialTopic={topic}
-				onSave={(data) => updateTopic(topic.id, data)}
-				isEditing
-			/>
+		<div className="flex-1 overflow-y-auto" style={{ background: "var(--bg)" }}>
+			<div className="max-w-3xl mx-auto px-4 py-6">
+				<TopicForm
+					initialTopic={topic}
+					onSave={(data) => updateTopic(topic.id, data)}
+					isEditing
+				/>
+			</div>
 		</div>
 	);
 }

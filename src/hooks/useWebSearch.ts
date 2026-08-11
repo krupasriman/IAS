@@ -9,45 +9,88 @@ import type { Topic } from "../types/topic.types";
 import { validateTopic } from "../utils/validator";
 import { useSettings } from "./useSettings";
 
+export interface SearchHistoryItem {
+	id: string;
+	query: string;
+	topic: Topic;
+	searchResults: WebSearchResponse | null;
+	timestamp: number;
+}
+
 interface UseWebSearchOptions {
 	onSuccess?: (topic: Topic) => void;
 }
 
 export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 	const { settings } = useSettings();
-	const [query, setQuery] = useState("");
-	const [searchResults, setSearchResults] = useState<WebSearchResponse | null>(
-		null,
-	);
-	const [generatedTopic, setGeneratedTopic] = useState<Topic | null>(null);
-	const [progress, setProgress] = useState<GenerationProgress>({
-		stage: "idle",
-		message: "",
-		progressPercentage: 0,
-	});
-	const [error, setError] = useState<string | null>(null);
-
 	const STORAGE_KEY = "ias_web_search_state";
+	const HISTORY_KEY = "ias_search_history_list";
 
-	useEffect(() => {
+	const [query, setQuery] = useState<string>(() => {
 		try {
-			const raw = localStorage.getItem(STORAGE_KEY);
-			if (raw) {
-				const saved = JSON.parse(raw);
-				if (saved.query) setQuery(saved.query);
-				if (saved.searchResults) setSearchResults(saved.searchResults);
-				if (saved.generatedTopic) setGeneratedTopic(saved.generatedTopic);
-				if (saved.progress) setProgress(saved.progress);
-				if (saved.error) setError(saved.error);
-			}
+			const raw = sessionStorage.getItem(STORAGE_KEY);
+			return raw ? JSON.parse(raw).query || "" : "";
 		} catch {
-			// ignore
+			return "";
 		}
-	}, []);
+	});
+
+	const [searchResults, setSearchResults] = useState<WebSearchResponse | null>(
+		() => {
+			try {
+				const raw = sessionStorage.getItem(STORAGE_KEY);
+				return raw ? JSON.parse(raw).searchResults || null : null;
+			} catch {
+				return null;
+			}
+		},
+	);
+
+	const [generatedTopic, setGeneratedTopic] = useState<Topic | null>(() => {
+		try {
+			const raw = sessionStorage.getItem(STORAGE_KEY);
+			return raw ? JSON.parse(raw).generatedTopic || null : null;
+		} catch {
+			return null;
+		}
+	});
+
+	const [progress, setProgress] = useState<GenerationProgress>(() => {
+		try {
+			const raw = sessionStorage.getItem(STORAGE_KEY);
+			return raw
+				? JSON.parse(raw).progress || {
+						stage: "idle",
+						message: "",
+						progressPercentage: 0,
+					}
+				: { stage: "idle", message: "", progressPercentage: 0 };
+		} catch {
+			return { stage: "idle", message: "", progressPercentage: 0 };
+		}
+	});
+
+	const [error, setError] = useState<string | null>(() => {
+		try {
+			const raw = sessionStorage.getItem(STORAGE_KEY);
+			return raw ? JSON.parse(raw).error || null : null;
+		} catch {
+			return null;
+		}
+	});
+
+	const [history, setHistory] = useState<SearchHistoryItem[]>(() => {
+		try {
+			const histRaw = sessionStorage.getItem(HISTORY_KEY);
+			return histRaw ? JSON.parse(histRaw) : [];
+		} catch {
+			return [];
+		}
+	});
 
 	useEffect(() => {
 		try {
-			localStorage.setItem(
+			sessionStorage.setItem(
 				STORAGE_KEY,
 				JSON.stringify({
 					query,
@@ -61,6 +104,52 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 			// ignore
 		}
 	}, [query, searchResults, generatedTopic, progress, error]);
+
+	useEffect(() => {
+		try {
+			sessionStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+		} catch {}
+	}, [history]);
+
+	const addToHistory = useCallback(
+		(
+			topicQuery: string,
+			newTopic: Topic,
+			newResults: WebSearchResponse | null,
+		) => {
+			setHistory((prev) => {
+				const newItem: SearchHistoryItem = {
+					id: newTopic.id,
+					query: topicQuery,
+					topic: newTopic,
+					searchResults: newResults,
+					timestamp: Date.now(),
+				};
+				// Remove if already exists with same query
+				const filtered = prev.filter(
+					(item) => item.query.toLowerCase() !== topicQuery.toLowerCase(),
+				);
+				return [newItem, ...filtered].slice(0, 6);
+			});
+		},
+		[],
+	);
+
+	const loadFromHistory = useCallback((item: SearchHistoryItem) => {
+		setQuery(item.query);
+		setGeneratedTopic(item.topic);
+		setSearchResults(item.searchResults);
+		setError(null);
+		setProgress({
+			stage: "complete",
+			message: "Loaded from history",
+			progressPercentage: 100,
+		});
+	}, []);
+
+	const removeFromHistory = useCallback((id: string) => {
+		setHistory((prev) => prev.filter((item) => item.id !== id));
+	}, []);
 
 	const process = useCallback(
 		async (topicQuery: string, category?: string) => {
@@ -111,6 +200,7 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 				});
 
 				setGeneratedTopic(topic);
+				addToHistory(topicQuery, topic, results);
 				setProgress({
 					stage: "complete",
 					message: "Study note generated",
@@ -137,7 +227,7 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 				return null;
 			}
 		},
-		[onSuccess, settings.llm, settings.search],
+		[onSuccess, settings.llm, settings.search, addToHistory],
 	);
 
 	const processLLMOnly = useCallback(
@@ -169,6 +259,7 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 				});
 
 				setGeneratedTopic(topic);
+				addToHistory(topicQuery, topic, null);
 				setProgress({
 					stage: "complete",
 					message: "Study note generated",
@@ -191,7 +282,7 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 				return null;
 			}
 		},
-		[settings.llm],
+		[settings.llm, addToHistory],
 	);
 
 	const reset = useCallback(() => {
@@ -201,7 +292,7 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 		setError(null);
 		setProgress({ stage: "idle", message: "", progressPercentage: 0 });
 		try {
-			localStorage.removeItem(STORAGE_KEY);
+			sessionStorage.removeItem(STORAGE_KEY);
 		} catch {}
 	}, []);
 
@@ -211,8 +302,11 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 		generatedTopic,
 		progress,
 		error,
+		history,
 		process,
 		processLLMOnly,
 		reset,
+		loadFromHistory,
+		removeFromHistory,
 	};
 }

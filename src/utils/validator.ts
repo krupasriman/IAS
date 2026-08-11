@@ -10,7 +10,11 @@ export function validateTopic(topic: Topic): ValidationReport {
 	const wordCounts = {
 		meaning: wordCount(topic.meaning),
 		quote: wordCount(topic.quote.text),
-		wayForward: wordCount(topic.wayForward),
+		wayForward: wordCount(
+			Array.isArray(topic.wayForward)
+				? topic.wayForward.join(" ")
+				: topic.wayForward,
+		),
 		conclusion: 0,
 	};
 

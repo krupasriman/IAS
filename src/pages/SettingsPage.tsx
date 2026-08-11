@@ -246,402 +246,409 @@ export default function SettingsPage() {
 	const labelClass = "block text-sm font-semibold text-slate-700 mb-1.5";
 
 	return (
-		<div className="max-w-3xl mx-auto">
-			<button
-				type="button"
-				onClick={() => window.history.back()}
-				className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-600 mb-6 transition-colors"
-			>
-				<ArrowLeft className="w-4 h-4" /> Back
-			</button>
-
-			<div className="flex items-center justify-between mb-6">
-				<h1 className="text-2xl font-bold text-slate-900">Settings</h1>
+		<div className="flex-1 overflow-y-auto" style={{ background: "var(--bg)" }}>
+			<div className="max-w-3xl mx-auto px-4 py-6">
 				<button
 					type="button"
-					onClick={handleSave}
-					className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold text-sm transition-all ${
-						saved
-							? "bg-emerald-500 text-white"
-							: "bg-blue-600 text-white hover:bg-blue-700 shadow-md"
-					}`}
+					onClick={() => window.history.back()}
+					className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-600 mb-6 transition-colors"
 				>
-					{saved ? (
-						<CheckCircle2 className="w-4 h-4" />
-					) : (
-						<Save className="w-4 h-4" />
-					)}
-					{saved ? "Saved!" : "Save Settings"}
+					<ArrowLeft className="w-4 h-4" /> Back
 				</button>
-			</div>
 
-			{/* LLM Section */}
-			<div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
-				<div className="flex items-center gap-3 mb-5">
-					<span className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center">
-						<Bot className="w-5 h-5 text-white" />
-					</span>
-					<div>
-						<h2 className="text-lg font-bold text-slate-900">LLM Provider</h2>
-						<p className="text-sm text-slate-500">
-							Used for AI-powered web search analysis
-						</p>
-					</div>
-					{llmConfigured && (
-						<span className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-bold">
-							<CheckCircle2 className="w-3.5 h-3.5" /> Configured
-						</span>
-					)}
+				<div className="flex items-center justify-between mb-6">
+					<h1 className="text-2xl font-bold text-slate-900">Settings</h1>
+					<button
+						type="button"
+						onClick={handleSave}
+						className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold text-sm transition-all ${
+							saved
+								? "bg-emerald-500 text-white"
+								: "bg-blue-600 text-white hover:bg-blue-700 shadow-md"
+						}`}
+					>
+						{saved ? (
+							<CheckCircle2 className="w-4 h-4" />
+						) : (
+							<Save className="w-4 h-4" />
+						)}
+						{saved ? "Saved!" : "Save Settings"}
+					</button>
 				</div>
 
-				<div className="grid sm:grid-cols-2 gap-4">
-					<div>
-						<label className={labelClass} htmlFor="llm-provider">
-							Provider
-						</label>
-						<select
-							id="llm-provider"
-							value={settings.llm.provider}
-							onChange={(e) =>
-								settingsContext.setLLMProvider(e.target.value as LLMProvider)
-							}
-							className={inputClass}
-						>
-							{LLM_PROVIDERS.map((p) => (
-								<option key={p.id} value={p.id}>
-									{p.name}
-								</option>
-							))}
-						</select>
-						<p className="text-xs text-slate-400 mt-1.5">
-							{currentLLM.description}
-						</p>
-						{currentLLM.apiKeyUrl !== "#" && (
-							<a
-								href={currentLLM.apiKeyUrl}
-								target="_blank"
-								rel="noopener noreferrer"
-								className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline mt-1"
-							>
-								Get API key <ExternalLink className="w-3 h-3" />
-							</a>
+				{/* LLM Section */}
+				<div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
+					<div className="flex items-center gap-3 mb-5">
+						<span className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center">
+							<Bot className="w-5 h-5 text-white" />
+						</span>
+						<div>
+							<h2 className="text-lg font-bold text-slate-900">LLM Provider</h2>
+							<p className="text-sm text-slate-500">
+								Used for AI-powered web search analysis
+							</p>
+						</div>
+						{llmConfigured && (
+							<span className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-bold">
+								<CheckCircle2 className="w-3.5 h-3.5" /> Configured
+							</span>
 						)}
 					</div>
 
-					<div>
-						<label className={labelClass} htmlFor="llm-model">
-							Model
-						</label>
-						{settings.llm.provider === "openrouter" ? (
-							<ModelCombobox
-								value={settings.llm.model}
-								options={modelOptions}
-								onChange={(modelId) => {
-									settingsContext.setLLMModel(modelId);
-									// Reset variant when model changes
-									setModelVariant("default");
-								}}
-								onVariantChange={(variantId) => {
-									setModelVariant(variantId);
-									// Apply variant suffix to model ID
-									const baseModel = settings.llm.model
-										.replace(/:free$/, "")
-										.replace(/:extended$/, "");
-									const variant = modelVariants[baseModel]?.find(
-										(v) => v.id === variantId,
-									);
-									const newModelId = variant
-										? baseModel + variant.suffix
-										: baseModel;
-									settingsContext.setLLMModel(newModelId);
-								}}
-								currentVariant={currentVariant}
-								placeholder="Select a model..."
-								showFreeOnly={showFreeOnly}
-								onToggleFreeOnly={setShowFreeOnly}
-								loading={openRouterLoading}
-								error={openRouterError}
-								onRefresh={() => refreshOpenRouterModels(true)}
-								totalCount={openRouterModels.length}
-							/>
-						) : settings.llm.provider === "generalcompute" ? (
-							<ModelCombobox
-								value={settings.llm.model}
-								options={modelOptions}
-								onChange={(modelId) => {
-									settingsContext.setLLMModel(modelId);
-								}}
-								placeholder="Select a model..."
-								loading={generalComputeLoading}
-								error={generalComputeError}
-								onRefresh={() => refreshGeneralComputeModels(true)}
-								totalCount={generalComputeModels.length}
-							/>
-						) : (
+					<div className="grid sm:grid-cols-2 gap-4">
+						<div>
+							<label className={labelClass} htmlFor="llm-provider">
+								Provider
+							</label>
 							<select
-								value={settings.llm.model}
-								onChange={(e) => settingsContext.setLLMModel(e.target.value)}
+								id="llm-provider"
+								value={settings.llm.provider}
+								onChange={(e) =>
+									settingsContext.setLLMProvider(e.target.value as LLMProvider)
+								}
 								className={inputClass}
 							>
-								{modelOptions.map((m) => (
-									<option key={m.id} value={m.id}>
-										{m.name !== m.id ? `${m.name} (${m.id})` : m.id}
-										{m.isFree ? " [Free]" : ""}
+								{LLM_PROVIDERS.map((p) => (
+									<option key={p.id} value={p.id}>
+										{p.name}
 									</option>
 								))}
 							</select>
-						)}
-					</div>
-
-					<div className="sm:col-span-2">
-						<label className={labelClass} htmlFor="llm-api-key">
-							API Key
-						</label>
-						<div className="relative">
-							<Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-							<input
-								id="llm-api-key"
-								type={showKey ? "text" : "password"}
-								value={currentLLMApiKey}
-								onChange={(e) => settingsContext.setLLMApiKey(e.target.value)}
-								placeholder="sk-..."
-								className={`${inputClass} pl-10 pr-10`}
-							/>
-							<button
-								type="button"
-								onClick={() => setShowKey(!showKey)}
-								className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-							>
-								{showKey ? (
-									<EyeOff className="w-4 h-4" />
-								) : (
-									<Eye className="w-4 h-4" />
-								)}
-							</button>
+							<p className="text-xs text-slate-400 mt-1.5">
+								{currentLLM.description}
+							</p>
+							{currentLLM.apiKeyUrl !== "#" && (
+								<a
+									href={currentLLM.apiKeyUrl}
+									target="_blank"
+									rel="noopener noreferrer"
+									className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline mt-1"
+								>
+									Get API key <ExternalLink className="w-3 h-3" />
+								</a>
+							)}
 						</div>
-					</div>
 
-					<div>
-						<label className={labelClass} htmlFor="llm-base-url">
-							Base URL
-						</label>
-						<input
-							id="llm-base-url"
-							type="text"
-							value={settings.llm.baseUrl}
-							onChange={(e) => settingsContext.setLLMBaseUrl(e.target.value)}
-							className={inputClass}
-						/>
-					</div>
-
-					<div>
-						<label className={labelClass} htmlFor="llm-temperature">
-							Temperature
-						</label>
-						<div className="flex items-center gap-3">
-							<input
-								id="llm-temperature"
-								type="range"
-								min="0"
-								max="1"
-								step="0.1"
-								value={settings.llm.temperature}
-								onChange={(e) =>
-									settingsContext.setTemperature(parseFloat(e.target.value))
-								}
-								className="flex-1 accent-blue-600"
-							/>
-							<span className="text-sm font-bold text-slate-700 w-8 text-center">
-								{settings.llm.temperature.toFixed(1)}
-							</span>
-						</div>
-						<p className="text-xs text-slate-400 mt-1">
-							Lower = more consistent, higher = more creative
-						</p>
-					</div>
-				</div>
-
-				<div className="mt-5 flex items-center gap-3">
-					<button
-						type="button"
-						onClick={handleTest}
-						disabled={!llmConfigured || testResult.status === "testing"}
-						className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-							!llmConfigured
-								? "bg-slate-100 text-slate-400 cursor-not-allowed"
-								: "bg-slate-900 text-white hover:bg-slate-800"
-						}`}
-					>
-						<Sparkles className="w-4 h-4" />
-						{testResult.status === "testing" ? "Testing..." : "Test Connection"}
-					</button>
-
-					{testResult.status === "success" && (
-						<span className="flex items-center gap-1.5 text-sm text-emerald-600 font-medium">
-							<CheckCircle2 className="w-4 h-4" /> {testResult.message}
-						</span>
-					)}
-					{testResult.status === "error" && (
-						<span className="flex items-center gap-1.5 text-sm text-red-600 font-medium">
-							<AlertCircle className="w-4 h-4" /> {testResult.message}
-						</span>
-					)}
-				</div>
-			</div>
-
-			{/* Search Section */}
-			<div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
-				<div className="flex items-center gap-3 mb-5">
-					<span className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center">
-						<Globe className="w-5 h-5 text-white" />
-					</span>
-					<div>
-						<h2 className="text-lg font-bold text-slate-900">
-							Web Search Provider
-						</h2>
-						<p className="text-sm text-slate-500">
-							Used to fetch recent web results for AI analysis
-						</p>
-					</div>
-					{searchConfigured && (
-						<span className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-bold">
-							<CheckCircle2 className="w-3.5 h-3.5" /> Ready
-						</span>
-					)}
-				</div>
-
-				<div className="grid sm:grid-cols-2 gap-4">
-					<div>
-						<label className={labelClass} htmlFor="search-provider">
-							Provider
-						</label>
-						<select
-							id="search-provider"
-							value={settings.search.provider}
-							onChange={(e) =>
-								settingsContext.setSearchProvider(
-									e.target.value as SearchProvider,
-								)
-							}
-							className={inputClass}
-						>
-							{SEARCH_PROVIDERS.map((p) => (
-								<option key={p.id} value={p.id}>
-									{p.name}
-								</option>
-							))}
-						</select>
-						<p className="text-xs text-slate-400 mt-1.5">
-							{currentSearch.description}
-						</p>
-						{currentSearch.apiKeyUrl && (
-							<a
-								href={currentSearch.apiKeyUrl}
-								target="_blank"
-								rel="noopener noreferrer"
-								className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline mt-1"
-							>
-								Get API key <ExternalLink className="w-3 h-3" />
-							</a>
-						)}
-					</div>
-
-					{currentSearch.requiredKey ? (
 						<div>
-							<label className={labelClass} htmlFor="search-api-key">
-								API Key {currentSearch.id === "langsearch" ? "(optional)" : ""}
+							<label className={labelClass} htmlFor="llm-model">
+								Model
+							</label>
+							{settings.llm.provider === "openrouter" ? (
+								<ModelCombobox
+									value={settings.llm.model}
+									options={modelOptions}
+									onChange={(modelId) => {
+										settingsContext.setLLMModel(modelId);
+										// Reset variant when model changes
+										setModelVariant("default");
+									}}
+									onVariantChange={(variantId) => {
+										setModelVariant(variantId);
+										// Apply variant suffix to model ID
+										const baseModel = settings.llm.model
+											.replace(/:free$/, "")
+											.replace(/:extended$/, "");
+										const variant = modelVariants[baseModel]?.find(
+											(v) => v.id === variantId,
+										);
+										const newModelId = variant
+											? baseModel + variant.suffix
+											: baseModel;
+										settingsContext.setLLMModel(newModelId);
+									}}
+									currentVariant={currentVariant}
+									placeholder="Select a model..."
+									showFreeOnly={showFreeOnly}
+									onToggleFreeOnly={setShowFreeOnly}
+									loading={openRouterLoading}
+									error={openRouterError}
+									onRefresh={() => refreshOpenRouterModels(true)}
+									totalCount={openRouterModels.length}
+								/>
+							) : settings.llm.provider === "generalcompute" ? (
+								<ModelCombobox
+									value={settings.llm.model}
+									options={modelOptions}
+									onChange={(modelId) => {
+										settingsContext.setLLMModel(modelId);
+									}}
+									placeholder="Select a model..."
+									loading={generalComputeLoading}
+									error={generalComputeError}
+									onRefresh={() => refreshGeneralComputeModels(true)}
+									totalCount={generalComputeModels.length}
+								/>
+							) : (
+								<select
+									value={settings.llm.model}
+									onChange={(e) => settingsContext.setLLMModel(e.target.value)}
+									className={inputClass}
+								>
+									{modelOptions.map((m) => (
+										<option key={m.id} value={m.id}>
+											{m.name !== m.id ? `${m.name} (${m.id})` : m.id}
+											{m.isFree ? " [Free]" : ""}
+										</option>
+									))}
+								</select>
+							)}
+						</div>
+
+						<div className="sm:col-span-2">
+							<label className={labelClass} htmlFor="llm-api-key">
+								API Key
+							</label>
+							<div className="relative">
+								<Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+								<input
+									id="llm-api-key"
+									type={showKey ? "text" : "password"}
+									value={currentLLMApiKey}
+									onChange={(e) => settingsContext.setLLMApiKey(e.target.value)}
+									placeholder="sk-..."
+									className={`${inputClass} pl-10 pr-10`}
+								/>
+								<button
+									type="button"
+									onClick={() => setShowKey(!showKey)}
+									className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+								>
+									{showKey ? (
+										<EyeOff className="w-4 h-4" />
+									) : (
+										<Eye className="w-4 h-4" />
+									)}
+								</button>
+							</div>
+						</div>
+
+						<div>
+							<label className={labelClass} htmlFor="llm-base-url">
+								Base URL
 							</label>
 							<input
-								id="search-api-key"
-								type="password"
-								value={currentSearchApiKey}
+								id="llm-base-url"
+								type="text"
+								value={settings.llm.baseUrl}
+								onChange={(e) => settingsContext.setLLMBaseUrl(e.target.value)}
+								className={inputClass}
+							/>
+						</div>
+
+						<div>
+							<label className={labelClass} htmlFor="llm-temperature">
+								Temperature
+							</label>
+							<div className="flex items-center gap-3">
+								<input
+									id="llm-temperature"
+									type="range"
+									min="0"
+									max="1"
+									step="0.1"
+									value={settings.llm.temperature}
+									onChange={(e) =>
+										settingsContext.setTemperature(parseFloat(e.target.value))
+									}
+									className="flex-1 accent-blue-600"
+								/>
+								<span className="text-sm font-bold text-slate-700 w-8 text-center">
+									{settings.llm.temperature.toFixed(1)}
+								</span>
+							</div>
+							<p className="text-xs text-slate-400 mt-1">
+								Lower = more consistent, higher = more creative
+							</p>
+						</div>
+					</div>
+
+					<div className="mt-5 flex items-center gap-3">
+						<button
+							type="button"
+							onClick={handleTest}
+							disabled={!llmConfigured || testResult.status === "testing"}
+							className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+								!llmConfigured
+									? "bg-slate-100 text-slate-400 cursor-not-allowed"
+									: "bg-slate-900 text-white hover:bg-slate-800"
+							}`}
+						>
+							<Sparkles className="w-4 h-4" />
+							{testResult.status === "testing"
+								? "Testing..."
+								: "Test Connection"}
+						</button>
+
+						{testResult.status === "success" && (
+							<span className="flex items-center gap-1.5 text-sm text-emerald-600 font-medium">
+								<CheckCircle2 className="w-4 h-4" /> {testResult.message}
+							</span>
+						)}
+						{testResult.status === "error" && (
+							<span className="flex items-center gap-1.5 text-sm text-red-600 font-medium">
+								<AlertCircle className="w-4 h-4" /> {testResult.message}
+							</span>
+						)}
+					</div>
+				</div>
+
+				{/* Search Section */}
+				<div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
+					<div className="flex items-center gap-3 mb-5">
+						<span className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center">
+							<Globe className="w-5 h-5 text-white" />
+						</span>
+						<div>
+							<h2 className="text-lg font-bold text-slate-900">
+								Web Search Provider
+							</h2>
+							<p className="text-sm text-slate-500">
+								Used to fetch recent web results for AI analysis
+							</p>
+						</div>
+						{searchConfigured && (
+							<span className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-bold">
+								<CheckCircle2 className="w-3.5 h-3.5" /> Ready
+							</span>
+						)}
+					</div>
+
+					<div className="grid sm:grid-cols-2 gap-4">
+						<div>
+							<label className={labelClass} htmlFor="search-provider">
+								Provider
+							</label>
+							<select
+								id="search-provider"
+								value={settings.search.provider}
 								onChange={(e) =>
-									settingsContext.setSearchApiKey(e.target.value)
+									settingsContext.setSearchProvider(
+										e.target.value as SearchProvider,
+									)
 								}
-								placeholder={
-									currentSearch.requiredKey ? "Required" : "Optional"
+								className={inputClass}
+							>
+								{SEARCH_PROVIDERS.map((p) => (
+									<option key={p.id} value={p.id}>
+										{p.name}
+									</option>
+								))}
+							</select>
+							<p className="text-xs text-slate-400 mt-1.5">
+								{currentSearch.description}
+							</p>
+							{currentSearch.apiKeyUrl && (
+								<a
+									href={currentSearch.apiKeyUrl}
+									target="_blank"
+									rel="noopener noreferrer"
+									className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline mt-1"
+								>
+									Get API key <ExternalLink className="w-3 h-3" />
+								</a>
+							)}
+						</div>
+
+						{currentSearch.requiredKey ? (
+							<div>
+								<label className={labelClass} htmlFor="search-api-key">
+									API Key{" "}
+									{currentSearch.id === "langsearch" ? "(optional)" : ""}
+								</label>
+								<input
+									id="search-api-key"
+									type="password"
+									value={currentSearchApiKey}
+									onChange={(e) =>
+										settingsContext.setSearchApiKey(e.target.value)
+									}
+									placeholder={
+										currentSearch.requiredKey ? "Required" : "Optional"
+									}
+									className={inputClass}
+								/>
+							</div>
+						) : (
+							<div className="flex items-end">
+								<span className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 text-sm font-semibold">
+									<CheckCircle2 className="w-4 h-4" /> No API key needed
+								</span>
+							</div>
+						)}
+
+						<div>
+							<label className={labelClass} htmlFor="search-max-results">
+								Max Results
+							</label>
+							<input
+								id="search-max-results"
+								type="number"
+								min="1"
+								max="15"
+								value={settings.search.maxResults}
+								onChange={(e) =>
+									settingsContext.setMaxResults(
+										parseInt(e.target.value, 10) || 8,
+									)
 								}
 								className={inputClass}
 							/>
 						</div>
-					) : (
-						<div className="flex items-end">
-							<span className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 text-sm font-semibold">
-								<CheckCircle2 className="w-4 h-4" /> No API key needed
-							</span>
+					</div>
+				</div>
+
+				{/* Preferences */}
+				<div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
+					<h2 className="text-lg font-bold text-slate-900 mb-4">Preferences</h2>
+					<div className="flex items-center justify-between py-2">
+						<div>
+							<p className="font-semibold text-slate-800 text-sm">
+								Auto-save AI generated notes
+							</p>
+							<p className="text-xs text-slate-400">
+								Automatically save AI-generated study notes to your local notes
+								when generated.
+							</p>
 						</div>
-					)}
-
-					<div>
-						<label className={labelClass} htmlFor="search-max-results">
-							Max Results
+						<label className="relative inline-flex items-center cursor-pointer">
+							<input
+								type="checkbox"
+								checked={settings.autoSaveWebNotes}
+								onChange={(e) =>
+									settingsContext.setAutoSaveWebNotes(e.target.checked)
+								}
+								className="sr-only peer"
+							/>
+							<div className="w-11 h-6 bg-slate-200 peer-focus:ring-2 peer-focus:ring-blue-400 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
 						</label>
-						<input
-							id="search-max-results"
-							type="number"
-							min="1"
-							max="15"
-							value={settings.search.maxResults}
-							onChange={(e) =>
-								settingsContext.setMaxResults(parseInt(e.target.value, 10) || 8)
-							}
-							className={inputClass}
-						/>
 					</div>
 				</div>
-			</div>
 
-			{/* Preferences */}
-			<div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
-				<h2 className="text-lg font-bold text-slate-900 mb-4">Preferences</h2>
-				<div className="flex items-center justify-between py-2">
-					<div>
-						<p className="font-semibold text-slate-800 text-sm">
-							Auto-save AI generated notes
-						</p>
-						<p className="text-xs text-slate-400">
-							Automatically save AI-generated study notes to your local notes
-							when generated.
-						</p>
-					</div>
-					<label className="relative inline-flex items-center cursor-pointer">
-						<input
-							type="checkbox"
-							checked={settings.autoSaveWebNotes}
-							onChange={(e) =>
-								settingsContext.setAutoSaveWebNotes(e.target.checked)
-							}
-							className="sr-only peer"
-						/>
-						<div className="w-11 h-6 bg-slate-200 peer-focus:ring-2 peer-focus:ring-blue-400 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-					</label>
+				{/* Privacy Note */}
+				<div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-8">
+					<p className="text-sm text-blue-800">
+						<strong>Privacy:</strong> Your API keys are stored in your browser
+						using localStorage and, when a server is running, are also synced to
+						it and encrypted with AES-256-GCM before being stored server-side.
+						Keys are only sent to the LLM/search provider you configure when you
+						trigger a generation or search.
+					</p>
 				</div>
-			</div>
 
-			{/* Privacy Note */}
-			<div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-8">
-				<p className="text-sm text-blue-800">
-					<strong>Privacy:</strong> Your API keys are stored in your browser
-					using localStorage and, when a server is running, are also synced to
-					it and encrypted with AES-256-GCM before being stored server-side.
-					Keys are only sent to the LLM/search provider you configure when you
-					trigger a generation or search.
-				</p>
-			</div>
-
-			{/* Reset */}
-			<div className="flex justify-center mb-12">
-				<button
-					type="button"
-					onClick={() => {
-						if (window.confirm("Reset all settings to defaults?")) {
-							settingsContext.resetSettings();
-						}
-					}}
-					className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 text-slate-600 text-sm font-semibold hover:bg-red-50 hover:text-red-600 transition-colors"
-				>
-					<RotateCcw className="w-4 h-4" /> Reset Settings
-				</button>
+				{/* Reset */}
+				<div className="flex justify-center mb-12">
+					<button
+						type="button"
+						onClick={() => {
+							if (window.confirm("Reset all settings to defaults?")) {
+								settingsContext.resetSettings();
+							}
+						}}
+						className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 text-slate-600 text-sm font-semibold hover:bg-red-50 hover:text-red-600 transition-colors"
+					>
+						<RotateCcw className="w-4 h-4" /> Reset Settings
+					</button>
+				</div>
 			</div>
 		</div>
 	);

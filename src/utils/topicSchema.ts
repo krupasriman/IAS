@@ -58,26 +58,40 @@ const CATEGORY_ALIASES: Record<string, (typeof VALID_CATEGORIES)[number]> = {
 	"sci & tech": "Science & Tech",
 };
 
-function normalizeCategory(value: string): string {
+export function normalizeCategory(value: string): string {
 	const lower = value.trim().toLowerCase();
 	return CATEGORY_ALIASES[lower] ?? value.trim();
 }
 
 /** Category schema that normalizes common LLM variations before validation */
-const FlexibleCategorySchema = z.preprocess(
+export const FlexibleCategorySchema = z.preprocess(
 	(val) => (typeof val === "string" ? normalizeCategory(val) : val),
 	CategorySchema,
 );
 
-export const StructuredTopicSchema = z.object({
+export const LlmTopicSchema = z.object({
 	title: z.string().min(1).max(200),
-	category: FlexibleCategorySchema,
+	category: z
+		.string()
+		.describe(
+			`Category of the topic. Must be one of: ${VALID_CATEGORIES.join(", ")}`,
+		),
 	meaning: z.string().min(1).max(2000),
 	quote: QuoteSchema,
 	pros: z.array(ProConItemSchema).length(4),
 	cons: z.array(ProConItemSchema).length(4),
-	wayForward: z.string().min(1).max(2000),
+	wayForward: z
+		.array(z.string())
+		.min(3)
+		.max(4)
+		.describe(
+			"Exactly 3 to 4 distinct actionable steps or policy recommendations",
+		),
 	conclusion: ConclusionSchema,
+});
+
+export const StructuredTopicSchema = LlmTopicSchema.extend({
+	category: FlexibleCategorySchema,
 });
 
 export type StructuredTopic = z.infer<typeof StructuredTopicSchema>;

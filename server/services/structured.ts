@@ -1,13 +1,11 @@
-import { generateObject, type ModelMessage, NoObjectGeneratedError } from "ai";
+import {
+	AIMessage,
+	HumanMessage,
+	SystemMessage,
+} from "@langchain/core/messages";
 import type { ZodType } from "zod";
-import {
-	getLanguageModel,
-	type ProviderConfig,
-} from "../../src/services/llm/provider.ts";
-import {
-	DEFAULT_MAX_TOKENS,
-	DEFAULT_TEMPERATURE,
-} from "../../src/services/llm/providerDefaults.ts";
+import { getLangChainModel } from "../../src/services/llm/langchainProvider.ts";
+import type { ProviderConfig } from "../../src/services/llm/provider.ts";
 import { logger } from "../../src/utils/logger.ts";
 
 export const MAX_STRUCTURED_RETRIES = 2;
@@ -25,19 +23,37 @@ export interface StructuredGenerateOptions {
 	maxRetries?: number;
 }
 
+type StructuredMessage = {
+	role: "system" | "user" | "assistant";
+	content: string;
+};
+
+function toLangChainMessages(messages: StructuredMessage[]) {
+	return messages.map((m) => {
+		if (m.role === "system") {
+			return new SystemMessage({ content: m.content });
+		}
+		if (m.role === "user") {
+			return new HumanMessage({ content: m.content });
+		}
+		return new AIMessage({ content: m.content });
+	});
+}
+
 export async function generateStructuredCompletion<T>(
 	config: ProviderConfig,
 	schema: ZodType<T>,
-	messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
+	messages: StructuredMessage[],
 	options: StructuredGenerateOptions = {},
 ): Promise<T> {
 	const maxRetries = options.maxRetries ?? MAX_STRUCTURED_RETRIES;
-	const model = getLanguageModel(config);
+	const model = getLangChainModel(config);
 
-	const systemMessage = messages.find((m) => m.role === "system")?.content;
-	const otherMessages = messages.filter(
-		(m) => m.role !== "system",
-	) as ModelMessage[];
+	const structured = model.withStructuredOutput(schema, {
+		name: "ias_topic",
+		method: "jsonMode",
+	});
+	const langMessages = toLangChainMessages(messages);
 
 	let lastError = "";
 	for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -45,32 +61,21 @@ export async function generateStructuredCompletion<T>(
 			logger.warn({ attempt, maxRetries }, "LLM structured output retry");
 		}
 		try {
-			const { object } = await generateObject({
-				model,
-				schema,
-				system: systemMessage,
-				messages: otherMessages,
-				temperature: DEFAULT_TEMPERATURE,
-				maxOutputTokens: DEFAULT_MAX_TOKENS,
-			});
+			const object = (await structured.invoke(langMessages)) as T;
 			logger.info({ attempt: attempt + 1 }, "LLM structured output validated");
-			return object as T;
+			return object;
 		} catch (err) {
-			if (NoObjectGeneratedError.isInstance(err)) {
-				lastError = err.message;
-				logger.warn({ attempt, err: err.message }, "NoObjectGeneratedError");
-			} else {
-				const message = err instanceof Error ? err.message : String(err);
-				lastError = message;
-				if (attempt === maxRetries) {
-					throw new StructuredLLMError(
-						`Failed to get a valid structured response after ${maxRetries} retries: ${message}`,
-						[message],
-					);
-				}
+			lastError = err instanceof Error ? err.message : String(err);
+			logger.warn({ attempt, err: lastError }, "Structured output call failed");
+			if (attempt === maxRetries) {
+				throw new StructuredLLMError(
+					`Failed to get a valid structured response after ${maxRetries} retries: ${lastError}`,
+					[lastError],
+				);
 			}
 		}
 	}
+
 	throw new StructuredLLMError(
 		`Failed to get a valid structured response after ${maxRetries} retries`,
 		[lastError],
