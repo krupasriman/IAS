@@ -1,4 +1,4 @@
-﻿import { Loader2, Search } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import TopicRow from "../components/TopicRow";
 import { CATEGORIES } from "../data/categories";
@@ -122,7 +122,6 @@ export default function AllTopicsPage() {
 					className="hidden md:flex items-center gap-4 text-[10px] font-semibold uppercase tracking-wide"
 					style={{ color: "var(--faint)" }}
 				>
-					<span className="w-8 text-right">Score</span>
 					<span className="hidden lg:block w-16 text-right">Date</span>
 				</div>
 			</div>

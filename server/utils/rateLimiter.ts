@@ -38,7 +38,9 @@ async function connectRedis(url: string): Promise<RedisClientType | null> {
 	}
 }
 
-export async function createApiLimiter(max = 100) {
+export async function createApiLimiter(
+	max = process.env.NODE_ENV === "production" ? 100 : 2000,
+) {
 	const windowMs = 15 * 60 * 1000; // 15 minutes
 	const base = {
 		windowMs,

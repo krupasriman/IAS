@@ -1,58 +1,63 @@
-@import "tailwindcss";
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
 
-/* ─── Design Tokens ─── */
+/* ─── Design Tokens (ChatGPT Theme) ─── */
 :root {
-	--sidebar-w: 232px;
-	--sidebar-rail: 48px;
+	--sidebar-w: 260px;
+	--sidebar-rail: 60px;
 	--inspector-w: 320px;
-	--topbar-h: 40px;
-	--querybar-h: 52px;
+	--topbar-h: 44px;
+	--querybar-h: 56px;
 
-	/* Light palette */
-	--bg: #f5f6f9;
+	/* ChatGPT Light palette */
+	--bg: #ffffff;
 	--surface: #ffffff;
-	--surface-2: #f0f2f7;
-	--surface-3: #e4e8f2;
-	--border: #e1e5ef;
-	--border-2: #c8cfe0;
-	--text: #0f1623;
-	--text-2: #2e3a52;
-	--muted: #64748b;
-	--faint: #94a3b8;
-	--accent: #4f46e5;
-	--accent-2: #eef2ff;
-	--success: #059669;
+	--surface-sidebar: #f9f9f9;
+	--surface-2: #f3f3f3;
+	--surface-3: #e5e5e5;
+	--border: #e5e5e5;
+	--border-2: #d4d4d4;
+	--text: #0d0d0d;
+	--text-2: #404040;
+	--muted: #737373;
+	--faint: #a3a3a3;
+	--accent: #10a37f;
+	--accent-hover: #0e8c6d;
+	--accent-2: #ecfdf5;
+	--success: #10a37f;
 	--success-bg: #ecfdf5;
-	--danger: #dc2626;
+	--danger: #ef4444;
 	--danger-bg: #fef2f2;
-	--warn: #d97706;
+	--warn: #f59e0b;
 	--warn-bg: #fffbeb;
-	--scroll-bg: #edf0f6;
-	--scroll-fg: #c5cdd8;
+	--scroll-bg: #f9f9f9;
+	--scroll-fg: #d4d4d4;
 }
 
 html.dark {
-	--bg: #0c0e15;
-	--surface: #131620;
-	--surface-2: #1b1e2d;
-	--surface-3: #242840;
-	--border: #25283a;
-	--border-2: #333750;
-	--text: #e6e9f8;
-	--text-2: #9099c2;
-	--muted: #5c668a;
-	--faint: #363b5a;
-	--accent: #6366f1;
-	--accent-2: #1a1c32;
+	/* ChatGPT Dark palette */
+	--bg: #212121;
+	--surface: #212121;
+	--surface-sidebar: #171717;
+	--surface-2: #2f2f2f;
+	--surface-3: #383838;
+	--border: #303030;
+	--border-2: #444444;
+	--text: #ececec;
+	--text-2: #b4b4b4;
+	--muted: #8e8e8e;
+	--faint: #525252;
+	--accent: #10a37f;
+	--accent-hover: #1abc94;
+	--accent-2: #064e3b;
 	--success: #10b981;
-	--success-bg: #052e1a;
+	--success-bg: #064e3b;
 	--danger: #f87171;
-	--danger-bg: #1c0b0b;
+	--danger-bg: #450a0a;
 	--warn: #fbbf24;
-	--warn-bg: #1a1005;
-	--scroll-bg: #1b1e2d;
-	--scroll-fg: #2d3148;
+	--warn-bg: #451a03;
+	--scroll-bg: #171717;
+	--scroll-fg: #333333;
 }
 
 /* ─── Base ─── */
@@ -108,7 +113,7 @@ html.dark {
 .ws-sidebar {
 	width: var(--sidebar-w);
 	min-width: var(--sidebar-w);
-	background-color: var(--surface);
+	background-color: var(--surface-sidebar);
 	border-right: 1px solid var(--border);
 	display: flex;
 	flex-direction: column;
@@ -339,19 +344,6 @@ html.dark {
 .badge-neutral {
 	background: var(--surface-3);
 	color: var(--muted);
-}
-
-/* ─── Score bar ─── */
-.score-bar-track {
-	height: 3px;
-	background: var(--surface-3);
-	border-radius: 99px;
-	overflow: hidden;
-}
-.score-bar-fill {
-	height: 100%;
-	border-radius: 99px;
-	transition: width 0.3s;
 }
 
 /* ─── Mobile Overlay ─── */

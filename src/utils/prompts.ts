@@ -43,7 +43,7 @@ ${structuredTopicSchemaString}
 \`\`\`
 
 IMPORTANT:
-- The category MUST be exactly one of: Polity, History, Geography, Economy, Ethics, Governance, IR, Society, Environment, Science & Tech.
+- The category MUST be exactly one of: Polity, History, Geography, Economy, Ethics, Governance, IR, Society, Environment, Science & Tech, Internal Security, Sociology, Disaster Management.
 - pros MUST contain exactly 4 items and cons MUST contain exactly 4 items.
 - conclusion must be an object with both "negative" and "positive" string keys (never a plain string).
 `;

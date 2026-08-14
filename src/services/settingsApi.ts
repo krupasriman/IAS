@@ -6,12 +6,19 @@ export interface ConfiguredKeys {
 }
 
 export async function fetchConfiguredKeys(): Promise<ConfiguredKeys> {
-	const res = await fetch(`${API_BASE}/api-keys`);
-	if (!res.ok) {
-		throw new Error(`Failed to fetch configured keys: ${res.status}`);
+	try {
+		const res = await fetch(`${API_BASE}/api-keys`);
+		if (res.status === 429) {
+			return { llm: [], search: [] };
+		}
+		if (!res.ok) {
+			return { llm: [], search: [] };
+		}
+		const data = (await res.json()) as { configured: ConfiguredKeys };
+		return data.configured ?? { llm: [], search: [] };
+	} catch {
+		return { llm: [], search: [] };
 	}
-	const data = (await res.json()) as { configured: ConfiguredKeys };
-	return data.configured;
 }
 
 export async function storeServerApiKey(

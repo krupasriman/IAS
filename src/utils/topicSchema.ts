@@ -27,6 +27,9 @@ export const VALID_CATEGORIES = [
 	"Society",
 	"Environment",
 	"Science & Tech",
+	"Internal Security",
+	"Sociology",
+	"Disaster Management",
 ] as const;
 
 export const CategorySchema = z.enum(VALID_CATEGORIES);
@@ -56,6 +59,16 @@ const CATEGORY_ALIASES: Record<string, (typeof VALID_CATEGORIES)[number]> = {
 	science: "Science & Tech",
 	technology: "Science & Tech",
 	"sci & tech": "Science & Tech",
+	"internal security": "Internal Security",
+	security: "Internal Security",
+	"internal-security": "Internal Security",
+	"national security": "Internal Security",
+	sociology: "Sociology",
+	"sociology & social structure": "Sociology",
+	"disaster management": "Disaster Management",
+	disaster: "Disaster Management",
+	"disaster-management": "Disaster Management",
+	dm: "Disaster Management",
 };
 
 export function normalizeCategory(value: string): string {

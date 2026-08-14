@@ -13,6 +13,11 @@ interface WorkspaceCtx {
 	toggleSidebar: () => void;
 	dark: boolean;
 	toggleDark: () => void;
+	newTopicCounter: number;
+	startNewTopic: () => void;
+	isSettingsOpen: boolean;
+	openSettings: () => void;
+	closeSettings: () => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceCtx | null>(null);
@@ -34,6 +39,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 		}
 	});
 
+	const [newTopicCounter, setNewTopicCounter] = useState(0);
+	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
 	useEffect(() => {
 		document.documentElement.classList.toggle("dark", dark);
 		try {
@@ -49,6 +57,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
 	const toggleSidebar = useCallback(() => setSidebarOpen((v) => !v), []);
 	const toggleDark = useCallback(() => setDark((v) => !v), []);
+	const startNewTopic = useCallback(() => setNewTopicCounter((c) => c + 1), []);
+	const openSettings = useCallback(() => setIsSettingsOpen(true), []);
+	const closeSettings = useCallback(() => setIsSettingsOpen(false), []);
 
 	return (
 		<WorkspaceContext.Provider
@@ -58,6 +69,11 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 				toggleSidebar,
 				dark,
 				toggleDark,
+				newTopicCounter,
+				startNewTopic,
+				isSettingsOpen,
+				openSettings,
+				closeSettings,
 			}}
 		>
 			{children}

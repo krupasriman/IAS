@@ -1,7 +1,10 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { LLM_PROVIDERS, SEARCH_PROVIDERS } from "../config/providers";
-import { storeServerApiKey } from "../services/settingsApi";
+import {
+	fetchConfiguredKeys,
+	storeServerApiKey,
+} from "../services/settingsApi";
 import type {
 	AppSettings,
 	LLMProvider,
@@ -86,6 +89,10 @@ interface SettingsState {
 	clearServerKey: (kind: "llm" | "search", provider: string) => void;
 }
 
+let inFlightLoad: Promise<void> | null = null;
+let lastLoadedTime = 0;
+const LOAD_THROTTLE_MS = 30000; // 30 seconds
+
 export const useSettingsStore = create<SettingsState>()(
 	persist(
 		(set, get) => ({
@@ -93,15 +100,23 @@ export const useSettingsStore = create<SettingsState>()(
 			serverKeys: { llm: [], search: [] },
 
 			loadServerKeys: async () => {
-				try {
-					const { fetchConfiguredKeys } = await import(
-						"../services/settingsApi"
-					);
-					const configured = await fetchConfiguredKeys();
-					set({ serverKeys: configured });
-				} catch {
-					// Server unreachable or auth required; keep local keys
-				}
+				const now = Date.now();
+				if (inFlightLoad) return inFlightLoad;
+				if (now - lastLoadedTime < LOAD_THROTTLE_MS) return;
+
+				inFlightLoad = (async () => {
+					try {
+						const configured = await fetchConfiguredKeys();
+						set({ serverKeys: configured });
+						lastLoadedTime = Date.now();
+					} catch {
+						// Server unreachable or auth required; keep local keys
+					} finally {
+						inFlightLoad = null;
+					}
+				})();
+
+				return inFlightLoad;
 			},
 
 			clearServerKey: (kind, provider) => {

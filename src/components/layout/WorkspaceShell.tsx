@@ -1,6 +1,8 @@
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useWorkspace } from "../../context/WorkspaceContext";
+import SettingsModal from "../SettingsModal";
 import Sidebar from "./Sidebar";
 
 export default function WorkspaceShell({
@@ -8,7 +10,15 @@ export default function WorkspaceShell({
 }: {
 	children: React.ReactNode;
 }) {
-	const { sidebarOpen, setSidebarOpen, toggleSidebar } = useWorkspace();
+	const {
+		sidebarOpen,
+		setSidebarOpen,
+		toggleSidebar,
+		startNewTopic,
+		isSettingsOpen,
+		closeSettings,
+	} = useWorkspace();
+	const navigate = useNavigate();
 	const [_isMobile, setIsMobile] = useState(false);
 	const [isTablet, setIsTablet] = useState(false);
 	const hasMounted = useRef(false);
@@ -34,10 +44,15 @@ export default function WorkspaceShell({
 				e.preventDefault();
 				toggleSidebar();
 			}
+			if ((e.key === "n" || e.key === "N") && (e.metaKey || e.ctrlKey)) {
+				e.preventDefault();
+				startNewTopic();
+				navigate("/");
+			}
 		};
 		window.addEventListener("keydown", handler);
 		return () => window.removeEventListener("keydown", handler);
-	}, [toggleSidebar]);
+	}, [toggleSidebar, startNewTopic, navigate]);
 
 	const sidebarClass = [
 		"ws-sidebar",
@@ -62,6 +77,9 @@ export default function WorkspaceShell({
 			</div>
 
 			<div className="ws-main">{children}</div>
+
+			{/* ChatGPT-style Settings Modal */}
+			<SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} />
 		</div>
 	);
 }

@@ -103,4 +103,34 @@ export const CATEGORIES: CategoryInfo[] = [
 		borderColor: "border-orange-200",
 		iconName: "BookOpen",
 	},
+	{
+		id: "Internal Security",
+		name: "Internal Security",
+		description:
+			"Border Security, Cyber Threats, Counter-Terrorism, LWE, Police Reforms",
+		color: "text-rose-700",
+		bgLight: "bg-rose-50 hover:bg-rose-100 text-rose-800",
+		borderColor: "border-rose-200",
+		iconName: "ShieldAlert",
+	},
+	{
+		id: "Sociology",
+		name: "Sociology & Social Structure",
+		description:
+			"Social Stratification, Caste Dynamics, Agrarian Class, Social Movements",
+		color: "text-violet-700",
+		bgLight: "bg-violet-50 hover:bg-violet-100 text-violet-800",
+		borderColor: "border-violet-200",
+		iconName: "GraduationCap",
+	},
+	{
+		id: "Disaster Management",
+		name: "Disaster Management",
+		description:
+			"NDMA Guidelines, Sendai Framework, Hazard Mitigation, Early Warning Systems",
+		color: "text-amber-700",
+		bgLight: "bg-amber-50 hover:bg-amber-100 text-amber-800",
+		borderColor: "border-amber-200",
+		iconName: "AlertTriangle",
+	},
 ];

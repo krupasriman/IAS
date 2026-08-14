@@ -303,6 +303,7 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 		progress,
 		error,
 		history,
+		addToHistory,
 		process,
 		processLLMOnly,
 		reset,

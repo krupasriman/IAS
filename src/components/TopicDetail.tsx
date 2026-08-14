@@ -42,20 +42,17 @@ function SectionBlock({
 	children: React.ReactNode;
 }) {
 	return (
-		<div id={id} className="mb-6">
-			<div
-				className="flex items-center gap-2.5 px-5 py-3 border-b"
-				style={{ borderColor: "var(--border)", background: "var(--surface)" }}
-			>
-				<Icon className="w-5 h-5 flex-shrink-0" style={{ color: iconColor }} />
-				<span
-					className="text-base font-bold uppercase tracking-wider"
-					style={{ color: "var(--muted)" }}
-				>
+		<div
+			id={id}
+			className="p-5 sm:p-6 border-b border-[var(--border)] last:border-b-0"
+		>
+			<div className="flex items-center gap-2 mb-3">
+				<Icon className="w-4 h-4 flex-shrink-0" style={{ color: iconColor }} />
+				<span className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
 					{label}
 				</span>
 			</div>
-			<div className="section-content p-5 bg-transparent">{children}</div>
+			<div className="section-content text-[var(--text-2)]">{children}</div>
 		</div>
 	);
 }
@@ -69,33 +66,26 @@ export default function TopicDetail({ topic }: TopicDetailProps) {
 			: `${topic.conclusion.negative} ${topic.conclusion.positive}`;
 
 	return (
-		<div className="ws-section">
+		<div className="divide-y divide-[var(--border)] bg-[var(--surface)]">
 			{/* ── Meaning ── */}
 			<SectionBlock
 				id="sec-meaning"
-				label="Meaning"
+				label="Meaning & Context"
 				icon={Lightbulb}
-				iconColor="var(--accent)"
+				iconColor="#10a37f"
 			>
 				<div className="copy-trigger relative group">
-					<p
-						className="text-base leading-relaxed"
-						style={{ color: "var(--text-2)" }}
-					>
+					<p className="text-base leading-relaxed text-[var(--text)]">
 						{topic.meaning}
 					</p>
 					<button
 						type="button"
-						className="copy-btn absolute top-0 right-0 p-1 rounded text-xs"
-						style={{ color: "var(--muted)", background: "var(--surface-2)" }}
+						className="copy-btn absolute top-0 right-0 p-1.5 rounded-lg text-xs bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--text)] transition-all cursor-pointer"
 						onClick={() => copy(topic.meaning, "meaning")}
-						title="Copy"
+						title="Copy Meaning"
 					>
 						{copied === "meaning" ? (
-							<CheckCircle2
-								className="w-3.5 h-3.5"
-								style={{ color: "var(--success)" }}
-							/>
+							<CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
 						) : (
 							<Copy className="w-3.5 h-3.5" />
 						)}
@@ -106,44 +96,29 @@ export default function TopicDetail({ topic }: TopicDetailProps) {
 			{/* ── Quote ── */}
 			<SectionBlock
 				id="sec-quote"
-				label="Quote"
+				label="Notable Quote / Context"
 				icon={Quote}
-				iconColor="#a855f7"
+				iconColor="#8b5cf6"
 			>
 				<div className="copy-trigger relative group">
-					<div
-						className="ws-quote p-4 rounded-lg"
-						style={{ background: "var(--surface-2)" }}
-					>
-						<p
-							className="italic font-medium text-base leading-relaxed"
-							style={{
-								color: "var(--text)",
-							}}
-						>
+					<div className="p-4 rounded-2xl bg-[var(--surface-2)] border-l-4 border-emerald-500">
+						<p className="italic font-medium text-base leading-relaxed text-[var(--text)]">
 							"{topic.quote.text}"
 						</p>
-						<p
-							className="mt-2 text-sm font-bold"
-							style={{ color: "var(--accent)" }}
-						>
+						<p className="mt-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
 							— {topic.quote.source}
 						</p>
 					</div>
 					<button
 						type="button"
-						className="copy-btn absolute top-0 right-0 p-1 rounded text-xs"
-						style={{ color: "var(--muted)", background: "var(--surface-2)" }}
+						className="copy-btn absolute top-2 right-2 p-1.5 rounded-lg text-xs bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--text)] transition-all cursor-pointer shadow-sm"
 						onClick={() =>
 							copy(`"${topic.quote.text}" — ${topic.quote.source}`, "quote")
 						}
-						title="Copy"
+						title="Copy Quote"
 					>
 						{copied === "quote" ? (
-							<CheckCircle2
-								className="w-3.5 h-3.5"
-								style={{ color: "var(--success)" }}
-							/>
+							<CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
 						) : (
 							<Copy className="w-3.5 h-3.5" />
 						)}
@@ -152,157 +127,127 @@ export default function TopicDetail({ topic }: TopicDetailProps) {
 			</SectionBlock>
 
 			{/* ── Pros & Cons Grid ── */}
-			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				{/* ── Pros ── */}
-				<SectionBlock
-					id="sec-pros"
-					label="Advantages"
-					icon={TrendingUp}
-					iconColor="var(--success)"
-				>
-					{topic.pros && topic.pros.length > 0 ? (
-						<ol className="space-y-4">
-							{topic.pros.map((pro, i) => (
-								// biome-ignore lint/suspicious/noArrayIndexKey: static list
-								<li key={i} className="flex gap-3 text-base">
-									<span
-										className="w-6 h-6 rounded flex-shrink-0 flex items-center justify-center text-xs font-black mt-0.5"
-										style={{
-											background: "var(--success-bg)",
-											color: "var(--success)",
-										}}
+			<div className="p-5 sm:p-6 border-b border-[var(--border)]">
+				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+					{/* ── Advantages ── */}
+					<div>
+						<div className="flex items-center gap-2 mb-3.5">
+							<TrendingUp className="w-4 h-4 text-emerald-500" />
+							<span className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
+								Key Advantages & Arguments
+							</span>
+						</div>
+						{topic.pros && topic.pros.length > 0 ? (
+							<ol className="space-y-3">
+								{topic.pros.map((pro, i) => (
+									<li
+										// biome-ignore lint/suspicious/noArrayIndexKey: stable list
+										key={i}
+										className="p-3.5 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] flex gap-3 text-sm"
 									>
-										{i + 1}
-									</span>
-									<div className="min-w-0 flex-1">
-										<p
-											className="font-bold text-base"
-											style={{ color: "var(--text)" }}
-										>
-											{pro.title}
-										</p>
-										<p
-											className="text-sm leading-relaxed mt-1"
-											style={{ color: "var(--text-2)" }}
-										>
-											{pro.explanation}
-										</p>
-										{pro.example && (
-											<p
-												className="text-sm mt-2 px-3 py-1.5 rounded-md"
-												style={{
-													background: "var(--surface-2)",
-													color: "var(--muted)",
-												}}
-											>
-												<span
-													className="font-bold"
-													style={{ color: "var(--success)" }}
-												>
-													Eg:{" "}
-												</span>
-												{pro.example}
+										<span className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[11px] font-bold mt-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+											{i + 1}
+										</span>
+										<div className="min-w-0 flex-1">
+											<p className="font-semibold text-sm text-[var(--text)]">
+												{pro.title}
 											</p>
-										)}
-									</div>
-								</li>
-							))}
-						</ol>
-					) : (
-						<p className="text-sm italic" style={{ color: "var(--faint)" }}>
-							No advantages listed.
-						</p>
-					)}
-				</SectionBlock>
+											<p className="text-xs leading-relaxed mt-1 text-[var(--text-2)]">
+												{pro.explanation}
+											</p>
+											{pro.example && (
+												<div className="text-[11px] mt-2 px-2.5 py-1 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[var(--muted)]">
+													<span className="font-semibold text-emerald-600 dark:text-emerald-400">
+														Eg:{" "}
+													</span>
+													{pro.example}
+												</div>
+											)}
+										</div>
+									</li>
+								))}
+							</ol>
+						) : (
+							<p className="text-xs italic text-[var(--faint)]">
+								No advantages listed.
+							</p>
+						)}
+					</div>
 
-				{/* ── Cons ── */}
-				<SectionBlock
-					id="sec-cons"
-					label="Challenges"
-					icon={AlertTriangle}
-					iconColor="var(--danger)"
-				>
-					{topic.cons && topic.cons.length > 0 ? (
-						<ol className="space-y-4">
-							{topic.cons.map((con, i) => (
-								// biome-ignore lint/suspicious/noArrayIndexKey: static list
-								<li key={i} className="flex gap-3 text-base">
-									<span
-										className="w-6 h-6 rounded flex-shrink-0 flex items-center justify-center text-xs font-black mt-0.5"
-										style={{
-											background: "var(--danger-bg)",
-											color: "var(--danger)",
-										}}
+					{/* ── Challenges ── */}
+					<div>
+						<div className="flex items-center gap-2 mb-3.5">
+							<AlertTriangle className="w-4 h-4 text-rose-500" />
+							<span className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
+								Challenges & Concerns
+							</span>
+						</div>
+						{topic.cons && topic.cons.length > 0 ? (
+							<ol className="space-y-3">
+								{topic.cons.map((con, i) => (
+									<li
+										// biome-ignore lint/suspicious/noArrayIndexKey: stable list
+										key={i}
+										className="p-3.5 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] flex gap-3 text-sm"
 									>
-										{i + 1}
-									</span>
-									<div className="min-w-0 flex-1">
-										<p
-											className="font-bold text-base"
-											style={{ color: "var(--text)" }}
-										>
-											{con.title}
-										</p>
-										<p
-											className="text-sm leading-relaxed mt-1"
-											style={{ color: "var(--text-2)" }}
-										>
-											{con.explanation}
-										</p>
-										{con.example && (
-											<p
-												className="text-sm mt-2 px-3 py-1.5 rounded-md"
-												style={{
-													background: "var(--surface-2)",
-													color: "var(--muted)",
-												}}
-											>
-												<span
-													className="font-bold"
-													style={{ color: "var(--danger)" }}
-												>
-													Eg:{" "}
-												</span>
-												{con.example}
+										<span className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[11px] font-bold mt-0.5 bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400">
+											{i + 1}
+										</span>
+										<div className="min-w-0 flex-1">
+											<p className="font-semibold text-sm text-[var(--text)]">
+												{con.title}
 											</p>
-										)}
-									</div>
-								</li>
-							))}
-						</ol>
-					) : (
-						<p className="text-sm italic" style={{ color: "var(--faint)" }}>
-							No challenges listed.
-						</p>
-					)}
-				</SectionBlock>
+											<p className="text-xs leading-relaxed mt-1 text-[var(--text-2)]">
+												{con.explanation}
+											</p>
+											{con.example && (
+												<div className="text-[11px] mt-2 px-2.5 py-1 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[var(--muted)]">
+													<span className="font-semibold text-rose-600 dark:text-rose-400">
+														Eg:{" "}
+													</span>
+													{con.example}
+												</div>
+											)}
+										</div>
+									</li>
+								))}
+							</ol>
+						) : (
+							<p className="text-xs italic text-[var(--faint)]">
+								No challenges listed.
+							</p>
+						)}
+					</div>
+				</div>
 			</div>
 
 			{/* ── Way Forward ── */}
 			<SectionBlock
 				id="sec-wayforward"
-				label="Way Forward"
+				label="Way Forward & Policy Reforms"
 				icon={Flag}
-				iconColor="var(--accent)"
+				iconColor="#10a37f"
 			>
 				<div className="copy-trigger relative group">
-					<ul
-						className="list-disc pl-5 space-y-2.5 text-base leading-relaxed"
-						style={{ color: "var(--text-2)" }}
-					>
+					<ul className="space-y-2 text-sm leading-relaxed text-[var(--text)]">
 						{Array.isArray(topic.wayForward) ? (
 							topic.wayForward.map((step, i) => (
 								// biome-ignore lint/suspicious/noArrayIndexKey: order is stable
-								<li key={i}>{step}</li>
+								<li key={i} className="flex items-start gap-2.5">
+									<span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 flex-shrink-0" />
+									<span className="flex-1">{step}</span>
+								</li>
 							))
 						) : (
-							<li>{topic.wayForward}</li>
+							<li className="flex items-start gap-2.5">
+								<span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 flex-shrink-0" />
+								<span className="flex-1">{topic.wayForward}</span>
+							</li>
 						)}
 					</ul>
 					<button
 						type="button"
-						className="copy-btn absolute top-0 right-0 p-1 rounded text-xs"
-						style={{ color: "var(--muted)", background: "var(--surface-2)" }}
+						className="copy-btn absolute top-0 right-0 p-1.5 rounded-lg text-xs bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--text)] transition-all cursor-pointer"
 						onClick={() =>
 							copy(
 								Array.isArray(topic.wayForward)
@@ -311,13 +256,10 @@ export default function TopicDetail({ topic }: TopicDetailProps) {
 								"way",
 							)
 						}
-						title="Copy"
+						title="Copy Way Forward"
 					>
 						{copied === "way" ? (
-							<CheckCircle2
-								className="w-3.5 h-3.5"
-								style={{ color: "var(--success)" }}
-							/>
+							<CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
 						) : (
 							<Copy className="w-3.5 h-3.5" />
 						)}
@@ -328,46 +270,33 @@ export default function TopicDetail({ topic }: TopicDetailProps) {
 			{/* ── Conclusion ── */}
 			<SectionBlock
 				id="sec-conclusion"
-				label="Conclusion"
+				label="Balanced Mains Conclusion"
 				icon={CheckCircle2}
-				iconColor="var(--warn)"
+				iconColor="#f59e0b"
 			>
 				<div className="copy-trigger relative group">
 					{typeof topic.conclusion === "string" ? (
-						<p
-							className="text-base leading-relaxed"
-							style={{ color: "var(--text-2)" }}
-						>
+						<p className="text-sm leading-relaxed text-[var(--text)] font-medium">
 							{topic.conclusion}
 						</p>
 					) : (
-						<div className="space-y-3">
-							<p
-								className="text-base leading-relaxed"
-								style={{ color: "var(--text-2)" }}
-							>
+						<div className="space-y-2 text-sm">
+							<p className="leading-relaxed text-[var(--text-2)]">
 								{topic.conclusion.negative}
 							</p>
-							<p
-								className="text-base font-semibold leading-relaxed"
-								style={{ color: "var(--text)" }}
-							>
+							<p className="font-semibold leading-relaxed text-[var(--text)]">
 								{topic.conclusion.positive}
 							</p>
 						</div>
 					)}
 					<button
 						type="button"
-						className="copy-btn absolute top-0 right-0 p-1 rounded text-xs"
-						style={{ color: "var(--muted)", background: "var(--surface-2)" }}
+						className="copy-btn absolute top-0 right-0 p-1.5 rounded-lg text-xs bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--text)] transition-all cursor-pointer"
 						onClick={() => copy(conclusionText, "conc")}
-						title="Copy"
+						title="Copy Conclusion"
 					>
 						{copied === "conc" ? (
-							<CheckCircle2
-								className="w-3.5 h-3.5"
-								style={{ color: "var(--success)" }}
-							/>
+							<CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
 						) : (
 							<Copy className="w-3.5 h-3.5" />
 						)}

@@ -1,8 +1,9 @@
 import type { LucideIcon } from "lucide-react";
 import {
+	AlertTriangle,
 	BookOpen,
 	Building2,
-	ChevronLeft,
+	ChevronDown,
 	ChevronRight,
 	Compass,
 	Cpu,
@@ -11,14 +12,17 @@ import {
 	Landmark,
 	Leaf,
 	Moon,
-	Plus,
+	PanelLeft,
 	Scale,
 	Settings,
+	ShieldAlert,
+	SquarePen,
 	Sun,
 	TrendingUp,
 	Users,
 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useWorkspace } from "../../context/WorkspaceContext";
 import { CATEGORIES } from "../../data/categories";
 import { useTopics } from "../../hooks/useTopics";
@@ -35,19 +39,9 @@ const CAT_ICON_MAP: Record<string, LucideIcon> = {
 	Environment: Leaf,
 	"Science & Tech": Cpu,
 	History: BookOpen,
-};
-
-const CAT_COLORS: Record<string, string> = {
-	Polity: "#3b82f6",
-	Governance: "#6366f1",
-	Economy: "#10b981",
-	Society: "#a855f7",
-	IR: "#0ea5e9",
-	Ethics: "#f59e0b",
-	Geography: "#14b8a6",
-	Environment: "#22c55e",
-	"Science & Tech": "#06b6d4",
-	History: "#f97316",
+	"Internal Security": ShieldAlert,
+	Sociology: GraduationCap,
+	"Disaster Management": AlertTriangle,
 };
 
 interface SidebarProps {
@@ -55,11 +49,19 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ collapsed }: SidebarProps) {
-	const { toggleSidebar, dark, toggleDark } = useWorkspace();
+	const { toggleSidebar, dark, toggleDark, startNewTopic, openSettings } =
+		useWorkspace();
 	const { topics } = useTopics();
 	const location = useLocation();
+	const navigate = useNavigate();
+	const [categoriesOpen, setCategoriesOpen] = useState(false);
 
-	const recent = topics.slice(0, 8);
+	const handleNewTopic = () => {
+		startNewTopic();
+		navigate("/");
+	};
+
+	const recent = topics.slice(0, 10);
 
 	const catCounts: Record<string, number> = {};
 	for (const t of topics) {
@@ -67,203 +69,170 @@ export default function Sidebar({ collapsed }: SidebarProps) {
 	}
 
 	return (
-		<div className="flex flex-col h-full overflow-hidden">
-			{/* Logo + toggle */}
-			<div
-				className="flex items-center gap-2 px-3 border-b"
-				style={{
-					height: "var(--topbar-h)",
-					minHeight: "var(--topbar-h)",
-					borderColor: "var(--border)",
-				}}
-			>
+		<div className="flex flex-col h-full overflow-hidden select-none bg-[var(--surface-sidebar)] text-[var(--text)]">
+			{/* Top Header (ChatGPT Logo + Sidebar Toggle + New Chat) */}
+			<div className="flex items-center justify-between px-3 py-3 h-14 border-b border-[var(--border)]">
 				<Link
 					to="/"
-					className="flex items-center gap-2 flex-1 min-w-0"
-					title="IAS Study · Mains Workspace"
+					className="flex items-center gap-2.5 min-w-0 group"
+					title="IAS Study Assistant"
 				>
-					<div
-						className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0"
-						style={{ background: "var(--accent)" }}
-					>
-						<GraduationCap className="w-3.5 h-3.5 text-white" />
+					<div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-[var(--text)] text-[var(--bg)] shadow-sm group-hover:scale-105 transition-transform">
+						<GraduationCap className="w-4 h-4" />
 					</div>
 					{!collapsed && (
 						<div className="min-w-0">
-							<div
-								className="text-sm font-semibold leading-tight truncate"
-								style={{ color: "var(--text)" }}
-							>
+							<span className="text-sm font-bold tracking-tight block truncate">
 								IAS Study
-							</div>
-							<div
-								className="text-[10px] uppercase tracking-widest leading-tight"
-								style={{ color: "var(--muted)" }}
-							>
-								Mains 2026
-							</div>
+							</span>
+							<span className="text-[10px] uppercase font-semibold tracking-wider text-[var(--muted)] block leading-none">
+								Mains Assistant
+							</span>
 						</div>
 					)}
 				</Link>
 
+				<div className="flex items-center gap-1">
+					<button
+						type="button"
+						onClick={toggleSidebar}
+						className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors text-[var(--muted)] hover:text-[var(--text)]"
+						title={`${collapsed ? "Open" : "Close"} sidebar`}
+					>
+						<PanelLeft className="w-4 h-4" />
+					</button>
+					{!collapsed && (
+						<button
+							type="button"
+							onClick={handleNewTopic}
+							className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors text-[var(--muted)] hover:text-[var(--text)]"
+							title="New Topic"
+						>
+							<SquarePen className="w-4 h-4" />
+						</button>
+					)}
+				</div>
+			</div>
+
+			{/* Main Navigation Actions */}
+			<div className="px-2 pt-3 pb-1 space-y-1">
 				<button
 					type="button"
-					onClick={toggleSidebar}
-					className="flex-shrink-0 p-1 rounded hover:bg-[var(--surface-2)] transition-colors"
-					style={{ color: "var(--faint)" }}
-					title={`${collapsed ? "Expand" : "Collapse"} sidebar (⌘[)`}
+					onClick={handleNewTopic}
+					className="flex items-center gap-3 w-full px-3 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-2)] transition-colors text-left group"
+					title="New Topic"
 				>
-					{collapsed ? (
-						<ChevronRight className="w-3.5 h-3.5" />
-					) : (
-						<ChevronLeft className="w-3.5 h-3.5" />
-					)}
+					<SquarePen className="w-4 h-4 flex-shrink-0 text-[var(--muted)] group-hover:text-[var(--text)]" />
+					{!collapsed && <span className="flex-1 truncate">New Topic</span>}
 				</button>
-			</div>
 
-			{/* New topic */}
-			<div
-				className="px-2 py-2"
-				style={{ borderBottom: "1px solid var(--border)" }}
-			>
-				<Link
-					to="/add"
-					className="flex items-center gap-2 w-full px-3 py-1.5 rounded text-sm font-medium transition-colors"
-					style={{
-						background: "var(--accent-2)",
-						color: "var(--accent)",
-					}}
-					title="New Topic (⌘N)"
-				>
-					<Plus className="w-4 h-4 flex-shrink-0" />
-					{!collapsed && <span>New Topic</span>}
-				</Link>
-			</div>
-
-			{/* Scrollable nav body */}
-			<div className="flex-1 overflow-y-auto py-1">
-				{/* Categories */}
+				{/* Categories Toggle */}
 				{!collapsed && (
-					<div
-						className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest"
-						style={{ color: "var(--faint)" }}
-					>
-						Categories
+					<div>
+						<button
+							type="button"
+							onClick={() => setCategoriesOpen(!categoriesOpen)}
+							className="flex items-center gap-3 w-full px-3 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-2)] transition-colors text-[var(--muted)] hover:text-[var(--text)] text-left"
+						>
+							<Compass className="w-4 h-4 flex-shrink-0" />
+							<span className="flex-1 truncate">Categories</span>
+							{categoriesOpen ? (
+								<ChevronDown className="w-3.5 h-3.5" />
+							) : (
+								<ChevronRight className="w-3.5 h-3.5" />
+							)}
+						</button>
+
+						{/* Categories Submenu */}
+						{categoriesOpen && (
+							<div className="pl-6 pr-1 py-1 space-y-0.5 animate-in fade-in slide-in-from-top-1 duration-150">
+								{CATEGORIES.map((cat) => {
+									const Icon = CAT_ICON_MAP[cat.id] ?? BookOpen;
+									const count = catCounts[cat.id as CategoryType] ?? 0;
+									const isCurrent = location.search.includes(
+										encodeURIComponent(cat.id),
+									);
+									return (
+										<Link
+											key={cat.id}
+											to={`/?cat=${encodeURIComponent(cat.id)}`}
+											className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+												isCurrent
+													? "bg-[var(--surface-3)] text-[var(--text)] font-semibold"
+													: "text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]"
+											}`}
+											title={cat.name}
+										>
+											<Icon className="w-3.5 h-3.5 flex-shrink-0" />
+											<span className="flex-1 truncate">{cat.name}</span>
+											{count > 0 && (
+												<span className="text-[10px] opacity-70">{count}</span>
+											)}
+										</Link>
+									);
+								})}
+							</div>
+						)}
 					</div>
 				)}
+			</div>
 
-				<div className="px-2 space-y-0.5">
-					<Link
-						to="/"
-						className={`nav-item ${location.pathname === "/" ? "active" : ""}`}
-						title="All Topics"
-					>
-						<BookOpen className="w-4 h-4 flex-shrink-0" />
-						{!collapsed && (
-							<>
-								<span className="flex-1 truncate">All Topics</span>
-								<span
-									className="text-xs ml-auto flex-shrink-0"
-									style={{ color: "var(--faint)" }}
-								>
-									{topics.length}
-								</span>
-							</>
-						)}
-					</Link>
-
-					{CATEGORIES.map((cat) => {
-						const Icon = CAT_ICON_MAP[cat.id] ?? BookOpen;
-						const color = CAT_COLORS[cat.id] ?? "var(--accent)";
-						const count = catCounts[cat.id as CategoryType] ?? 0;
-						if (count === 0 && !collapsed) return null;
-						return (
-							<Link
-								key={cat.id}
-								to={`/?cat=${encodeURIComponent(cat.id)}`}
-								className="nav-item"
-								title={cat.name}
-							>
-								<Icon className="w-4 h-4 flex-shrink-0" style={{ color }} />
-								{!collapsed && (
-									<>
-										<span className="flex-1 truncate">{cat.name}</span>
-										{count > 0 && (
-											<span
-												className="text-xs ml-auto flex-shrink-0"
-												style={{ color: "var(--faint)" }}
-											>
-												{count}
-											</span>
-										)}
-									</>
-								)}
-							</Link>
-						);
-					})}
-				</div>
-
-				{/* Recent topics */}
+			{/* Recents Section */}
+			<div className="flex-1 overflow-y-auto px-2 py-2">
 				{!collapsed && recent.length > 0 && (
-					<>
-						<div
-							className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-widest"
-							style={{ color: "var(--faint)" }}
-						>
-							Recent
+					<div>
+						<div className="px-3 pt-2 pb-1.5 text-[11px] font-semibold text-[var(--muted)] tracking-wide">
+							Recent Topics
 						</div>
-						<div className="px-2 space-y-0.5">
-							{recent.map((t) => (
-								<Link
-									to={`/topic/${t.id}`}
-									key={t.id}
-									className="nav-item w-full text-left"
-									title={t.title}
-								>
-									<span
-										className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-										style={{
-											background: CAT_COLORS[t.category] ?? "var(--accent)",
-										}}
-									/>
-									<span className="truncate">{t.title}</span>
-								</Link>
-							))}
+						<div className="space-y-0.5">
+							{recent.map((t) => {
+								const isCurrent = location.pathname === `/topic/${t.id}`;
+								return (
+									<Link
+										to={`/topic/${t.id}`}
+										key={t.id}
+										className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors group ${
+											isCurrent
+												? "bg-[var(--surface-2)] text-[var(--text)] font-medium"
+												: "text-[var(--text-2)] hover:bg-[var(--surface-2)]"
+										}`}
+										title={t.title}
+									>
+										<span className="truncate flex-1">{t.title}</span>
+									</Link>
+								);
+							})}
 						</div>
-					</>
+					</div>
 				)}
 			</div>
 
-			{/* Bottom bar */}
-			<div
-				className="px-2 py-2 flex items-center gap-1"
-				style={{ borderTop: "1px solid var(--border)" }}
-			>
-				<button
-					type="button"
-					onClick={toggleDark}
-					className="p-2 rounded hover:bg-[var(--surface-2)] transition-colors flex-shrink-0"
-					style={{ color: "var(--muted)" }}
-					title={dark ? "Light mode" : "Dark mode"}
-				>
-					{dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-				</button>
-				{!collapsed && (
-					<Link to="/settings" className="nav-item flex-1" title="Settings">
-						<Settings className="w-4 h-4 flex-shrink-0" />
-						<span>Settings</span>
-					</Link>
-				)}
-				{collapsed && (
-					<Link
-						to="/settings"
-						className="p-2 rounded hover:bg-[var(--surface-2)] transition-colors"
-						style={{ color: "var(--muted)" }}
-						title="Settings"
+			{/* Dark Mode & Settings Footer */}
+			<div className="p-2 border-t border-[var(--border)]">
+				<div className="flex items-center justify-between gap-1 p-1">
+					<button
+						type="button"
+						onClick={toggleDark}
+						className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl hover:bg-[var(--surface-2)] transition-colors text-xs font-medium text-[var(--muted)] hover:text-[var(--text)] flex-1 text-left"
+						title={dark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+					>
+						{dark ? (
+							<Sun className="w-4 h-4 text-amber-400" />
+						) : (
+							<Moon className="w-4 h-4" />
+						)}
+						{!collapsed && <span>{dark ? "Light Theme" : "Dark Theme"}</span>}
+					</button>
+
+					<button
+						type="button"
+						onClick={openSettings}
+						className="p-2 rounded-xl hover:bg-[var(--surface-2)] transition-colors text-[var(--muted)] hover:text-[var(--text)] cursor-pointer"
+						title="Open Settings"
 					>
 						<Settings className="w-4 h-4" />
-					</Link>
-				)}
+					</button>
+				</div>
 			</div>
 		</div>
 	);

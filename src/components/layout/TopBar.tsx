@@ -1,16 +1,16 @@
-import { ChevronRight, Menu, Moon, Settings, Sun } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Menu } from "lucide-react";
+import { useLocation } from "react-router-dom";
 import { useWorkspace } from "../../context/WorkspaceContext";
 
 const ROUTE_LABELS: Record<string, string> = {
-	"/": "Library",
-	"/topics": "All Topics",
+	"/": "IAS Study",
+	"/topics": "Library",
 	"/add": "New Topic",
 	"/settings": "Settings",
 };
 
 export default function TopBar() {
-	const { toggleSidebar, dark, toggleDark } = useWorkspace();
+	const { toggleSidebar } = useWorkspace();
 	const location = useLocation();
 
 	const isEdit = location.pathname.startsWith("/edit/");
@@ -19,66 +19,27 @@ export default function TopBar() {
 	const pageLabel = isEdit
 		? "Edit Topic"
 		: isTopic
-			? "Topic"
-			: (ROUTE_LABELS[location.pathname] ?? "Library");
+			? "Study Note"
+			: (ROUTE_LABELS[location.pathname] ?? "");
 
 	return (
-		<div className="ws-topbar">
-			{/* Hamburger (always visible on mobile) */}
-			<button
-				type="button"
-				onClick={toggleSidebar}
-				className="flex-shrink-0 p-1.5 rounded hover:bg-[var(--surface-2)] transition-colors"
-				style={{ color: "var(--muted)" }}
-				aria-label="Toggle sidebar"
-			>
-				<Menu className="w-4 h-4" />
-			</button>
-
-			{/* Breadcrumbs */}
-			<nav
-				className="flex items-center gap-1 text-sm min-w-0 flex-1"
-				aria-label="Breadcrumb"
-			>
-				<Link
-					to="/"
-					className="hover:text-[var(--text)] transition-colors truncate"
-					style={{ color: "var(--muted)", fontSize: "0.8125rem" }}
-				>
-					IAS Study
-				</Link>
-				<ChevronRight
-					className="w-3.5 h-3.5 flex-shrink-0"
-					style={{ color: "var(--faint)" }}
-				/>
-				<span
-					className="font-medium truncate"
-					style={{ color: "var(--text)", fontSize: "0.8125rem" }}
-				>
-					{pageLabel}
-				</span>
-			</nav>
-
-			{/* Right actions */}
-			<div className="flex items-center gap-1 flex-shrink-0">
+		<div className="h-12 border-b border-[var(--border)] bg-[var(--surface)] flex items-center px-3 sm:px-4 justify-between gap-3 select-none flex-shrink-0">
+			{/* Left: Sidebar toggle & Page Label */}
+			<div className="flex items-center gap-2 min-w-0">
 				<button
 					type="button"
-					onClick={toggleDark}
-					className="p-1.5 rounded hover:bg-[var(--surface-2)] transition-colors"
-					style={{ color: "var(--muted)" }}
-					title={dark ? "Light mode" : "Dark mode"}
+					onClick={toggleSidebar}
+					className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] transition-colors text-[var(--muted)] hover:text-[var(--text)] md:hidden flex-shrink-0"
+					aria-label="Toggle sidebar"
 				>
-					{dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+					<Menu className="w-4 h-4" />
 				</button>
 
-				<Link
-					to="/settings"
-					className="p-1.5 rounded hover:bg-[var(--surface-2)] transition-colors"
-					style={{ color: "var(--muted)" }}
-					title="Settings"
-				>
-					<Settings className="w-4 h-4" />
-				</Link>
+				{pageLabel && (
+					<span className="text-xs font-semibold text-[var(--muted)] truncate">
+						{pageLabel}
+					</span>
+				)}
 			</div>
 		</div>
 	);

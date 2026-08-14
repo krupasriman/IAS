@@ -53,24 +53,22 @@ export default function TopicPage() {
 	};
 
 	return (
-		<div className="flex-1 overflow-y-auto" style={{ background: "var(--bg)" }}>
-			<div className="max-w-6xl mx-auto px-6 py-8">
+		<div className="flex-1 overflow-y-auto bg-[var(--bg)] text-[var(--text)]">
+			<div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 				{/* Header Actions */}
-				<div className="flex items-center justify-between mb-6">
+				<div className="flex items-center justify-between mb-6 pb-3 border-b border-[var(--border)]">
 					<button
 						type="button"
 						onClick={() => window.history.back()}
-						className="flex items-center gap-1.5 text-sm transition-colors"
-						style={{ color: "var(--muted)" }}
+						className="flex items-center gap-1.5 text-xs font-medium text-[var(--muted)] hover:text-[var(--text)] transition-colors cursor-pointer"
 					>
-						<ArrowLeft className="w-4 h-4" /> Back
+						<ArrowLeft className="w-4 h-4" /> Back to Library
 					</button>
 
 					<div className="flex items-center gap-2">
 						<Link
 							to={`/edit/${topic.id}`}
-							className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors"
-							style={{ background: "var(--surface-2)", color: "var(--text)" }}
+							className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] transition-colors"
 						>
 							<Pencil className="w-3.5 h-3.5" />
 							Edit
@@ -78,8 +76,7 @@ export default function TopicPage() {
 						<button
 							type="button"
 							onClick={handleDelete}
-							className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors"
-							style={{ background: "var(--danger-bg)", color: "var(--danger)" }}
+							className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 transition-colors cursor-pointer"
 						>
 							<Trash2 className="w-3.5 h-3.5" />
 							Delete
@@ -96,28 +93,20 @@ export default function TopicPage() {
 						<span
 							className={`badge ${topic.source === "web" ? "badge-accent" : "badge-success"} text-xs px-2.5 py-1`}
 						>
-							{topic.source === "web" ? "AI Generated" : "Local"}
+							{topic.source === "web" ? "AI Synthesized" : "Mains Library"}
 						</span>
 					</div>
-					<h1
-						className="text-4xl font-extrabold leading-tight tracking-tight"
-						style={{ color: "var(--text)" }}
-					>
+					<h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[var(--text)]">
 						{topic.title}
 					</h1>
-					<p
-						className="text-sm mt-2 font-medium"
-						style={{ color: "var(--muted)" }}
-					>
-						Updated {new Date(topic.updatedAt).toLocaleDateString()}
+					<p className="text-xs mt-2 text-[var(--muted)]">
+						Saved note · Updated{" "}
+						{new Date(topic.updatedAt).toLocaleDateString()}
 					</p>
 				</div>
 
 				{/* Full Topic Detail */}
-				<div
-					className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"
-					style={{ borderColor: "var(--border)", background: "var(--surface)" }}
-				>
+				<div className="rounded-2xl shadow-sm border border-[var(--border)] overflow-hidden bg-[var(--surface)]">
 					<TopicDetail topic={topic} />
 				</div>
 			</div>

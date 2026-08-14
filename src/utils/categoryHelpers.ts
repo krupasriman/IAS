@@ -1,13 +1,16 @@
 import type { LucideIcon } from "lucide-react";
 import {
+	AlertTriangle,
 	BookOpen,
 	Building2,
 	Compass,
 	Cpu,
 	Globe,
+	GraduationCap,
 	Landmark,
 	Leaf,
 	Scale,
+	ShieldAlert,
 	TrendingUp,
 	Users,
 } from "lucide-react";
@@ -34,6 +37,9 @@ const ICON_MAP: Record<string, LucideIcon> = {
 	Leaf,
 	Cpu,
 	BookOpen,
+	ShieldAlert,
+	GraduationCap,
+	AlertTriangle,
 };
 
 export function getCategoryInfo(category: CategoryType): CategoryVisualInfo {
@@ -60,6 +66,9 @@ function getGradient(category: CategoryType): string {
 		Environment: "from-green-500 to-lime-500",
 		"Science & Tech": "from-cyan-500 to-blue-500",
 		History: "from-orange-500 to-red-500",
+		"Internal Security": "from-rose-500 to-red-600",
+		Sociology: "from-violet-500 to-purple-600",
+		"Disaster Management": "from-amber-500 to-orange-600",
 	};
 	return gradients[category] || "from-slate-500 to-slate-600";
 }

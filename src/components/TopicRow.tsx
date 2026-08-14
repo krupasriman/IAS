@@ -1,7 +1,6 @@
 import { FileText, Globe } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Topic } from "../types/topic.types";
-import { validateTopic } from "../utils/validator";
 
 const CAT_COLORS: Record<string, string> = {
 	Polity: "#3b82f6",
@@ -14,6 +13,9 @@ const CAT_COLORS: Record<string, string> = {
 	Environment: "#22c55e",
 	"Science & Tech": "#06b6d4",
 	History: "#f97316",
+	"Internal Security": "#e11d48",
+	Sociology: "#8b5cf6",
+	"Disaster Management": "#d97706",
 };
 
 const CAT_SHORT: Record<string, string> = {
@@ -27,6 +29,9 @@ const CAT_SHORT: Record<string, string> = {
 	Environment: "Env",
 	"Science & Tech": "S&T",
 	History: "Hist",
+	"Internal Security": "Security",
+	Sociology: "Sociology",
+	"Disaster Management": "DM",
 };
 
 interface TopicRowProps {
@@ -47,14 +52,6 @@ function formatDate(iso: string): string {
 export default function TopicRow({ topic }: TopicRowProps) {
 	const navigate = useNavigate();
 	const dotColor = CAT_COLORS[topic.category] ?? "var(--accent)";
-	const validation = validateTopic(topic);
-
-	const scoreColor =
-		validation.score >= 80
-			? "var(--success)"
-			: validation.score >= 50
-				? "var(--warn)"
-				: "var(--danger)";
 
 	return (
 		<button
@@ -100,14 +97,6 @@ export default function TopicRow({ topic }: TopicRowProps) {
 				) : (
 					<FileText className="w-3 h-3" />
 				)}
-			</span>
-
-			{/* Score */}
-			<span
-				className="hidden sm:block text-[11px] font-semibold flex-shrink-0 w-8 text-right"
-				style={{ color: scoreColor }}
-			>
-				{validation.score}%
 			</span>
 
 			{/* Date */}

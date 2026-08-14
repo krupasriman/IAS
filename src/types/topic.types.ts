@@ -8,7 +8,10 @@ export type CategoryType =
 	| "IR"
 	| "Society"
 	| "Environment"
-	| "Science & Tech";
+	| "Science & Tech"
+	| "Internal Security"
+	| "Sociology"
+	| "Disaster Management";
 
 export interface ProConItem {
 	id?: string;
