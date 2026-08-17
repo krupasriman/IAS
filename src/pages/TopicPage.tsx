@@ -2,6 +2,7 @@ import { AlertCircle, ArrowLeft, Loader2, Pencil, Trash2 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import TopicDetail from "../components/TopicDetail";
 import { useTopics } from "../hooks/useTopics";
+import { getDefaultCategorySources } from "../utils/referenceSources";
 
 export default function TopicPage() {
 	const { id } = useParams<{ id: string }>();
@@ -51,6 +52,10 @@ export default function TopicPage() {
 			navigate("/");
 		}
 	};
+
+	const sources = topic
+		? getDefaultCategorySources(topic.category, topic.title)
+		: undefined;
 
 	return (
 		<div className="flex-1 overflow-y-auto bg-[var(--bg)] text-[var(--text)]">
@@ -106,8 +111,8 @@ export default function TopicPage() {
 				</div>
 
 				{/* Full Topic Detail */}
-				<div className="rounded-2xl shadow-sm border border-[var(--border)] overflow-hidden bg-[var(--surface)]">
-					<TopicDetail topic={topic} />
+				<div className="rounded-2xl shadow-sm border border-[var(--border)] bg-[var(--surface)]">
+					<TopicDetail topic={topic} sources={sources} />
 				</div>
 			</div>
 		</div>

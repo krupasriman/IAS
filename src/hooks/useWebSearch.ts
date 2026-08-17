@@ -21,19 +21,28 @@ interface UseWebSearchOptions {
 	onSuccess?: (topic: Topic) => void;
 }
 
+function deduplicateHistory(items: SearchHistoryItem[]): SearchHistoryItem[] {
+	const seenIds = new Set<string>();
+	const seenQueries = new Set<string>();
+	const result: SearchHistoryItem[] = [];
+	for (const item of items) {
+		const qKey = item.query?.trim().toLowerCase();
+		const idKey = item.id || item.topic?.id;
+		if (idKey && seenIds.has(idKey)) continue;
+		if (qKey && seenQueries.has(qKey)) continue;
+		if (idKey) seenIds.add(idKey);
+		if (qKey) seenQueries.add(qKey);
+		result.push(item);
+	}
+	return result;
+}
+
 export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 	const { settings } = useSettings();
 	const STORAGE_KEY = "ias_web_search_state";
 	const HISTORY_KEY = "ias_search_history_list";
 
-	const [query, setQuery] = useState<string>(() => {
-		try {
-			const raw = sessionStorage.getItem(STORAGE_KEY);
-			return raw ? JSON.parse(raw).query || "" : "";
-		} catch {
-			return "";
-		}
-	});
+	const [query, setQuery] = useState<string>("");
 
 	const [searchResults, setSearchResults] = useState<WebSearchResponse | null>(
 		() => {
@@ -81,8 +90,10 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 
 	const [history, setHistory] = useState<SearchHistoryItem[]>(() => {
 		try {
-			const histRaw = sessionStorage.getItem(HISTORY_KEY);
-			return histRaw ? JSON.parse(histRaw) : [];
+			const histRaw =
+				localStorage.getItem(HISTORY_KEY) ||
+				sessionStorage.getItem(HISTORY_KEY);
+			return histRaw ? deduplicateHistory(JSON.parse(histRaw)) : [];
 		} catch {
 			return [];
 		}
@@ -107,7 +118,9 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 
 	useEffect(() => {
 		try {
-			sessionStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+			const deduped = deduplicateHistory(history);
+			localStorage.setItem(HISTORY_KEY, JSON.stringify(deduped));
+			sessionStorage.setItem(HISTORY_KEY, JSON.stringify(deduped));
 		} catch {}
 	}, [history]);
 
@@ -117,19 +130,23 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 			newTopic: Topic,
 			newResults: WebSearchResponse | null,
 		) => {
+			const itemId = newTopic.id || `search-${Date.now()}`;
+			const newItem: SearchHistoryItem = {
+				id: itemId,
+				query: topicQuery,
+				topic: newTopic,
+				searchResults: newResults,
+				timestamp: Date.now(),
+			};
 			setHistory((prev) => {
-				const newItem: SearchHistoryItem = {
-					id: newTopic.id,
-					query: topicQuery,
-					topic: newTopic,
-					searchResults: newResults,
-					timestamp: Date.now(),
-				};
-				// Remove if already exists with same query
 				const filtered = prev.filter(
-					(item) => item.query.toLowerCase() !== topicQuery.toLowerCase(),
+					(item) =>
+						item.query.toLowerCase() !== topicQuery.toLowerCase() &&
+						item.id !== itemId &&
+						item.topic?.id !== newTopic.id,
 				);
-				return [newItem, ...filtered].slice(0, 6);
+				const updated = [newItem, ...filtered].slice(0, 10);
+				return updated;
 			});
 		},
 		[],
@@ -148,7 +165,14 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 	}, []);
 
 	const removeFromHistory = useCallback((id: string) => {
-		setHistory((prev) => prev.filter((item) => item.id !== id));
+		setHistory((prev) => {
+			const updated = prev.filter((item) => item.id !== id);
+			try {
+				localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+				sessionStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+			} catch {}
+			return updated;
+		});
 	}, []);
 
 	const process = useCallback(
@@ -293,6 +317,7 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 		setProgress({ stage: "idle", message: "", progressPercentage: 0 });
 		try {
 			sessionStorage.removeItem(STORAGE_KEY);
+			localStorage.removeItem(STORAGE_KEY);
 		} catch {}
 	}, []);
 

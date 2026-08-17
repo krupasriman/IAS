@@ -1,3 +1,4 @@
+import { PanelLeft } from "lucide-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -56,7 +57,13 @@ export default function WorkspaceShell({
 
 	const sidebarClass = [
 		"ws-sidebar",
-		isTablet ? (sidebarOpen ? "mobile-open" : "") : sidebarOpen ? "" : "rail",
+		isTablet
+			? sidebarOpen
+				? "mobile-open"
+				: ""
+			: sidebarOpen
+				? ""
+				: "collapsed",
 	]
 		.filter(Boolean)
 		.join(" ");
@@ -73,10 +80,24 @@ export default function WorkspaceShell({
 			)}
 
 			<div className={sidebarClass}>
-				<Sidebar collapsed={!isTablet && !sidebarOpen} />
+				<Sidebar collapsed={!sidebarOpen} />
 			</div>
 
-			<div className="ws-main">{children}</div>
+			<div className="ws-main relative">
+				{/* Floating open-sidebar toggle button when sidebar is closed */}
+				{!sidebarOpen && (
+					<button
+						type="button"
+						onClick={toggleSidebar}
+						className="fixed top-3.5 left-3.5 z-40 p-2 rounded-xl bg-[var(--surface-2)] hover:bg-[var(--surface-3)] border border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)] shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
+						title="Open sidebar"
+						aria-label="Open sidebar"
+					>
+						<PanelLeft className="w-4 h-4" />
+					</button>
+				)}
+				{children}
+			</div>
 
 			{/* ChatGPT-style Settings Modal */}
 			<SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} />

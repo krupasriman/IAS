@@ -7,6 +7,22 @@
     <meta name="theme-color" content="#863bff" />
     <link rel="apple-touch-icon" href="/pwa-192x192.png" />
     <title>ias</title>
+    <script>
+      (() => {
+        try {
+          const saved = localStorage.getItem("ias_dark");
+          const isDark =
+            saved !== null
+              ? saved === "true"
+              : window.matchMedia("(prefers-color-scheme: dark)").matches;
+          if (isDark) {
+            document.documentElement.classList.add("dark");
+          } else {
+            document.documentElement.classList.remove("dark");
+          }
+        } catch {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

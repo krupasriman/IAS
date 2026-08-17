@@ -1,18 +1,15 @@
 import {
 	AlertCircle,
-	ArrowRight,
 	CheckCircle2,
-	ExternalLink,
-	Globe,
 	Loader2,
 	RotateCcw,
 	Save,
 	Search,
-	Sparkles,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import QueryBar from "../components/QueryBar";
+import SaveCategoryModal from "../components/SaveCategoryModal";
 import TopicDetail from "../components/TopicDetail";
 import TopicRow from "../components/TopicRow";
 import { useWorkspace } from "../context/WorkspaceContext";
@@ -20,41 +17,14 @@ import { useTopics } from "../hooks/useTopics";
 import { useWebSearch } from "../hooks/useWebSearch";
 import type { CategoryType } from "../types/topic.types";
 
-const SUGGESTIONS: {
-	title: string;
-	desc: string;
-	icon: string;
-	category?: CategoryType;
-}[] = [
-	{
-		title: "One Nation One Election",
-		desc: "Constitutional & federalism framework",
-		icon: "⚖️",
-		category: "Polity",
-	},
-	{
-		title: "Ethics in Public Administration",
-		desc: "2nd ARC 4th report recommendations",
-		icon: "🏛️",
-		category: "Ethics",
-	},
-	{
-		title: "Semiconductor Mission & IndiaAI",
-		desc: "Tech sovereignty & global supply chains",
-		icon: "⚡",
-		category: "Science & Tech",
-	},
-	{
-		title: "Uniform Civil Code (UCC)",
-		desc: "Article 44 & social cohesion analysis",
-		icon: "📜",
-		category: "Polity",
-	},
-];
-
 export default function HomePage() {
 	const { topics, loading, addTopic } = useTopics();
-	const { newTopicCounter } = useWorkspace();
+	const {
+		newTopicCounter,
+		pendingLoadHistoryItem,
+		clearPendingLoadHistoryItem,
+		addToSearchHistory,
+	} = useWorkspace();
 	const location = useLocation();
 	const navigate = useNavigate();
 
@@ -62,17 +32,17 @@ export default function HomePage() {
 	const searchParams = new URLSearchParams(location.search);
 	const urlCat = searchParams.get("cat") as CategoryType | null;
 
-	const [query, setQuery] = useState(() => {
-		try {
-			const raw = localStorage.getItem("ias_web_search_state");
-			return raw ? JSON.parse(raw).query || "" : "";
-		} catch {
-			return "";
-		}
-	});
+	const [query, setQuery] = useState("");
 	const [activeCategory, setActiveCategory] = useState<"All" | CategoryType>(
 		urlCat ?? "All",
 	);
+
+	// Ensure legacy localStorage search state is removed
+	useEffect(() => {
+		try {
+			localStorage.removeItem("ias_web_search_state");
+		} catch {}
+	}, []);
 	const [webEnabled, setWebEnabled] = useState(() => {
 		try {
 			const saved = localStorage.getItem("ias_web_search_enabled");
@@ -82,6 +52,7 @@ export default function HomePage() {
 		}
 	});
 	const [savedFromWeb, setSavedFromWeb] = useState(false);
+	const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 	const [searchFocusTrigger, setSearchFocusTrigger] = useState(0);
 	const lastHandledNewTopic = useRef(0);
 
@@ -98,7 +69,23 @@ export default function HomePage() {
 		} catch {}
 	};
 
-	const webSearch = useWebSearch({ onSuccess: () => {} });
+	const webSearch = useWebSearch({
+		onSuccess: (topic) => {
+			addToSearchHistory(query || topic.title, topic, webSearch.searchResults);
+		},
+	});
+
+	// Handle loading from history (via sidebar click or dropdown)
+	useEffect(() => {
+		if (pendingLoadHistoryItem) {
+			webSearch.loadFromHistory(pendingLoadHistoryItem);
+			clearPendingLoadHistoryItem();
+		}
+	}, [
+		pendingLoadHistoryItem,
+		webSearch.loadFromHistory,
+		clearPendingLoadHistoryItem,
+	]);
 
 	// Handle "+ New Topic" action
 	useEffect(() => {
@@ -106,7 +93,7 @@ export default function HomePage() {
 			lastHandledNewTopic.current = newTopicCounter;
 
 			if (webSearch.generatedTopic) {
-				webSearch.addToHistory(
+				addToSearchHistory(
 					query || webSearch.generatedTopic.title,
 					webSearch.generatedTopic,
 					webSearch.searchResults,
@@ -118,34 +105,60 @@ export default function HomePage() {
 			setSavedFromWeb(false);
 			setSearchFocusTrigger((c) => c + 1);
 		}
-	}, [newTopicCounter, webSearch, query]);
+	}, [
+		newTopicCounter,
+		webSearch.generatedTopic,
+		webSearch.searchResults,
+		webSearch.reset,
+		query,
+		addToSearchHistory,
+	]);
 
 	const handleSearch = (q: string, web: boolean) => {
 		setQuery("");
 		if (web)
-			webSearch.process(
-				q,
-				activeCategory !== "All" ? activeCategory : undefined,
-			);
+			webSearch
+				.process(q, activeCategory !== "All" ? activeCategory : undefined)
+				.then((res) => {
+					if (res?.topic) {
+						addToSearchHistory(q, res.topic, webSearch.searchResults);
+					}
+				});
 		else
-			webSearch.processLLMOnly(
-				q,
-				activeCategory !== "All" ? activeCategory : undefined,
-			);
+			webSearch
+				.processLLMOnly(
+					q,
+					activeCategory !== "All" ? activeCategory : undefined,
+				)
+				.then((res) => {
+					if (res?.topic) {
+						addToSearchHistory(q, res.topic, null);
+					}
+				});
 	};
 
-	const handleSave = () => {
+	const handleSaveClick = () => {
 		if (webSearch.generatedTopic) {
-			const topicId = webSearch.generatedTopic.id;
-			addTopic(webSearch.generatedTopic);
+			setIsSaveModalOpen(true);
+		}
+	};
+
+	const handleConfirmSave = (chosenCategory: CategoryType) => {
+		if (webSearch.generatedTopic) {
+			const topicToSave = {
+				...webSearch.generatedTopic,
+				category: chosenCategory,
+			};
+			addTopic(topicToSave);
+			setIsSaveModalOpen(false);
 			setSavedFromWeb(true);
 			setTimeout(() => {
 				setSavedFromWeb(false);
 				webSearch.reset();
 				handleToggleWeb(false);
 				setQuery("");
-				navigate(`/topic/${topicId}`);
-			}, 800);
+				navigate(`/topic/${topicToSave.id}`);
+			}, 600);
 		}
 	};
 
@@ -185,22 +198,9 @@ export default function HomePage() {
 
 				{/* ── STATE 1: AI Generated Topic (Canvas / Document Reader) ── */}
 				{webSearch.generatedTopic && (
-					<div className="w-full px-4 sm:px-6 lg:px-8 py-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+					<div className="max-w-5xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
 						{/* Document Top Bar */}
-						<div className="flex items-center justify-between mb-6 pb-4 border-b border-[var(--border)]">
-							<div className="flex flex-wrap gap-2 items-center">
-								<span className="badge badge-accent">
-									<Sparkles className="w-3.5 h-3.5 mr-1 text-emerald-500" />
-									Mains Study Note
-								</span>
-								<span className="text-xs font-medium text-[var(--muted)]">
-									{webSearch.searchResults &&
-									webSearch.searchResults.results.length > 0
-										? `${webSearch.searchResults.results.length} web sources`
-										: "AI Synthesized"}
-								</span>
-							</div>
-
+						<div className="flex items-center justify-end mb-6 pb-4 border-b border-[var(--border)]">
 							<div className="flex items-center gap-2">
 								<button
 									type="button"
@@ -217,7 +217,7 @@ export default function HomePage() {
 
 								<button
 									type="button"
-									onClick={handleSave}
+									onClick={handleSaveClick}
 									className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold shadow-sm transition-all cursor-pointer bg-[var(--text)] text-[var(--bg)] hover:opacity-90 active:scale-95"
 								>
 									{savedFromWeb ? (
@@ -231,76 +231,29 @@ export default function HomePage() {
 						</div>
 
 						{/* Document Header */}
-						<div className="mb-6 max-w-5xl">
+						<div className="mb-6">
 							<div className="flex flex-wrap gap-2 mb-2.5">
-								<span className="badge badge-accent">
-									{webSearch.generatedTopic.category}
-								</span>
+								<button
+									type="button"
+									onClick={() => setIsSaveModalOpen(true)}
+									className="badge badge-accent hover:opacity-80 transition-opacity cursor-pointer flex items-center gap-1.5"
+									title="Click to choose category"
+								>
+									<span>{webSearch.generatedTopic.category}</span>
+									<span className="text-[10px] opacity-70">▾</span>
+								</button>
 							</div>
 							<h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[var(--text)]">
 								{webSearch.generatedTopic.title}
 							</h1>
 						</div>
 
-						{/* Document 2-Column Canvas Layout */}
-						<div
-							className={
-								webSearch.searchResults &&
-								webSearch.searchResults.results.length > 0
-									? "flex flex-col lg:flex-row gap-6 items-start"
-									: "w-full max-w-5xl"
-							}
-						>
-							{/* Left Note Content */}
-							<div className="flex-1 min-w-0 w-full rounded-2xl shadow-sm border border-[var(--border)] overflow-hidden bg-[var(--surface)]">
-								<TopicDetail topic={webSearch.generatedTopic} />
-							</div>
-
-							{/* Right Sources Card (Web Mode Only) */}
-							{webSearch.searchResults &&
-								webSearch.searchResults.results.length > 0 && (
-									<aside className="w-full lg:w-80 xl:w-96 flex-shrink-0 lg:sticky lg:top-4 rounded-2xl shadow-sm border border-[var(--border)] overflow-hidden bg-[var(--surface)]">
-										<div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--surface-2)] flex items-center justify-between">
-											<div className="flex items-center gap-2">
-												<Globe className="w-4 h-4 text-emerald-500" />
-												<span className="text-xs font-bold uppercase tracking-wider text-[var(--text)]">
-													Web Sources
-												</span>
-											</div>
-											<span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--surface-3)] text-[var(--muted)]">
-												{webSearch.searchResults.results.length}
-											</span>
-										</div>
-
-										<div className="divide-y divide-[var(--border)] max-h-[calc(100vh-220px)] overflow-y-auto">
-											{webSearch.searchResults.results
-												.slice(0, 8)
-												.map((r, i) => (
-													<a
-														// biome-ignore lint/suspicious/noArrayIndexKey: stable source list
-														key={i}
-														href={r.url}
-														target="_blank"
-														rel="noopener noreferrer"
-														className="flex items-start gap-3 p-3.5 hover:bg-[var(--surface-2)] transition-colors group"
-													>
-														<div className="flex-1 min-w-0">
-															<p className="font-semibold text-xs leading-snug line-clamp-2 mb-1 group-hover:text-emerald-500 transition-colors text-[var(--text)]">
-																{r.title}
-															</p>
-															<p className="text-[11px] leading-relaxed line-clamp-2 mb-1.5 text-[var(--muted)]">
-																{r.snippet}
-															</p>
-															<span className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded-md truncate max-w-full bg-[var(--surface-2)] text-[var(--muted)] border border-[var(--border)]">
-																{r.source || new URL(r.url).hostname}
-															</span>
-														</div>
-														<ExternalLink className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 opacity-40 group-hover:opacity-100 transition-opacity text-[var(--muted)]" />
-													</a>
-												))}
-										</div>
-									</aside>
-								)}
+						{/* Single Column Canvas Layout */}
+						<div className="w-full rounded-2xl shadow-sm border border-[var(--border)] bg-[var(--surface)]">
+							<TopicDetail
+								topic={webSearch.generatedTopic}
+								sources={webSearch.searchResults?.results}
+							/>
 						</div>
 					</div>
 				)}
@@ -343,8 +296,11 @@ export default function HomePage() {
 							</div>
 						) : (
 							<div className="divide-y divide-[var(--border)] rounded-2xl border border-[var(--border)] overflow-hidden bg-[var(--surface)]">
-								{categoryTopics.map((topic) => (
-									<TopicRow key={topic.id} topic={topic} />
+								{categoryTopics.map((topic, idx) => (
+									<TopicRow
+										key={topic.id ? `${topic.id}-${idx}` : `topic-${idx}`}
+										topic={topic}
+									/>
 								))}
 							</div>
 						)}
@@ -360,7 +316,7 @@ export default function HomePage() {
 						</h1>
 
 						{/* Centered Floating Prompt Capsule */}
-						<div className="w-full max-w-3xl mb-8">
+						<div className="w-full max-w-3xl">
 							<QueryBar
 								value={query}
 								onChange={setQuery}
@@ -370,42 +326,15 @@ export default function HomePage() {
 								loading={isGenerating}
 								stage={webSearch.progress.message}
 								progress={webSearch.progress.progressPercentage}
-								history={webSearch.history}
-								onLoadHistory={webSearch.loadFromHistory}
-								onRemoveHistory={webSearch.removeFromHistory}
 								focusTrigger={searchFocusTrigger}
 							/>
-						</div>
-
-						{/* Quick Action Suggestion Chips */}
-						<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-3xl text-left">
-							{SUGGESTIONS.map((s, i) => (
-								<button
-									// biome-ignore lint/suspicious/noArrayIndexKey: static suggestion list
-									key={i}
-									type="button"
-									onClick={() => handleSearch(s.title, webEnabled)}
-									className="flex items-start gap-3 p-3.5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-2)] transition-all cursor-pointer text-left group shadow-sm hover:shadow"
-								>
-									<span className="text-xl flex-shrink-0">{s.icon}</span>
-									<div className="flex-1 min-w-0">
-										<p className="text-xs font-bold text-[var(--text)] group-hover:text-emerald-500 transition-colors truncate">
-											{s.title}
-										</p>
-										<p className="text-[11px] text-[var(--muted)] truncate mt-0.5">
-											{s.desc}
-										</p>
-									</div>
-									<ArrowRight className="w-3.5 h-3.5 text-[var(--muted)] opacity-0 group-hover:opacity-100 transition-opacity self-center flex-shrink-0" />
-								</button>
-							))}
 						</div>
 					</div>
 				)}
 			</div>
 
-			{/* ── Bottom Persistent Prompt Bar (When In Topic Document View or Category View) ── */}
-			{(webSearch.generatedTopic || isCategoryView) && (
+			{/* ── Bottom Prompt Bar (Only in Category List View when no topic is currently open) ── */}
+			{!webSearch.generatedTopic && isCategoryView && (
 				<div className="p-3 sm:px-6 pb-4 sm:pb-5 pt-2 flex-shrink-0 relative z-30 bg-gradient-to-t from-[var(--bg)] via-[var(--bg)] to-transparent">
 					<div className="max-w-4xl mx-auto w-full">
 						<QueryBar
@@ -417,13 +346,21 @@ export default function HomePage() {
 							loading={isGenerating}
 							stage={webSearch.progress.message}
 							progress={webSearch.progress.progressPercentage}
-							history={webSearch.history}
-							onLoadHistory={webSearch.loadFromHistory}
-							onRemoveHistory={webSearch.removeFromHistory}
 							focusTrigger={searchFocusTrigger}
 						/>
 					</div>
 				</div>
+			)}
+
+			{/* Save Category Modal */}
+			{webSearch.generatedTopic && (
+				<SaveCategoryModal
+					isOpen={isSaveModalOpen}
+					suggestedCategory={webSearch.generatedTopic.category}
+					topicTitle={webSearch.generatedTopic.title}
+					onClose={() => setIsSaveModalOpen(false)}
+					onSave={handleConfirmSave}
+				/>
 			)}
 		</div>
 	);

@@ -1,5 +1,4 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import TopBar from "./components/layout/TopBar";
 import WorkspaceShell from "./components/layout/WorkspaceShell";
 import { WorkspaceProvider } from "./context/WorkspaceContext";
 import AddTopicPage from "./pages/AddTopicPage";
@@ -14,7 +13,6 @@ export default function App() {
 		<WorkspaceProvider>
 			<BrowserRouter>
 				<WorkspaceShell>
-					<TopBar />
 					<Routes>
 						<Route path="/" element={<HomePage />} />
 						<Route path="/topics" element={<AllTopicsPage />} />

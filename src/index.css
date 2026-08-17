@@ -124,9 +124,12 @@ html.dark {
 	flex-shrink: 0;
 	z-index: 40;
 }
-.ws-sidebar.rail {
-	width: var(--sidebar-rail);
-	min-width: var(--sidebar-rail);
+.ws-sidebar.collapsed {
+	width: 0;
+	min-width: 0;
+	border-right-width: 0;
+	overflow: hidden;
+	visibility: hidden;
 }
 
 /* ─── Main Canvas ─── */

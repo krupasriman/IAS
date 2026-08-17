@@ -8,10 +8,14 @@ import {
 	TrendingUp,
 } from "lucide-react";
 import { useState } from "react";
+import type { WebSearchResultItem } from "../types/search.types";
 import type { Topic } from "../types/topic.types";
+import { matchContextSources } from "../utils/sourceHelpers";
+import { SourcePill } from "./SourceCitation";
 
 interface TopicDetailProps {
 	topic: Topic;
+	sources?: WebSearchResultItem[];
 }
 
 function useCopy() {
@@ -57,13 +61,29 @@ function SectionBlock({
 	);
 }
 
-export default function TopicDetail({ topic }: TopicDetailProps) {
+export default function TopicDetail({ topic, sources }: TopicDetailProps) {
 	const { copy, copied } = useCopy();
 
 	const conclusionText =
 		typeof topic.conclusion === "string"
 			? topic.conclusion
 			: `${topic.conclusion.negative} ${topic.conclusion.positive}`;
+
+	const meaningSources = sources?.length
+		? matchContextSources(topic.meaning, sources, 0)
+		: [];
+
+	const quoteSources = sources?.length
+		? matchContextSources(
+				`${topic.quote.text} ${topic.quote.source}`,
+				sources,
+				1,
+			)
+		: [];
+
+	const concSources = sources?.length
+		? matchContextSources(conclusionText, sources, 0)
+		: [];
 
 	return (
 		<div className="divide-y divide-[var(--border)] bg-[var(--surface)]">
@@ -77,6 +97,12 @@ export default function TopicDetail({ topic }: TopicDetailProps) {
 				<div className="copy-trigger relative group">
 					<p className="text-base leading-relaxed text-[var(--text)]">
 						{topic.meaning}
+						{meaningSources.length > 0 && (
+							<SourcePill
+								sources={meaningSources}
+								className="ml-2 align-middle inline-flex"
+							/>
+						)}
 					</p>
 					<button
 						type="button"
@@ -105,9 +131,17 @@ export default function TopicDetail({ topic }: TopicDetailProps) {
 						<p className="italic font-medium text-base leading-relaxed text-[var(--text)]">
 							"{topic.quote.text}"
 						</p>
-						<p className="mt-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-							— {topic.quote.source}
-						</p>
+						<div className="mt-2.5 flex items-center flex-wrap gap-2">
+							<p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+								— {topic.quote.source}
+							</p>
+							{quoteSources.length > 0 && (
+								<SourcePill
+									sources={quoteSources}
+									className="align-middle inline-flex"
+								/>
+							)}
+						</div>
 					</div>
 					<button
 						type="button"
@@ -139,33 +173,48 @@ export default function TopicDetail({ topic }: TopicDetailProps) {
 						</div>
 						{topic.pros && topic.pros.length > 0 ? (
 							<ol className="space-y-3">
-								{topic.pros.map((pro, i) => (
-									<li
-										// biome-ignore lint/suspicious/noArrayIndexKey: stable list
-										key={i}
-										className="p-3.5 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] flex gap-3 text-sm"
-									>
-										<span className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[11px] font-bold mt-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-											{i + 1}
-										</span>
-										<div className="min-w-0 flex-1">
-											<p className="font-semibold text-sm text-[var(--text)]">
-												{pro.title}
-											</p>
-											<p className="text-xs leading-relaxed mt-1 text-[var(--text-2)]">
-												{pro.explanation}
-											</p>
-											{pro.example && (
-												<div className="text-[11px] mt-2 px-2.5 py-1 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[var(--muted)]">
-													<span className="font-semibold text-emerald-600 dark:text-emerald-400">
-														Eg:{" "}
-													</span>
-													{pro.example}
-												</div>
-											)}
-										</div>
-									</li>
-								))}
+								{topic.pros.map((pro, i) => {
+									const proSources = sources?.length
+										? matchContextSources(
+												`${pro.title} ${pro.explanation} ${pro.example || ""}`,
+												sources,
+												2 + i,
+											)
+										: [];
+									return (
+										<li
+											// biome-ignore lint/suspicious/noArrayIndexKey: stable list
+											key={i}
+											className="p-3.5 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] flex gap-3 text-sm"
+										>
+											<span className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[11px] font-bold mt-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+												{i + 1}
+											</span>
+											<div className="min-w-0 flex-1">
+												<p className="font-semibold text-sm text-[var(--text)]">
+													{pro.title}
+												</p>
+												<p className="text-xs leading-relaxed mt-1 text-[var(--text-2)]">
+													{pro.explanation}
+													{proSources.length > 0 && (
+														<SourcePill
+															sources={proSources}
+															className="ml-1.5 align-middle inline-flex"
+														/>
+													)}
+												</p>
+												{pro.example && (
+													<div className="text-[11px] mt-2 px-2.5 py-1 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[var(--muted)]">
+														<span className="font-semibold text-emerald-600 dark:text-emerald-400">
+															Eg:{" "}
+														</span>
+														{pro.example}
+													</div>
+												)}
+											</div>
+										</li>
+									);
+								})}
 							</ol>
 						) : (
 							<p className="text-xs italic text-[var(--faint)]">
@@ -184,33 +233,48 @@ export default function TopicDetail({ topic }: TopicDetailProps) {
 						</div>
 						{topic.cons && topic.cons.length > 0 ? (
 							<ol className="space-y-3">
-								{topic.cons.map((con, i) => (
-									<li
-										// biome-ignore lint/suspicious/noArrayIndexKey: stable list
-										key={i}
-										className="p-3.5 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] flex gap-3 text-sm"
-									>
-										<span className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[11px] font-bold mt-0.5 bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400">
-											{i + 1}
-										</span>
-										<div className="min-w-0 flex-1">
-											<p className="font-semibold text-sm text-[var(--text)]">
-												{con.title}
-											</p>
-											<p className="text-xs leading-relaxed mt-1 text-[var(--text-2)]">
-												{con.explanation}
-											</p>
-											{con.example && (
-												<div className="text-[11px] mt-2 px-2.5 py-1 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[var(--muted)]">
-													<span className="font-semibold text-rose-600 dark:text-rose-400">
-														Eg:{" "}
-													</span>
-													{con.example}
-												</div>
-											)}
-										</div>
-									</li>
-								))}
+								{topic.cons.map((con, i) => {
+									const conSources = sources?.length
+										? matchContextSources(
+												`${con.title} ${con.explanation} ${con.example || ""}`,
+												sources,
+												2 + (topic.pros?.length || 4) + i,
+											)
+										: [];
+									return (
+										<li
+											// biome-ignore lint/suspicious/noArrayIndexKey: stable list
+											key={i}
+											className="p-3.5 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] flex gap-3 text-sm"
+										>
+											<span className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[11px] font-bold mt-0.5 bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400">
+												{i + 1}
+											</span>
+											<div className="min-w-0 flex-1">
+												<p className="font-semibold text-sm text-[var(--text)]">
+													{con.title}
+												</p>
+												<p className="text-xs leading-relaxed mt-1 text-[var(--text-2)]">
+													{con.explanation}
+													{conSources.length > 0 && (
+														<SourcePill
+															sources={conSources}
+															className="ml-1.5 align-middle inline-flex"
+														/>
+													)}
+												</p>
+												{con.example && (
+													<div className="text-[11px] mt-2 px-2.5 py-1 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[var(--muted)]">
+														<span className="font-semibold text-rose-600 dark:text-rose-400">
+															Eg:{" "}
+														</span>
+														{con.example}
+													</div>
+												)}
+											</div>
+										</li>
+									);
+								})}
 							</ol>
 						) : (
 							<p className="text-xs italic text-[var(--faint)]">
@@ -229,19 +293,44 @@ export default function TopicDetail({ topic }: TopicDetailProps) {
 				iconColor="#10a37f"
 			>
 				<div className="copy-trigger relative group">
-					<ul className="space-y-2 text-sm leading-relaxed text-[var(--text)]">
+					<ul className="space-y-2.5 text-sm leading-relaxed text-[var(--text)]">
 						{Array.isArray(topic.wayForward) ? (
-							topic.wayForward.map((step, i) => (
-								// biome-ignore lint/suspicious/noArrayIndexKey: order is stable
-								<li key={i} className="flex items-start gap-2.5">
-									<span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 flex-shrink-0" />
-									<span className="flex-1">{step}</span>
-								</li>
-							))
+							topic.wayForward.map((step, i) => {
+								const wfSources = sources?.length
+									? matchContextSources(step, sources, i + 1)
+									: [];
+								return (
+									// biome-ignore lint/suspicious/noArrayIndexKey: order is stable
+									<li key={i} className="flex items-start gap-2.5">
+										<span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 flex-shrink-0" />
+										<span className="flex-1 leading-relaxed">
+											{step}
+											{wfSources.length > 0 && (
+												<SourcePill
+													sources={wfSources}
+													className="ml-1.5 align-middle inline-flex"
+												/>
+											)}
+										</span>
+									</li>
+								);
+							})
 						) : (
 							<li className="flex items-start gap-2.5">
 								<span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 flex-shrink-0" />
-								<span className="flex-1">{topic.wayForward}</span>
+								<span className="flex-1 leading-relaxed">
+									{topic.wayForward}
+									{sources?.length && (
+										<SourcePill
+											sources={matchContextSources(
+												topic.wayForward,
+												sources,
+												0,
+											)}
+											className="ml-1.5 align-middle inline-flex"
+										/>
+									)}
+								</span>
 							</li>
 						)}
 					</ul>
@@ -278,6 +367,12 @@ export default function TopicDetail({ topic }: TopicDetailProps) {
 					{typeof topic.conclusion === "string" ? (
 						<p className="text-sm leading-relaxed text-[var(--text)] font-medium">
 							{topic.conclusion}
+							{concSources.length > 0 && (
+								<SourcePill
+									sources={concSources}
+									className="ml-1.5 align-middle inline-flex"
+								/>
+							)}
 						</p>
 					) : (
 						<div className="space-y-2 text-sm">
@@ -286,6 +381,12 @@ export default function TopicDetail({ topic }: TopicDetailProps) {
 							</p>
 							<p className="font-semibold leading-relaxed text-[var(--text)]">
 								{topic.conclusion.positive}
+								{concSources.length > 0 && (
+									<SourcePill
+										sources={concSources}
+										className="ml-1.5 align-middle inline-flex"
+									/>
+								)}
 							</p>
 						</div>
 					)}

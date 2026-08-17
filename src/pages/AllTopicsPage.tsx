@@ -146,7 +146,12 @@ export default function AllTopicsPage() {
 						</p>
 					</div>
 				) : (
-					filtered.map((topic) => <TopicRow key={topic.id} topic={topic} />)
+					filtered.map((topic, idx) => (
+						<TopicRow
+							key={topic.id ? `${topic.id}-${idx}` : `topic-${idx}`}
+							topic={topic}
+						/>
+					))
 				)}
 			</div>
 		</div>

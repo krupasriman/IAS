@@ -8,6 +8,18 @@ const TOPICS_QUERY_KEY = ["topics"] as const;
 
 type SyncState = "offline" | "syncing" | "online";
 
+function deduplicateTopics(items: Topic[]): Topic[] {
+	const seen = new Set<string>();
+	const result: Topic[] = [];
+	for (const item of items) {
+		if (item?.id && !seen.has(item.id)) {
+			seen.add(item.id);
+			result.push(item);
+		}
+	}
+	return result;
+}
+
 export function useTopics() {
 	const queryClient = useQueryClient();
 	const [syncState, setSyncState] = useState<SyncState>("offline");
@@ -18,7 +30,7 @@ export function useTopics() {
 	const loadFromStorage = useCallback((): Topic[] | null => {
 		try {
 			const raw = localStorage.getItem(TOPICS_STORAGE_KEY);
-			if (raw) return JSON.parse(raw) as Topic[];
+			if (raw) return deduplicateTopics(JSON.parse(raw) as Topic[]);
 		} catch (e) {
 			console.error("Failed to load topics from storage", e);
 		}
@@ -27,7 +39,10 @@ export function useTopics() {
 
 	const saveToStorage = useCallback((items: Topic[]) => {
 		try {
-			localStorage.setItem(TOPICS_STORAGE_KEY, JSON.stringify(items));
+			localStorage.setItem(
+				TOPICS_STORAGE_KEY,
+				JSON.stringify(deduplicateTopics(items)),
+			);
 		} catch (e) {
 			console.error("Failed to save topics to storage", e);
 		}
@@ -41,7 +56,7 @@ export function useTopics() {
 		queryKey: TOPICS_QUERY_KEY,
 		queryFn: async () => {
 			try {
-				const serverTopics = await api.list();
+				const serverTopics = deduplicateTopics(await api.list());
 				initialTopicsRef.current = serverTopics;
 				saveToStorage(serverTopics);
 				return serverTopics;
@@ -50,7 +65,7 @@ export function useTopics() {
 				if (stored && stored.length > 0) return stored;
 				const res = await fetch("/data/topics.json");
 				if (!res.ok) throw new Error("Failed to load topics data");
-				const seedTopics = (await res.json()) as Topic[];
+				const seedTopics = deduplicateTopics((await res.json()) as Topic[]);
 				initialTopicsRef.current = seedTopics;
 				saveToStorage(seedTopics);
 				return seedTopics;
@@ -66,7 +81,7 @@ export function useTopics() {
 	const updateCache = useCallback(
 		(updater: (old: Topic[] | undefined) => Topic[]) => {
 			queryClient.setQueryData<Topic[]>(TOPICS_QUERY_KEY, (old) => {
-				const next = updater(old);
+				const next = deduplicateTopics(updater(old));
 				saveToStorage(next);
 				return next;
 			});
@@ -77,8 +92,9 @@ export function useTopics() {
 	const rollbackCache = useCallback(
 		(previous: Topic[] | undefined) => {
 			if (previous) {
-				queryClient.setQueryData<Topic[]>(TOPICS_QUERY_KEY, previous);
-				saveToStorage(previous);
+				const deduped = deduplicateTopics(previous);
+				queryClient.setQueryData<Topic[]>(TOPICS_QUERY_KEY, deduped);
+				saveToStorage(deduped);
 			}
 		},
 		[queryClient, saveToStorage],
@@ -89,7 +105,10 @@ export function useTopics() {
 		onMutate: async (topic) => {
 			await queryClient.cancelQueries({ queryKey: TOPICS_QUERY_KEY });
 			const previous = queryClient.getQueryData<Topic[]>(TOPICS_QUERY_KEY);
-			updateCache((old) => [topic, ...(old ?? [])]);
+			updateCache((old) => [
+				topic,
+				...(old?.filter((t) => t.id !== topic.id) ?? []),
+			]);
 			setSyncState("syncing");
 			return { previous };
 		},
