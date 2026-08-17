@@ -33,18 +33,26 @@ export function SourcePill({
 	const [currentIndex, setCurrentIndex] = useState(0);
 	const [imageError, setImageError] = useState(false);
 	const [alignRight, setAlignRight] = useState(false);
+	const [openUpward, setOpenUpward] = useState(false);
 	const containerRef = useRef<HTMLDivElement>(null);
 
-	// Smart positioning to prevent horizontal cutoff
+	// Smart positioning to prevent horizontal and vertical cutoff
 	useEffect(() => {
 		if (isOpen && containerRef.current) {
 			const rect = containerRef.current.getBoundingClientRect();
 			const screenWidth = window.innerWidth;
+			const screenHeight = window.innerHeight;
+
 			// If pill is too close to right edge (< 340px available), align popup to right
-			if (rect.left + 340 > screenWidth) {
-				setAlignRight(true);
+			setAlignRight(rect.left + 340 > screenWidth);
+
+			// If space below is less than 280px or closer to bottom than top, open upward
+			const spaceBelow = screenHeight - rect.bottom;
+			const spaceAbove = rect.top;
+			if (spaceBelow < 280 || (spaceBelow < 320 && spaceAbove > spaceBelow)) {
+				setOpenUpward(true);
 			} else {
-				setAlignRight(false);
+				setOpenUpward(false);
 			}
 		}
 	}, [isOpen]);
@@ -130,9 +138,11 @@ export function SourcePill({
 			{/* ChatGPT-style Popover Preview Card */}
 			{isOpen && (
 				<div
-					className={`absolute top-full ${
+					className={`absolute ${
+						openUpward ? "bottom-full mb-2" : "top-full mt-2"
+					} ${
 						alignRight ? "right-0" : "left-0"
-					} mt-2 w-72 sm:w-80 max-w-[calc(100vw-2rem)] rounded-2xl border shadow-2xl z-50 overflow-hidden backdrop-blur-md animate-in fade-in zoom-in-95 duration-150`}
+					} w-72 sm:w-80 max-w-[calc(100vw-2rem)] rounded-2xl border shadow-2xl z-50 overflow-hidden backdrop-blur-md animate-in fade-in zoom-in-95 duration-150`}
 					style={{
 						backgroundColor: "var(--surface)",
 						borderColor: "var(--border)",

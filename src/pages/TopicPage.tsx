@@ -2,6 +2,7 @@ import { AlertCircle, ArrowLeft, Loader2, Pencil, Trash2 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import TopicDetail from "../components/TopicDetail";
 import { useTopics } from "../hooks/useTopics";
+import { getCategoryInfo, getGsPaper } from "../utils/categoryHelpers";
 import { getDefaultCategorySources } from "../utils/referenceSources";
 
 export default function TopicPage() {
@@ -37,7 +38,7 @@ export default function TopicPage() {
 				</p>
 				<Link
 					to="/"
-					className="px-4 py-2 rounded text-sm font-semibold"
+					className="px-4 py-2 rounded-xl text-sm font-semibold shadow-sm transition-all"
 					style={{ background: "var(--accent)", color: "#fff" }}
 				>
 					Go to Library
@@ -56,6 +57,10 @@ export default function TopicPage() {
 	const sources = topic
 		? getDefaultCategorySources(topic.category, topic.title)
 		: undefined;
+
+	const catInfo = getCategoryInfo(topic.category);
+	const CatIcon = catInfo.icon;
+	const gsPaper = getGsPaper(topic.category);
 
 	return (
 		<div className="flex-1 overflow-y-auto bg-[var(--bg)] text-[var(--text)]">
@@ -91,27 +96,30 @@ export default function TopicPage() {
 
 				{/* Title Area */}
 				<div className="mb-6">
-					<div className="flex flex-wrap gap-2 mb-3">
-						<span className="badge badge-accent text-xs px-2.5 py-1">
-							{topic.category}
+					<div className="flex flex-wrap items-center gap-2 mb-3">
+						<span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text)]">
+							<CatIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+							<span>{topic.category}</span>
 						</span>
-						<span
-							className={`badge ${topic.source === "web" ? "badge-accent" : "badge-success"} text-xs px-2.5 py-1`}
-						>
-							{topic.source === "web" ? "AI Synthesized" : "Mains Library"}
+						<span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[var(--surface-2)] border border-[var(--border)] text-[var(--muted)]">
+							{gsPaper}
 						</span>
 					</div>
-					<h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[var(--text)]">
+					<h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-[var(--text)] leading-tight">
 						{topic.title}
 					</h1>
 					<p className="text-xs mt-2 text-[var(--muted)]">
 						Saved note · Updated{" "}
-						{new Date(topic.updatedAt).toLocaleDateString()}
+						{new Date(topic.updatedAt).toLocaleDateString("en-IN", {
+							day: "numeric",
+							month: "short",
+							year: "numeric",
+						})}
 					</p>
 				</div>
 
 				{/* Full Topic Detail */}
-				<div className="rounded-2xl shadow-sm border border-[var(--border)] bg-[var(--surface)]">
+				<div className="rounded-2xl shadow-sm border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
 					<TopicDetail topic={topic} sources={sources} />
 				</div>
 			</div>

@@ -1,16 +1,20 @@
 import {
 	AlertTriangle,
+	BookOpen,
+	Check,
 	CheckCircle2,
+	Compass,
 	Copy,
 	Flag,
-	Lightbulb,
 	Quote,
+	Sparkles,
 	TrendingUp,
 } from "lucide-react";
 import { useState } from "react";
 import type { WebSearchResultItem } from "../types/search.types";
 import type { Topic } from "../types/topic.types";
 import { matchContextSources } from "../utils/sourceHelpers";
+import { cleanText, formatFullTopicPlainText } from "../utils/textHelpers";
 import { SourcePill } from "./SourceCitation";
 
 interface TopicDetailProps {
@@ -23,79 +27,136 @@ function useCopy() {
 	const copy = (text: string, key: string) => {
 		navigator.clipboard.writeText(text).then(() => {
 			setCopied(key);
-			setTimeout(() => setCopied(null), 1500);
+			setTimeout(() => setCopied(null), 1800);
 		});
 	};
 	return { copied, copy };
 }
 
-function SectionBlock({
-	id,
-	label,
-	icon: Icon,
-	iconColor,
-	children,
-}: {
-	id: string;
-	label: string;
-	icon: React.ComponentType<{
-		className?: string;
-		style?: React.CSSProperties;
-	}>;
-	iconColor: string;
-	children: React.ReactNode;
-}) {
-	return (
-		<div
-			id={id}
-			className="p-5 sm:p-6 border-b border-[var(--border)] last:border-b-0"
-		>
-			<div className="flex items-center gap-2 mb-3">
-				<Icon className="w-4 h-4 flex-shrink-0" style={{ color: iconColor }} />
-				<span className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
-					{label}
-				</span>
-			</div>
-			<div className="section-content text-[var(--text-2)]">{children}</div>
-		</div>
-	);
-}
-
 export default function TopicDetail({ topic, sources }: TopicDetailProps) {
-	const { copy, copied } = useCopy();
+	const { copied, copy } = useCopy();
 
 	const conclusionText =
 		typeof topic.conclusion === "string"
 			? topic.conclusion
-			: `${topic.conclusion.negative} ${topic.conclusion.positive}`;
+			: `${topic.conclusion?.negative || ""} ${topic.conclusion?.positive || ""}`;
 
 	const meaningSources = sources?.length
 		? matchContextSources(topic.meaning, sources, 0)
 		: [];
-
 	const quoteSources = sources?.length
 		? matchContextSources(
-				`${topic.quote.text} ${topic.quote.source}`,
+				`${topic.quote?.text || ""} ${topic.quote?.source || ""}`,
 				sources,
 				1,
 			)
 		: [];
-
 	const concSources = sources?.length
 		? matchContextSources(conclusionText, sources, 0)
 		: [];
 
+	const scrollTo = (id: string) => {
+		const el = document.getElementById(id);
+		if (el) {
+			el.scrollIntoView({ behavior: "smooth", block: "start" });
+		}
+	};
+
 	return (
-		<div className="divide-y divide-[var(--border)] bg-[var(--surface)]">
-			{/* ── Meaning ── */}
-			<SectionBlock
-				id="sec-meaning"
-				label="Meaning & Context"
-				icon={Lightbulb}
-				iconColor="#10a37f"
-			>
-				<div className="copy-trigger relative group">
-					<p className="text-base leading-relaxed text-[var(--text)]">
+		<div className="divide-y divide-[var(--border)] bg-[var(--surface)] text-[var(--text)]">
+			{/* ── Document Sub-Toolbar & Quick Jump Navigation ── */}
+			<div className="px-4 sm:px-6 py-2.5 bg-[var(--surface-2)]/40 flex items-center justify-between gap-3 flex-wrap border-b border-[var(--border)] text-xs">
+				<div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto py-0.5 no-scrollbar">
+					<button
+						type="button"
+						onClick={() => scrollTo("sec-meaning")}
+						className="px-2.5 py-1 rounded-lg text-[11px] font-medium text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-3)] transition-colors cursor-pointer whitespace-nowrap"
+					>
+						Overview
+					</button>
+					<span className="text-[var(--border)]">·</span>
+					<button
+						type="button"
+						onClick={() => scrollTo("sec-quote")}
+						className="px-2.5 py-1 rounded-lg text-[11px] font-medium text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-3)] transition-colors cursor-pointer whitespace-nowrap"
+					>
+						Quote
+					</button>
+					<span className="text-[var(--border)]">·</span>
+					<button
+						type="button"
+						onClick={() => scrollTo("sec-analysis")}
+						className="px-2.5 py-1 rounded-lg text-[11px] font-medium text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-3)] transition-colors cursor-pointer whitespace-nowrap"
+					>
+						Arguments & Dimensions
+					</button>
+					<span className="text-[var(--border)]">·</span>
+					<button
+						type="button"
+						onClick={() => scrollTo("sec-wayforward")}
+						className="px-2.5 py-1 rounded-lg text-[11px] font-medium text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-3)] transition-colors cursor-pointer whitespace-nowrap"
+					>
+						Roadmap
+					</button>
+					<span className="text-[var(--border)]">·</span>
+					<button
+						type="button"
+						onClick={() => scrollTo("sec-conclusion")}
+						className="px-2.5 py-1 rounded-lg text-[11px] font-medium text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-3)] transition-colors cursor-pointer whitespace-nowrap"
+					>
+						Synthesis
+					</button>
+				</div>
+
+				<div className="flex items-center gap-2 ml-auto">
+					<button
+						type="button"
+						onClick={() => copy(formatFullTopicPlainText(topic), "all-clean")}
+						className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-[var(--surface)] border border-[var(--border)] text-[var(--text-2)] hover:text-[var(--text)] hover:bg-[var(--surface-2)] transition-all cursor-pointer shadow-xs"
+						title="Copy clear plain text notes"
+					>
+						{copied === "all-clean" ? (
+							<>
+								<Check className="w-3.5 h-3.5 text-emerald-500" />
+								<span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+									Copied!
+								</span>
+							</>
+						) : (
+							<>
+								<Copy className="w-3.5 h-3.5 text-[var(--muted)]" />
+								<span>Copy Note</span>
+							</>
+						)}
+					</button>
+				</div>
+			</div>
+
+			{/* ── SECTION 1: Meaning & Conceptual Core ── */}
+			<div id="sec-meaning" className="p-6 sm:p-8 relative group">
+				<div className="flex items-center justify-between gap-3 mb-3.5">
+					<div className="flex items-center gap-2">
+						<Compass className="w-4 h-4 text-[var(--muted)]" />
+						<h2 className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
+							Conceptual Foundation & Core Meaning
+						</h2>
+					</div>
+					<button
+						type="button"
+						className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-xs bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--text)] transition-all cursor-pointer"
+						onClick={() => copy(cleanText(topic.meaning), "meaning")}
+						title="Copy meaning"
+					>
+						{copied === "meaning" ? (
+							<Check className="w-3.5 h-3.5 text-emerald-500" />
+						) : (
+							<Copy className="w-3.5 h-3.5" />
+						)}
+					</button>
+				</div>
+
+				<div className="relative pl-3.5 border-l-2 border-[var(--border-strong)]">
+					<p className="text-[15px] sm:text-base leading-relaxed text-[var(--text)] font-normal">
 						{topic.meaning}
 						{meaningSources.length > 0 && (
 							<SourcePill
@@ -104,37 +165,52 @@ export default function TopicDetail({ topic, sources }: TopicDetailProps) {
 							/>
 						)}
 					</p>
-					<button
-						type="button"
-						className="copy-btn absolute top-0 right-0 p-1.5 rounded-lg text-xs bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--text)] transition-all cursor-pointer"
-						onClick={() => copy(topic.meaning, "meaning")}
-						title="Copy Meaning"
-					>
-						{copied === "meaning" ? (
-							<CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-						) : (
-							<Copy className="w-3.5 h-3.5" />
-						)}
-					</button>
 				</div>
-			</SectionBlock>
+			</div>
 
-			{/* ── Quote ── */}
-			<SectionBlock
-				id="sec-quote"
-				label="Notable Quote / Context"
-				icon={Quote}
-				iconColor="#8b5cf6"
-			>
-				<div className="copy-trigger relative group">
-					<div className="p-4 rounded-2xl bg-[var(--surface-2)] border-l-4 border-emerald-500">
-						<p className="italic font-medium text-base leading-relaxed text-[var(--text)]">
+			{/* ── SECTION 2: Notable Quote & Contextual Hook ── */}
+			{topic.quote?.text && (
+				<div
+					id="sec-quote"
+					className="p-6 sm:p-8 bg-[var(--surface-2)]/20 relative group"
+				>
+					<div className="flex items-center justify-between gap-3 mb-3">
+						<div className="flex items-center gap-2">
+							<Quote className="w-4 h-4 text-[var(--muted)]" />
+							<h2 className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
+								Notable Quotation & Analytical Anchor
+							</h2>
+						</div>
+						<button
+							type="button"
+							className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-xs bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--text)] transition-all cursor-pointer border border-[var(--border)] shadow-xs"
+							onClick={() =>
+								copy(
+									`"${cleanText(topic.quote.text)}" - ${cleanText(topic.quote.source)}`,
+									"quote",
+								)
+							}
+							title="Copy quote"
+						>
+							{copied === "quote" ? (
+								<Check className="w-3.5 h-3.5 text-emerald-500" />
+							) : (
+								<Copy className="w-3.5 h-3.5" />
+							)}
+						</button>
+					</div>
+
+					<div className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] p-5 sm:p-6 shadow-xs">
+						<p className="font-serif italic text-base sm:text-lg leading-relaxed text-[var(--text)]">
 							"{topic.quote.text}"
 						</p>
-						<div className="mt-2.5 flex items-center flex-wrap gap-2">
-							<p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-								— {topic.quote.source}
-							</p>
+						<div className="mt-3.5 flex items-center flex-wrap gap-2.5 pt-3 border-t border-[var(--border)]">
+							<span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--muted)] bg-[var(--surface-2)] px-2.5 py-1 rounded-lg border border-[var(--border)]">
+								<span>—</span>
+								<span className="text-[var(--text-2)] font-semibold">
+									{topic.quote.source}
+								</span>
+							</span>
 							{quoteSources.length > 0 && (
 								<SourcePill
 									sources={quoteSources}
@@ -143,36 +219,43 @@ export default function TopicDetail({ topic, sources }: TopicDetailProps) {
 							)}
 						</div>
 					</div>
-					<button
-						type="button"
-						className="copy-btn absolute top-2 right-2 p-1.5 rounded-lg text-xs bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--text)] transition-all cursor-pointer shadow-sm"
-						onClick={() =>
-							copy(`"${topic.quote.text}" — ${topic.quote.source}`, "quote")
-						}
-						title="Copy Quote"
-					>
-						{copied === "quote" ? (
-							<CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-						) : (
-							<Copy className="w-3.5 h-3.5" />
-						)}
-					</button>
 				</div>
-			</SectionBlock>
+			)}
 
-			{/* ── Pros & Cons Grid ── */}
-			<div className="p-5 sm:p-6 border-b border-[var(--border)]">
-				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-					{/* ── Advantages ── */}
-					<div>
-						<div className="flex items-center gap-2 mb-3.5">
-							<TrendingUp className="w-4 h-4 text-emerald-500" />
-							<span className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
-								Key Advantages & Arguments
-							</span>
+			{/* ── SECTION 3: Multi-Dimensional Analysis (Pros & Cons) ── */}
+			<div id="sec-analysis" className="p-6 sm:p-8">
+				<div className="mb-6">
+					<div className="flex items-center gap-2 mb-1">
+						<BookOpen className="w-4 h-4 text-[var(--muted)]" />
+						<h2 className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
+							Multi-Dimensional Analysis & Arguments
+						</h2>
+					</div>
+					<p className="text-xs text-[var(--muted)] ml-6">
+						Structured examination of core arguments, opportunities, and
+						critical systemic bottlenecks.
+					</p>
+				</div>
+
+				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+					{/* ── Key Arguments (Pros) ── */}
+					<div className="space-y-3.5">
+						<div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
+							<div className="flex items-center gap-2">
+								<TrendingUp className="w-3.5 h-3.5 text-[var(--muted)] flex-shrink-0" />
+								<span className="text-xs font-bold uppercase tracking-wider text-[var(--text)]">
+									Key Dimensions & Opportunities
+								</span>
+							</div>
+							{topic.pros && (
+								<span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-[var(--surface-2)] text-[var(--muted)] border border-[var(--border)]">
+									{topic.pros.length} Points
+								</span>
+							)}
 						</div>
+
 						{topic.pros && topic.pros.length > 0 ? (
-							<ol className="space-y-3">
+							<div className="space-y-3">
 								{topic.pros.map((pro, i) => {
 									const proSources = sources?.length
 										? matchContextSources(
@@ -181,58 +264,91 @@ export default function TopicDetail({ topic, sources }: TopicDetailProps) {
 												2 + i,
 											)
 										: [];
+									const copyKey = `pro-${i}`;
 									return (
-										<li
+										<div
 											// biome-ignore lint/suspicious/noArrayIndexKey: stable list
 											key={i}
-											className="p-3.5 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] flex gap-3 text-sm"
+											className="p-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/30 hover:bg-[var(--surface-2)]/60 hover:border-[var(--border-strong)] transition-all relative group"
 										>
-											<span className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[11px] font-bold mt-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-												{i + 1}
-											</span>
-											<div className="min-w-0 flex-1">
-												<p className="font-semibold text-sm text-[var(--text)]">
-													{pro.title}
-												</p>
-												<p className="text-xs leading-relaxed mt-1 text-[var(--text-2)]">
-													{pro.explanation}
-													{proSources.length > 0 && (
-														<SourcePill
-															sources={proSources}
-															className="ml-1.5 align-middle inline-flex"
-														/>
+											<div className="flex items-start justify-between gap-2 mb-1.5">
+												<div className="flex items-center gap-2">
+													<span className="text-xs font-mono font-bold text-[var(--muted)]">
+														{String(i + 1).padStart(2, "0")}
+													</span>
+													<h3 className="font-semibold text-sm text-[var(--text)]">
+														{pro.title}
+													</h3>
+												</div>
+												<button
+													type="button"
+													className="opacity-0 group-hover:opacity-100 p-1 rounded text-xs text-[var(--muted)] hover:text-[var(--text)] transition-opacity cursor-pointer"
+													onClick={() =>
+														copy(
+															`${cleanText(pro.title)}\n${cleanText(pro.explanation)}${pro.example ? `\nExample: ${cleanText(pro.example)}` : ""}`,
+															copyKey,
+														)
+													}
+													title="Copy argument"
+												>
+													{copied === copyKey ? (
+														<Check className="w-3.5 h-3.5 text-emerald-500" />
+													) : (
+														<Copy className="w-3.5 h-3.5" />
 													)}
-												</p>
-												{pro.example && (
-													<div className="text-[11px] mt-2 px-2.5 py-1 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[var(--muted)]">
-														<span className="font-semibold text-emerald-600 dark:text-emerald-400">
-															Eg:{" "}
-														</span>
-														{pro.example}
-													</div>
-												)}
+												</button>
 											</div>
-										</li>
+
+											<p className="text-xs sm:text-[13px] leading-relaxed text-[var(--text-2)] pl-5">
+												{pro.explanation}
+												{proSources.length > 0 && (
+													<SourcePill
+														sources={proSources}
+														className="ml-1.5 align-middle inline-flex"
+													/>
+												)}
+											</p>
+
+											{pro.example && (
+												<div className="mt-3 ml-5 p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-start gap-2 text-xs">
+													<span className="inline-flex items-center gap-1 font-semibold text-[10px] uppercase tracking-wider text-[var(--text-2)] bg-[var(--surface-2)] px-1.5 py-0.5 rounded border border-[var(--border)] flex-shrink-0 mt-0.5">
+														<Sparkles className="w-3 h-3 text-[var(--muted)]" />
+														Case in Point
+													</span>
+													<span className="text-xs text-[var(--text-2)] leading-relaxed flex-1">
+														{pro.example}
+													</span>
+												</div>
+											)}
+										</div>
 									);
 								})}
-							</ol>
+							</div>
 						) : (
 							<p className="text-xs italic text-[var(--faint)]">
-								No advantages listed.
+								No specific advantages recorded.
 							</p>
 						)}
 					</div>
 
-					{/* ── Challenges ── */}
-					<div>
-						<div className="flex items-center gap-2 mb-3.5">
-							<AlertTriangle className="w-4 h-4 text-rose-500" />
-							<span className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
-								Challenges & Concerns
-							</span>
+					{/* ── Critical Challenges (Cons) ── */}
+					<div className="space-y-3.5">
+						<div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
+							<div className="flex items-center gap-2">
+								<AlertTriangle className="w-3.5 h-3.5 text-[var(--muted)] flex-shrink-0" />
+								<span className="text-xs font-bold uppercase tracking-wider text-[var(--text)]">
+									Critical Challenges & Concerns
+								</span>
+							</div>
+							{topic.cons && (
+								<span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-[var(--surface-2)] text-[var(--muted)] border border-[var(--border)]">
+									{topic.cons.length} Points
+								</span>
+							)}
 						</div>
+
 						{topic.cons && topic.cons.length > 0 ? (
-							<ol className="space-y-3">
+							<div className="space-y-3">
 								{topic.cons.map((con, i) => {
 									const conSources = sources?.length
 										? matchContextSources(
@@ -241,169 +357,222 @@ export default function TopicDetail({ topic, sources }: TopicDetailProps) {
 												2 + (topic.pros?.length || 4) + i,
 											)
 										: [];
+									const copyKey = `con-${i}`;
 									return (
-										<li
+										<div
 											// biome-ignore lint/suspicious/noArrayIndexKey: stable list
 											key={i}
-											className="p-3.5 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] flex gap-3 text-sm"
+											className="p-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/30 hover:bg-[var(--surface-2)]/60 hover:border-[var(--border-strong)] transition-all relative group"
 										>
-											<span className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[11px] font-bold mt-0.5 bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400">
-												{i + 1}
-											</span>
-											<div className="min-w-0 flex-1">
-												<p className="font-semibold text-sm text-[var(--text)]">
-													{con.title}
-												</p>
-												<p className="text-xs leading-relaxed mt-1 text-[var(--text-2)]">
-													{con.explanation}
-													{conSources.length > 0 && (
-														<SourcePill
-															sources={conSources}
-															className="ml-1.5 align-middle inline-flex"
-														/>
+											<div className="flex items-start justify-between gap-2 mb-1.5">
+												<div className="flex items-center gap-2">
+													<span className="text-xs font-mono font-bold text-[var(--muted)]">
+														{String(i + 1).padStart(2, "0")}
+													</span>
+													<h3 className="font-semibold text-sm text-[var(--text)]">
+														{con.title}
+													</h3>
+												</div>
+												<button
+													type="button"
+													className="opacity-0 group-hover:opacity-100 p-1 rounded text-xs text-[var(--muted)] hover:text-[var(--text)] transition-opacity cursor-pointer"
+													onClick={() =>
+														copy(
+															`${cleanText(con.title)}\n${cleanText(con.explanation)}${con.example ? `\nExample: ${cleanText(con.example)}` : ""}`,
+															copyKey,
+														)
+													}
+													title="Copy challenge"
+												>
+													{copied === copyKey ? (
+														<Check className="w-3.5 h-3.5 text-emerald-500" />
+													) : (
+														<Copy className="w-3.5 h-3.5" />
 													)}
-												</p>
-												{con.example && (
-													<div className="text-[11px] mt-2 px-2.5 py-1 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[var(--muted)]">
-														<span className="font-semibold text-rose-600 dark:text-rose-400">
-															Eg:{" "}
-														</span>
-														{con.example}
-													</div>
-												)}
+												</button>
 											</div>
-										</li>
+
+											<p className="text-xs sm:text-[13px] leading-relaxed text-[var(--text-2)] pl-5">
+												{con.explanation}
+												{conSources.length > 0 && (
+													<SourcePill
+														sources={conSources}
+														className="ml-1.5 align-middle inline-flex"
+													/>
+												)}
+											</p>
+
+											{con.example && (
+												<div className="mt-3 ml-5 p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-start gap-2 text-xs">
+													<span className="inline-flex items-center gap-1 font-semibold text-[10px] uppercase tracking-wider text-[var(--text-2)] bg-[var(--surface-2)] px-1.5 py-0.5 rounded border border-[var(--border)] flex-shrink-0 mt-0.5">
+														<AlertTriangle className="w-3 h-3 text-[var(--muted)]" />
+														Ground Reality
+													</span>
+													<span className="text-xs text-[var(--text-2)] leading-relaxed flex-1">
+														{con.example}
+													</span>
+												</div>
+											)}
+										</div>
 									);
 								})}
-							</ol>
+							</div>
 						) : (
 							<p className="text-xs italic text-[var(--faint)]">
-								No challenges listed.
+								No specific challenges recorded.
 							</p>
 						)}
 					</div>
 				</div>
 			</div>
 
-			{/* ── Way Forward ── */}
-			<SectionBlock
-				id="sec-wayforward"
-				label="Way Forward & Policy Reforms"
-				icon={Flag}
-				iconColor="#10a37f"
-			>
-				<div className="copy-trigger relative group">
-					<ul className="space-y-2.5 text-sm leading-relaxed text-[var(--text)]">
-						{Array.isArray(topic.wayForward) ? (
-							topic.wayForward.map((step, i) => {
-								const wfSources = sources?.length
-									? matchContextSources(step, sources, i + 1)
-									: [];
-								return (
-									// biome-ignore lint/suspicious/noArrayIndexKey: order is stable
-									<li key={i} className="flex items-start gap-2.5">
-										<span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 flex-shrink-0" />
-										<span className="flex-1 leading-relaxed">
+			{/* ── SECTION 4: Strategic Roadmap & Policy Reforms (Way Forward) ── */}
+			<div id="sec-wayforward" className="p-6 sm:p-8 relative group">
+				<div className="flex items-center justify-between gap-3 mb-5">
+					<div className="flex items-center gap-2">
+						<Flag className="w-4 h-4 text-[var(--muted)]" />
+						<h2 className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
+							Strategic Roadmap & Policy Reforms
+						</h2>
+					</div>
+					<button
+						type="button"
+						className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-xs bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--text)] transition-all cursor-pointer"
+						onClick={() =>
+							copy(
+								Array.isArray(topic.wayForward)
+									? topic.wayForward
+											.map((s, i) => `${i + 1}. ${cleanText(s)}`)
+											.join("\n")
+									: cleanText(topic.wayForward),
+								"way",
+							)
+						}
+						title="Copy roadmap"
+					>
+						{copied === "way" ? (
+							<Check className="w-3.5 h-3.5 text-emerald-500" />
+						) : (
+							<Copy className="w-3.5 h-3.5" />
+						)}
+					</button>
+				</div>
+
+				<div className="space-y-3">
+					{Array.isArray(topic.wayForward) ? (
+						topic.wayForward.map((step, i) => {
+							const wfSources = sources?.length
+								? matchContextSources(step, sources, i + 1)
+								: [];
+							return (
+								<div
+									// biome-ignore lint/suspicious/noArrayIndexKey: stable list
+									key={i}
+									className="p-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/30 hover:bg-[var(--surface-2)]/60 transition-colors flex items-start gap-3.5"
+								>
+									<span className="w-6 h-6 rounded-lg bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-xs font-bold text-[var(--text-2)] flex-shrink-0 mt-0.5 shadow-xs">
+										{i + 1}
+									</span>
+									<div className="flex-1 min-w-0">
+										<p className="text-xs sm:text-sm text-[var(--text)] leading-relaxed">
 											{step}
 											{wfSources.length > 0 && (
 												<SourcePill
 													sources={wfSources}
-													className="ml-1.5 align-middle inline-flex"
+													className="ml-2 align-middle inline-flex"
 												/>
 											)}
-										</span>
-									</li>
-								);
-							})
-						) : (
-							<li className="flex items-start gap-2.5">
-								<span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 flex-shrink-0" />
-								<span className="flex-1 leading-relaxed">
-									{topic.wayForward}
-									{sources?.length && (
-										<SourcePill
-											sources={matchContextSources(
-												topic.wayForward,
-												sources,
-												0,
-											)}
-											className="ml-1.5 align-middle inline-flex"
-										/>
-									)}
-								</span>
-							</li>
-						)}
-					</ul>
+										</p>
+									</div>
+								</div>
+							);
+						})
+					) : (
+						<div className="p-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/30 flex items-start gap-3.5">
+							<span className="w-6 h-6 rounded-lg bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-xs font-bold text-[var(--text-2)] flex-shrink-0 mt-0.5 shadow-xs">
+								1
+							</span>
+							<p className="text-xs sm:text-sm text-[var(--text)] leading-relaxed">
+								{topic.wayForward}
+							</p>
+						</div>
+					)}
+				</div>
+			</div>
+
+			{/* ── SECTION 5: Balanced Mains Synthesis (Conclusion) ── */}
+			<div
+				id="sec-conclusion"
+				className="p-6 sm:p-8 pb-10 sm:pb-12 bg-[var(--surface-2)]/20 relative group"
+			>
+				<div className="flex items-center justify-between gap-3 mb-4">
+					<div className="flex items-center gap-2">
+						<CheckCircle2 className="w-4 h-4 text-[var(--muted)]" />
+						<h2 className="text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
+							Balanced Synthesis & Evaluative Judgement
+						</h2>
+					</div>
 					<button
 						type="button"
-						className="copy-btn absolute top-0 right-0 p-1.5 rounded-lg text-xs bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--text)] transition-all cursor-pointer"
+						className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-xs bg-[var(--surface)] border border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)] transition-all cursor-pointer shadow-xs"
 						onClick={() =>
 							copy(
-								Array.isArray(topic.wayForward)
-									? topic.wayForward.map((s) => `- ${s}`).join("\n")
-									: topic.wayForward,
-								"way",
+								typeof topic.conclusion === "string"
+									? cleanText(topic.conclusion)
+									: `${cleanText(topic.conclusion.negative)}\n${cleanText(topic.conclusion.positive)}`,
+								"conc",
 							)
 						}
-						title="Copy Way Forward"
+						title="Copy conclusion"
 					>
-						{copied === "way" ? (
-							<CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+						{copied === "conc" ? (
+							<Check className="w-3.5 h-3.5 text-emerald-500" />
 						) : (
 							<Copy className="w-3.5 h-3.5" />
 						)}
 					</button>
 				</div>
-			</SectionBlock>
 
-			{/* ── Conclusion ── */}
-			<SectionBlock
-				id="sec-conclusion"
-				label="Balanced Mains Conclusion"
-				icon={CheckCircle2}
-				iconColor="#f59e0b"
-			>
-				<div className="copy-trigger relative group">
+				<div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6 shadow-xs space-y-4">
 					{typeof topic.conclusion === "string" ? (
-						<p className="text-sm leading-relaxed text-[var(--text)] font-medium">
+						<p className="text-xs sm:text-sm leading-relaxed text-[var(--text)] font-medium">
 							{topic.conclusion}
 							{concSources.length > 0 && (
 								<SourcePill
 									sources={concSources}
-									className="ml-1.5 align-middle inline-flex"
+									className="ml-2 align-middle inline-flex"
 								/>
 							)}
 						</p>
 					) : (
-						<div className="space-y-2 text-sm">
-							<p className="leading-relaxed text-[var(--text-2)]">
-								{topic.conclusion.negative}
-							</p>
-							<p className="font-semibold leading-relaxed text-[var(--text)]">
-								{topic.conclusion.positive}
-								{concSources.length > 0 && (
-									<SourcePill
-										sources={concSources}
-										className="ml-1.5 align-middle inline-flex"
-									/>
-								)}
-							</p>
+						<div className="space-y-3.5">
+							{/* Pragmatic Bottleneck / Negative aspect */}
+							<div className="p-4 rounded-xl bg-[var(--surface-2)]/40 border border-[var(--border)] text-xs sm:text-[13px] leading-relaxed text-[var(--text-2)]">
+								<span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] block mb-1">
+									Pragmatic Ground Reality / Constraint
+								</span>
+								<p>{topic.conclusion.negative}</p>
+							</div>
+
+							{/* Forward Vision / Positive synthesis */}
+							<div className="p-4 rounded-xl bg-[var(--surface-2)]/70 border border-[var(--border)] text-xs sm:text-[13px] leading-relaxed text-[var(--text)] font-medium">
+								<span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-2)] block mb-1">
+									Strategic Forward Vision
+								</span>
+								<p>
+									{topic.conclusion.positive}
+									{concSources.length > 0 && (
+										<SourcePill
+											sources={concSources}
+											className="ml-2 align-middle inline-flex"
+										/>
+									)}
+								</p>
+							</div>
 						</div>
 					)}
-					<button
-						type="button"
-						className="copy-btn absolute top-0 right-0 p-1.5 rounded-lg text-xs bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--text)] transition-all cursor-pointer"
-						onClick={() => copy(conclusionText, "conc")}
-						title="Copy Conclusion"
-					>
-						{copied === "conc" ? (
-							<CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-						) : (
-							<Copy className="w-3.5 h-3.5" />
-						)}
-					</button>
 				</div>
-			</SectionBlock>
+			</div>
 		</div>
 	);
 }

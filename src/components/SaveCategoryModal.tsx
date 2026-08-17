@@ -43,6 +43,7 @@ interface SaveCategoryModalProps {
 	topicTitle: string;
 	onClose: () => void;
 	onSave: (category: CategoryType) => void;
+	onUpdateCategory?: (category: CategoryType) => void;
 }
 
 export default function SaveCategoryModal({
@@ -51,6 +52,7 @@ export default function SaveCategoryModal({
 	topicTitle,
 	onClose,
 	onSave,
+	onUpdateCategory,
 }: SaveCategoryModalProps) {
 	const [selectedCategory, setSelectedCategory] =
 		useState<CategoryType>(suggestedCategory);
@@ -172,9 +174,9 @@ export default function SaveCategoryModal({
 				</div>
 
 				{/* Footer Actions */}
-				<div className="flex items-center justify-between px-6 py-4 border-t border-[var(--border)] bg-[var(--surface-2)]">
+				<div className="flex items-center justify-between px-6 py-4 border-t border-[var(--border)] bg-[var(--surface-2)] flex-wrap gap-2">
 					<span className="text-xs text-[var(--muted)]">
-						Saving under:{" "}
+						Selected:{" "}
 						<strong className="text-[var(--text)]">
 							{activeCatInfo?.name || selectedCategory}
 						</strong>
@@ -184,14 +186,27 @@ export default function SaveCategoryModal({
 						<button
 							type="button"
 							onClick={onClose}
-							className="px-4 py-2 rounded-xl text-xs font-medium hover:bg-[var(--surface-3)] text-[var(--text-2)] transition-colors cursor-pointer"
+							className="px-3.5 py-2 rounded-xl text-xs font-medium hover:bg-[var(--surface-3)] text-[var(--text-2)] transition-colors cursor-pointer"
 						>
 							Cancel
 						</button>
+						{onUpdateCategory && (
+							<button
+								type="button"
+								onClick={() => {
+									onUpdateCategory(selectedCategory);
+									onClose();
+								}}
+								className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--surface-3)] text-[var(--text)] transition-all cursor-pointer"
+								title="Change category on draft without saving yet"
+							>
+								Set Category
+							</button>
+						)}
 						<button
 							type="button"
 							onClick={() => onSave(selectedCategory)}
-							className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all cursor-pointer hover:scale-105 active:scale-95 flex items-center gap-1.5"
+							className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all cursor-pointer active:scale-95 flex items-center gap-1.5"
 						>
 							<Check className="w-3.5 h-3.5" />
 							<span>Confirm & Save</span>

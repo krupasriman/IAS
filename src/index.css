@@ -413,3 +413,38 @@ html.dark {
 		transform: translateY(100%);
 	}
 }
+
+/* ─── Utilities ─── */
+.no-scrollbar::-webkit-scrollbar {
+	display: none;
+}
+.no-scrollbar {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+
+/* ─── Print Styles ─── */
+@media print {
+	.ws-sidebar,
+	.ws-topbar,
+	.ws-querybar,
+	button,
+	.copy-trigger button,
+	.no-print {
+		display: none !important;
+	}
+
+	body,
+	.ws-shell,
+	.ws-main {
+		height: auto !important;
+		overflow: visible !important;
+		background: #ffffff !important;
+		color: #000000 !important;
+	}
+
+	.divide-y > * {
+		break-inside: avoid;
+		page-break-inside: avoid;
+	}
+}

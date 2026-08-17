@@ -60,6 +60,7 @@ export default function Sidebar({ collapsed }: SidebarProps) {
 		searchHistory,
 		loadSearchHistoryItem,
 		removeFromSearchHistory,
+		triggerCategorySelect,
 	} = useWorkspace();
 	const { topics } = useTopics();
 	const location = useLocation();
@@ -159,6 +160,7 @@ export default function Sidebar({ collapsed }: SidebarProps) {
 									<Link
 										key={cat.id}
 										to={`/?cat=${encodeURIComponent(cat.id)}`}
+										onClick={triggerCategorySelect}
 										className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
 											isCurrent
 												? "bg-[var(--surface-3)] text-[var(--text)] font-semibold"

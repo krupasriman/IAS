@@ -309,6 +309,12 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 		[settings.llm, addToHistory],
 	);
 
+	const updateTopicCategory = useCallback((category: string) => {
+		setGeneratedTopic((prev) =>
+			prev ? { ...prev, category: category as Topic["category"] } : null,
+		);
+	}, []);
+
 	const reset = useCallback(() => {
 		setQuery("");
 		setSearchResults(null);
@@ -331,6 +337,7 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 		addToHistory,
 		process,
 		processLLMOnly,
+		updateTopicCategory,
 		reset,
 		loadFromHistory,
 		removeFromHistory,

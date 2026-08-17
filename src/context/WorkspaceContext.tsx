@@ -40,6 +40,8 @@ interface WorkspaceCtx {
 	pendingLoadHistoryItem: SearchHistoryItem | null;
 	loadSearchHistoryItem: (item: SearchHistoryItem) => void;
 	clearPendingLoadHistoryItem: () => void;
+	categorySelectCounter: number;
+	triggerCategorySelect: () => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceCtx | null>(null);
@@ -170,6 +172,12 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 		setPendingLoadHistoryItem(null);
 	}, []);
 
+	const [categorySelectCounter, setCategorySelectCounter] = useState(0);
+
+	const triggerCategorySelect = useCallback(() => {
+		setCategorySelectCounter((c) => c + 1);
+	}, []);
+
 	return (
 		<WorkspaceContext.Provider
 			value={{
@@ -189,6 +197,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 				pendingLoadHistoryItem,
 				loadSearchHistoryItem,
 				clearPendingLoadHistoryItem,
+				categorySelectCounter,
+				triggerCategorySelect,
 			}}
 		>
 			{children}

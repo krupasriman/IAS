@@ -1,10 +1,14 @@
 import {
 	AlertCircle,
+	ArrowLeft,
 	CheckCircle2,
+	Clock,
+	Globe,
 	Loader2,
 	RotateCcw,
 	Save,
 	Search,
+	Sparkles,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -16,6 +20,11 @@ import { useWorkspace } from "../context/WorkspaceContext";
 import { useTopics } from "../hooks/useTopics";
 import { useWebSearch } from "../hooks/useWebSearch";
 import type { CategoryType } from "../types/topic.types";
+import {
+	calculateReadTime,
+	getCategoryInfo,
+	getGsPaper,
+} from "../utils/categoryHelpers";
 
 export default function HomePage() {
 	const { topics, loading, addTopic } = useTopics();
@@ -24,6 +33,7 @@ export default function HomePage() {
 		pendingLoadHistoryItem,
 		clearPendingLoadHistoryItem,
 		addToSearchHistory,
+		categorySelectCounter,
 	} = useWorkspace();
 	const location = useLocation();
 	const navigate = useNavigate();
@@ -55,12 +65,14 @@ export default function HomePage() {
 	const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 	const [searchFocusTrigger, setSearchFocusTrigger] = useState(0);
 	const lastHandledNewTopic = useRef(0);
+	const lastHandledCatSelect = useRef(0);
+	const lastUrlCat = useRef<CategoryType | null>(urlCat);
 
-	// Sync URL category param
-	useEffect(() => {
-		if (urlCat) setActiveCategory(urlCat);
-		else setActiveCategory("All");
-	}, [urlCat]);
+	const webSearch = useWebSearch({
+		onSuccess: (topic) => {
+			addToSearchHistory(query || topic.title, topic, webSearch.searchResults);
+		},
+	});
 
 	const handleToggleWeb = (v: boolean) => {
 		setWebEnabled(v);
@@ -69,16 +81,11 @@ export default function HomePage() {
 		} catch {}
 	};
 
-	const webSearch = useWebSearch({
-		onSuccess: (topic) => {
-			addToSearchHistory(query || topic.title, topic, webSearch.searchResults);
-		},
-	});
-
-	// Handle loading from history (via sidebar click or dropdown)
+	// 1. Handle loading from history (via sidebar click or dropdown)
 	useEffect(() => {
 		if (pendingLoadHistoryItem) {
 			webSearch.loadFromHistory(pendingLoadHistoryItem);
+			setActiveCategory("All");
 			clearPendingLoadHistoryItem();
 		}
 	}, [
@@ -87,7 +94,7 @@ export default function HomePage() {
 		clearPendingLoadHistoryItem,
 	]);
 
-	// Handle "+ New Topic" action
+	// 2. Handle "+ New Topic" action
 	useEffect(() => {
 		if (newTopicCounter > lastHandledNewTopic.current) {
 			lastHandledNewTopic.current = newTopicCounter;
@@ -113,6 +120,41 @@ export default function HomePage() {
 		query,
 		addToSearchHistory,
 	]);
+
+	// 3. Handle explicit category selection from sidebar
+	useEffect(() => {
+		if (categorySelectCounter > lastHandledCatSelect.current) {
+			lastHandledCatSelect.current = categorySelectCounter;
+
+			if (webSearch.generatedTopic) {
+				addToSearchHistory(
+					query || webSearch.generatedTopic.title,
+					webSearch.generatedTopic,
+					webSearch.searchResults,
+				);
+				webSearch.reset();
+			}
+		}
+	}, [
+		categorySelectCounter,
+		webSearch.generatedTopic,
+		webSearch.searchResults,
+		webSearch.reset,
+		query,
+		addToSearchHistory,
+	]);
+
+	// 4. Sync URL category param (when URL ?cat=... changes directly)
+	useEffect(() => {
+		if (urlCat !== lastUrlCat.current) {
+			lastUrlCat.current = urlCat;
+			if (urlCat) {
+				setActiveCategory(urlCat);
+			} else {
+				setActiveCategory("All");
+			}
+		}
+	}, [urlCat]);
 
 	const handleSearch = (q: string, web: boolean) => {
 		setQuery("");
@@ -197,85 +239,127 @@ export default function HomePage() {
 				)}
 
 				{/* ── STATE 1: AI Generated Topic (Canvas / Document Reader) ── */}
-				{webSearch.generatedTopic && (
-					<div className="max-w-5xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-						{/* Document Top Bar */}
-						<div className="flex items-center justify-end mb-6 pb-4 border-b border-[var(--border)]">
-							<div className="flex items-center gap-2">
-								<button
-									type="button"
-									onClick={() => {
-										webSearch.reset();
-										handleToggleWeb(false);
-										setQuery("");
-									}}
-									className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] transition-colors cursor-pointer"
-								>
-									<RotateCcw className="w-3.5 h-3.5" />
-									<span>Clear</span>
-								</button>
+				{webSearch.generatedTopic &&
+					(() => {
+						const catInfo = getCategoryInfo(webSearch.generatedTopic.category);
+						const CatIcon = catInfo.icon;
+						const gsPaper = getGsPaper(webSearch.generatedTopic.category);
+						const readTime = calculateReadTime(webSearch.generatedTopic);
 
-								<button
-									type="button"
-									onClick={handleSaveClick}
-									className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold shadow-sm transition-all cursor-pointer bg-[var(--text)] text-[var(--bg)] hover:opacity-90 active:scale-95"
-								>
-									{savedFromWeb ? (
-										<CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-									) : (
-										<Save className="w-3.5 h-3.5" />
-									)}
-									<span>{savedFromWeb ? "Saved to Library!" : "Save"}</span>
-								</button>
+						return (
+							<div className="max-w-5xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+								{/* Document Top Action Bar */}
+								<div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-[var(--border)]">
+									<div className="flex items-center gap-2 text-xs font-semibold text-[var(--muted)]">
+										<span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+											<Sparkles className="w-3 h-3" />
+											Mains Dossier
+										</span>
+										<span>·</span>
+										<span className="flex items-center gap-1 text-[var(--muted)]">
+											<Clock className="w-3 h-3" />
+											{readTime}
+										</span>
+									</div>
+
+									<div className="flex items-center gap-2">
+										<button
+											type="button"
+											onClick={() => {
+												webSearch.reset();
+												handleToggleWeb(false);
+												setQuery("");
+											}}
+											className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] transition-colors cursor-pointer"
+											title="Clear note"
+										>
+											<RotateCcw className="w-3.5 h-3.5" />
+											<span>Clear</span>
+										</button>
+
+										<button
+											type="button"
+											onClick={handleSaveClick}
+											className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold shadow-sm transition-all cursor-pointer bg-[var(--text)] text-[var(--bg)] hover:opacity-90 active:scale-95"
+										>
+											{savedFromWeb ? (
+												<CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+											) : (
+												<Save className="w-3.5 h-3.5" />
+											)}
+											<span>
+												{savedFromWeb ? "Saved to Library!" : "Save to Library"}
+											</span>
+										</button>
+									</div>
+								</div>
+
+								{/* Document Header */}
+								<div className="mb-6">
+									<div className="flex flex-wrap items-center gap-2 mb-3">
+										<button
+											type="button"
+											onClick={() => setIsSaveModalOpen(true)}
+											className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-[var(--surface-2)] hover:bg-[var(--surface-3)] border border-[var(--border)] text-[var(--text)] transition-colors cursor-pointer group"
+											title="Click to switch category"
+										>
+											<CatIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+											<span>{webSearch.generatedTopic.category}</span>
+											<span className="text-[10px] text-[var(--muted)] group-hover:text-[var(--text)]">
+												▾
+											</span>
+										</button>
+
+										<span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[var(--surface-2)] border border-[var(--border)] text-[var(--muted)]">
+											{gsPaper}
+										</span>
+
+										<span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400">
+											<Globe className="w-3 h-3" />
+											Live Web Research
+										</span>
+									</div>
+
+									<h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-[var(--text)] leading-tight">
+										{webSearch.generatedTopic.title}
+									</h1>
+								</div>
+
+								{/* Single Column Canvas Layout Card */}
+								<div className="w-full rounded-2xl shadow-sm border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+									<TopicDetail
+										topic={webSearch.generatedTopic}
+										sources={webSearch.searchResults?.results}
+									/>
+								</div>
 							</div>
-						</div>
-
-						{/* Document Header */}
-						<div className="mb-6">
-							<div className="flex flex-wrap gap-2 mb-2.5">
-								<button
-									type="button"
-									onClick={() => setIsSaveModalOpen(true)}
-									className="badge badge-accent hover:opacity-80 transition-opacity cursor-pointer flex items-center gap-1.5"
-									title="Click to choose category"
-								>
-									<span>{webSearch.generatedTopic.category}</span>
-									<span className="text-[10px] opacity-70">▾</span>
-								</button>
-							</div>
-							<h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[var(--text)]">
-								{webSearch.generatedTopic.title}
-							</h1>
-						</div>
-
-						{/* Single Column Canvas Layout */}
-						<div className="w-full rounded-2xl shadow-sm border border-[var(--border)] bg-[var(--surface)]">
-							<TopicDetail
-								topic={webSearch.generatedTopic}
-								sources={webSearch.searchResults?.results}
-							/>
-						</div>
-					</div>
-				)}
+						);
+					})()}
 
 				{/* ── STATE 2: Category Filtered Topics (Only when explicitly viewing a category) ── */}
 				{isCategoryView && (
 					<div className="max-w-6xl mx-auto px-4 py-6 animate-in fade-in duration-200">
 						{/* Header */}
-						<div className="flex items-center justify-between px-3 py-2 mb-4 border-b border-[var(--border)]">
-							<span className="text-xs font-bold uppercase tracking-widest text-[var(--muted)]">
-								{activeCategory} · {categoryTopics.length}{" "}
-								{categoryTopics.length === 1 ? "Note" : "Notes"}
-							</span>
+						<div className="flex items-center justify-between px-1 py-3 mb-5 border-b border-[var(--border)]">
+							<div className="flex items-center gap-2.5">
+								<h2 className="text-sm font-semibold text-[var(--text)]">
+									{activeCategory}
+								</h2>
+								<span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--surface-2)] text-[var(--muted)] border border-[var(--border)]">
+									{categoryTopics.length}{" "}
+									{categoryTopics.length === 1 ? "note" : "notes"}
+								</span>
+							</div>
 							<button
 								type="button"
 								onClick={() => {
 									setActiveCategory("All");
 									navigate("/");
 								}}
-								className="text-xs text-[var(--muted)] hover:text-[var(--text)] underline cursor-pointer"
+								className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text-2)] hover:text-[var(--text)] border border-[var(--border)] transition-all cursor-pointer shadow-xs active:scale-95"
 							>
-								Back to Home
+								<ArrowLeft className="w-3.5 h-3.5" />
+								<span>Back to Home</span>
 							</button>
 						</div>
 
@@ -360,6 +444,7 @@ export default function HomePage() {
 					topicTitle={webSearch.generatedTopic.title}
 					onClose={() => setIsSaveModalOpen(false)}
 					onSave={handleConfirmSave}
+					onUpdateCategory={webSearch.updateTopicCategory}
 				/>
 			)}
 		</div>
