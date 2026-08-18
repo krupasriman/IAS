@@ -2,16 +2,47 @@ import type { WebSearchResultItem } from "../types/search.types";
 
 export function getHostname(url: string): string {
 	try {
-		const parsed = new URL(url);
+		const formatted = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+		const parsed = new URL(formatted);
 		return parsed.hostname.replace(/^www\./, "");
 	} catch {
-		return url;
+		return url
+			.replace(/^https?:\/\//, "")
+			.split("/")[0]
+			.replace(/^www\./, "");
 	}
 }
 
 export function getFaviconUrl(url: string): string {
 	const domain = getHostname(url);
-	return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+	if (!domain) return "";
+	return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`;
+}
+
+const GOV_NO_FAVICON_DOMAINS = new Set([
+	"ncw.nic.in",
+	"rbi.org.in",
+	"darpg.gov.in",
+	"indiabudget.gov.in",
+	"sci.gov.in",
+	"eci.gov.in",
+	"upsc.gov.in",
+	"mha.gov.in",
+	"mea.gov.in",
+	"finmin.nic.in",
+	"lawmin.gov.in",
+	"ibbi.gov.in",
+	"nhrc.nic.in",
+	"cag.gov.in",
+	"cbic.gov.in",
+	"incometaxindia.gov.in",
+]);
+
+export function isGovPortalWithoutFavicon(url: string): boolean {
+	const domain = getHostname(url).toLowerCase();
+	if (GOV_NO_FAVICON_DOMAINS.has(domain)) return true;
+	if (domain.endsWith(".nic.in") && domain !== "pib.gov.in") return true;
+	return false;
 }
 
 export function getDisplaySourceName(item: WebSearchResultItem): string {

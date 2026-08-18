@@ -70,26 +70,28 @@ app.use((req, res, next) => {
 	next();
 });
 
-app.use("/api/", (req, res, next) => dynamicLimiter(req, res, next));
+const apiPrefixes = ["/api", "/"];
 
-app.get("/api/health", (_req, res) => {
+app.use(apiPrefixes, (req, res, next) => dynamicLimiter(req, res, next));
+
+app.get(["/api/health", "/health"], (_req, res) => {
 	res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
 void seedIfEmpty();
 
-app.use("/api", modelsRouter);
-app.use("/api", llmRouter);
-app.use("/api", generateRouter);
-app.use("/api", streamRouter);
-app.use("/api", searchRouter);
-app.use("/api", authRouter);
-app.use("/api", maybeRequireAuth);
-app.use("/api", topicsRouter);
-app.use("/api", settingsRouter);
+app.use(apiPrefixes, modelsRouter);
+app.use(apiPrefixes, llmRouter);
+app.use(apiPrefixes, generateRouter);
+app.use(apiPrefixes, streamRouter);
+app.use(apiPrefixes, searchRouter);
+app.use(apiPrefixes, authRouter);
+app.use(apiPrefixes, maybeRequireAuth);
+app.use(apiPrefixes, topicsRouter);
+app.use(apiPrefixes, settingsRouter);
 
 // 404 handler for API routes
-app.use("/api", (req, res) => {
+app.use(apiPrefixes, (req, res) => {
 	logger.warn({ method: req.method, path: req.path }, "API endpoint not found");
 	sendNotFound(res, `API endpoint not found: ${req.method} ${req.path}`);
 });

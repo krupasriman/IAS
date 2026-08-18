@@ -207,7 +207,14 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
 	const modelOptions: ModelOption[] = useMemo(() => {
 		if (draftLLMProvider === "generalcompute") {
-			const list = generalComputeModels;
+			const list =
+				generalComputeModels.length > 0
+					? generalComputeModels
+					: (currentLLM.models || []).map((id) => ({
+							id,
+							name: id,
+							isFree: false,
+						}));
 			return list.map((m) => ({
 				id: m.id,
 				name: m.name || m.id,

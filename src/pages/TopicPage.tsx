@@ -1,6 +1,8 @@
 import { AlertCircle, ArrowLeft, Loader2, Pencil, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import TopicDetail from "../components/TopicDetail";
+import ConfirmModal from "../components/ui/ConfirmModal";
 import { useTopics } from "../hooks/useTopics";
 import { getCategoryInfo, getGsPaper } from "../utils/categoryHelpers";
 import { getDefaultCategorySources } from "../utils/referenceSources";
@@ -9,6 +11,7 @@ export default function TopicPage() {
 	const { id } = useParams<{ id: string }>();
 	const { loading, getTopic, deleteTopic } = useTopics();
 	const navigate = useNavigate();
+	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
 	const topic = id ? getTopic(id) : undefined;
 
@@ -47,11 +50,10 @@ export default function TopicPage() {
 		);
 	}
 
-	const handleDelete = () => {
-		if (window.confirm(`Delete "${topic.title}"? This cannot be undone.`)) {
-			deleteTopic(topic.id);
-			navigate("/");
-		}
+	const confirmDelete = () => {
+		deleteTopic(topic.id);
+		setIsDeleteModalOpen(false);
+		navigate("/");
 	};
 
 	const sources = topic
@@ -85,7 +87,7 @@ export default function TopicPage() {
 						</Link>
 						<button
 							type="button"
-							onClick={handleDelete}
+							onClick={() => setIsDeleteModalOpen(true)}
 							className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 transition-colors cursor-pointer"
 						>
 							<Trash2 className="w-3.5 h-3.5" />
@@ -123,6 +125,27 @@ export default function TopicPage() {
 					<TopicDetail topic={topic} sources={sources} />
 				</div>
 			</div>
+
+			{/* Custom Delete Confirmation Modal */}
+			<ConfirmModal
+				isOpen={isDeleteModalOpen}
+				title="Delete Study Note"
+				message={
+					<span>
+						Are you sure you want to delete{" "}
+						<strong className="text-[var(--text)] font-semibold">
+							"{topic.title}"
+						</strong>
+						? This action cannot be undone and will permanently remove it from
+						your library.
+					</span>
+				}
+				confirmText="Delete Note"
+				cancelText="Cancel"
+				variant="danger"
+				onConfirm={confirmDelete}
+				onCancel={() => setIsDeleteModalOpen(false)}
+			/>
 		</div>
 	);
 }

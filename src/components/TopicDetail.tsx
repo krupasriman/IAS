@@ -156,7 +156,7 @@ export default function TopicDetail({ topic, sources }: TopicDetailProps) {
 				</div>
 
 				<div className="relative pl-3.5 border-l-2 border-[var(--border-strong)]">
-					<p className="text-[15px] sm:text-base leading-relaxed text-[var(--text)] font-normal">
+					<div className="text-[15px] sm:text-base leading-relaxed text-[var(--text)] font-normal">
 						{topic.meaning}
 						{meaningSources.length > 0 && (
 							<SourcePill
@@ -164,7 +164,7 @@ export default function TopicDetail({ topic, sources }: TopicDetailProps) {
 								className="ml-2 align-middle inline-flex"
 							/>
 						)}
-					</p>
+					</div>
 				</div>
 			</div>
 
@@ -299,7 +299,7 @@ export default function TopicDetail({ topic, sources }: TopicDetailProps) {
 												</button>
 											</div>
 
-											<p className="text-xs sm:text-[13px] leading-relaxed text-[var(--text-2)] pl-5">
+											<div className="text-xs sm:text-[13px] leading-relaxed text-[var(--text-2)] pl-5">
 												{pro.explanation}
 												{proSources.length > 0 && (
 													<SourcePill
@@ -307,7 +307,7 @@ export default function TopicDetail({ topic, sources }: TopicDetailProps) {
 														className="ml-1.5 align-middle inline-flex"
 													/>
 												)}
-											</p>
+											</div>
 
 											{pro.example && (
 												<div className="mt-3 ml-5 p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-start gap-2 text-xs">
@@ -392,7 +392,7 @@ export default function TopicDetail({ topic, sources }: TopicDetailProps) {
 												</button>
 											</div>
 
-											<p className="text-xs sm:text-[13px] leading-relaxed text-[var(--text-2)] pl-5">
+											<div className="text-xs sm:text-[13px] leading-relaxed text-[var(--text-2)] pl-5">
 												{con.explanation}
 												{conSources.length > 0 && (
 													<SourcePill
@@ -400,7 +400,7 @@ export default function TopicDetail({ topic, sources }: TopicDetailProps) {
 														className="ml-1.5 align-middle inline-flex"
 													/>
 												)}
-											</p>
+											</div>
 
 											{con.example && (
 												<div className="mt-3 ml-5 p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-start gap-2 text-xs">
@@ -474,7 +474,7 @@ export default function TopicDetail({ topic, sources }: TopicDetailProps) {
 										{i + 1}
 									</span>
 									<div className="flex-1 min-w-0">
-										<p className="text-xs sm:text-sm text-[var(--text)] leading-relaxed">
+										<div className="text-xs sm:text-sm text-[var(--text)] leading-relaxed">
 											{step}
 											{wfSources.length > 0 && (
 												<SourcePill
@@ -482,7 +482,7 @@ export default function TopicDetail({ topic, sources }: TopicDetailProps) {
 													className="ml-2 align-middle inline-flex"
 												/>
 											)}
-										</p>
+										</div>
 									</div>
 								</div>
 							);
@@ -535,7 +535,7 @@ export default function TopicDetail({ topic, sources }: TopicDetailProps) {
 
 				<div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6 shadow-xs space-y-4">
 					{typeof topic.conclusion === "string" ? (
-						<p className="text-xs sm:text-sm leading-relaxed text-[var(--text)] font-medium">
+						<div className="text-xs sm:text-sm leading-relaxed text-[var(--text)] font-medium">
 							{topic.conclusion}
 							{concSources.length > 0 && (
 								<SourcePill
@@ -543,7 +543,7 @@ export default function TopicDetail({ topic, sources }: TopicDetailProps) {
 									className="ml-2 align-middle inline-flex"
 								/>
 							)}
-						</p>
+						</div>
 					) : (
 						<div className="space-y-3.5">
 							{/* Pragmatic Bottleneck / Negative aspect */}
@@ -559,7 +559,7 @@ export default function TopicDetail({ topic, sources }: TopicDetailProps) {
 								<span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-2)] block mb-1">
 									Strategic Forward Vision
 								</span>
-								<p>
+								<div>
 									{topic.conclusion.positive}
 									{concSources.length > 0 && (
 										<SourcePill
@@ -567,7 +567,7 @@ export default function TopicDetail({ topic, sources }: TopicDetailProps) {
 											className="ml-2 align-middle inline-flex"
 										/>
 									)}
-								</p>
+								</div>
 							</div>
 						</div>
 					)}

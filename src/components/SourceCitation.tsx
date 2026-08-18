@@ -3,6 +3,7 @@ import {
 	ChevronRight,
 	ExternalLink,
 	Globe,
+	Landmark,
 	X,
 } from "lucide-react";
 import type React from "react";
@@ -18,7 +19,57 @@ import {
 	getDisplaySourceName,
 	getFaviconUrl,
 	getHostname,
+	isGovPortalWithoutFavicon,
 } from "../utils/sourceHelpers";
+
+function SourceFavicon({
+	url,
+	className = "w-3.5 h-3.5",
+}: {
+	url: string;
+	className?: string;
+}) {
+	const [hasError, setHasError] = useState(false);
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: reset on url change
+	useEffect(() => {
+		setHasError(false);
+	}, [url]);
+
+	if (!url) {
+		return (
+			<Globe
+				className={`${className} text-emerald-600 dark:text-emerald-400 flex-shrink-0`}
+			/>
+		);
+	}
+
+	if (isGovPortalWithoutFavicon(url)) {
+		return (
+			<Landmark
+				className={`${className} text-amber-600 dark:text-amber-400 flex-shrink-0`}
+			/>
+		);
+	}
+
+	if (hasError) {
+		return (
+			<Globe
+				className={`${className} text-emerald-600 dark:text-emerald-400 flex-shrink-0`}
+			/>
+		);
+	}
+
+	return (
+		<img
+			src={getFaviconUrl(url)}
+			alt=""
+			referrerPolicy="no-referrer"
+			className={`${className} rounded-xs object-contain flex-shrink-0`}
+			onError={() => setHasError(true)}
+		/>
+	);
+}
 
 export function SourcePill({
 	sources,
@@ -31,10 +82,11 @@ export function SourcePill({
 }) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [currentIndex, setCurrentIndex] = useState(0);
-	const [imageError, setImageError] = useState(false);
 	const [alignRight, setAlignRight] = useState(false);
 	const [openUpward, setOpenUpward] = useState(false);
-	const containerRef = useRef<HTMLDivElement>(null);
+	const containerRef = useRef<HTMLSpanElement>(null);
+
+	const activeSource = sources[currentIndex] || sources[0];
 
 	// Smart positioning to prevent horizontal and vertical cutoff
 	useEffect(() => {
@@ -81,7 +133,6 @@ export function SourcePill({
 		};
 	}, [isOpen]);
 
-	const activeSource = sources[currentIndex] || sources[0];
 	if (!activeSource) return null;
 
 	const displayName = label || getDisplaySourceName(activeSource);
@@ -98,7 +149,7 @@ export function SourcePill({
 	};
 
 	return (
-		<div
+		<span
 			className={`relative inline-block text-left ${className}`}
 			ref={containerRef}
 		>
@@ -113,16 +164,7 @@ export function SourcePill({
 				}`}
 				title={`View source: ${activeSource.title}`}
 			>
-				{!imageError ? (
-					<img
-						src={getFaviconUrl(activeSource.url)}
-						alt=""
-						className="w-3.5 h-3.5 rounded-sm object-contain flex-shrink-0"
-						onError={() => setImageError(true)}
-					/>
-				) : (
-					<Globe className="w-3.5 h-3.5 text-[var(--muted)] flex-shrink-0" />
-				)}
+				<SourceFavicon url={activeSource.url} className="w-3.5 h-3.5" />
 
 				<span className="truncate max-w-[140px] text-[11px] font-semibold text-[var(--text)]">
 					{displayName}
@@ -137,12 +179,12 @@ export function SourcePill({
 
 			{/* ChatGPT-style Popover Preview Card */}
 			{isOpen && (
-				<div
+				<span
 					className={`absolute ${
 						openUpward ? "bottom-full mb-2" : "top-full mt-2"
 					} ${
 						alignRight ? "right-0" : "left-0"
-					} w-72 sm:w-80 max-w-[calc(100vw-2rem)] rounded-2xl border shadow-2xl z-50 overflow-hidden backdrop-blur-md animate-in fade-in zoom-in-95 duration-150`}
+					} block w-72 sm:w-80 max-w-[calc(100vw-2rem)] rounded-2xl border shadow-2xl z-50 overflow-hidden backdrop-blur-md animate-in fade-in zoom-in-95 duration-150 text-left`}
 					style={{
 						backgroundColor: "var(--surface)",
 						borderColor: "var(--border)",
@@ -151,10 +193,10 @@ export function SourcePill({
 					}}
 				>
 					{/* Header bar with navigation & close */}
-					<div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[var(--border)] bg-[var(--surface-2)]">
+					<span className="flex items-center justify-between px-3.5 py-2.5 border-b border-[var(--border)] bg-[var(--surface-2)]">
 						{/* Multi-source navigation if more than 1 source */}
 						{sources.length > 1 ? (
-							<div className="flex items-center gap-1">
+							<span className="flex items-center gap-1">
 								<button
 									type="button"
 									onClick={handlePrev}
@@ -174,7 +216,7 @@ export function SourcePill({
 								<span className="text-[11px] font-semibold ml-1 text-[var(--muted)]">
 									{currentIndex + 1} of {sources.length}
 								</span>
-							</div>
+							</span>
 						) : (
 							<span className="text-[11px] font-semibold text-[var(--muted)] uppercase tracking-wider">
 								Web Source
@@ -189,27 +231,20 @@ export function SourcePill({
 						>
 							<X className="w-3.5 h-3.5" />
 						</button>
-					</div>
+					</span>
 
 					{/* Popover Content */}
-					<div className="p-4 space-y-2.5">
+					<span className="block p-4 space-y-2.5">
 						{/* Source Branding */}
-						<div className="flex items-center gap-2">
-							<img
-								src={getFaviconUrl(activeSource.url)}
-								alt=""
-								className="w-4 h-4 rounded-sm object-contain flex-shrink-0"
-								onError={(e) => {
-									(e.target as HTMLElement).style.display = "none";
-								}}
-							/>
+						<span className="flex items-center gap-2">
+							<SourceFavicon url={activeSource.url} className="w-4 h-4" />
 							<span className="text-xs font-bold text-[var(--text)] truncate">
 								{getDisplaySourceName(activeSource)}
 							</span>
 							<span className="text-[11px] text-[var(--muted)] truncate">
 								· {getHostname(activeSource.url)}
 							</span>
-						</div>
+						</span>
 
 						{/* Article Title Link */}
 						<a
@@ -223,13 +258,13 @@ export function SourcePill({
 
 						{/* Snippet */}
 						{activeSource.snippet && (
-							<p className="text-xs leading-relaxed text-[var(--muted)] line-clamp-3">
+							<span className="block text-xs leading-relaxed text-[var(--muted)] line-clamp-3">
 								{activeSource.snippet}
-							</p>
+							</span>
 						)}
 
 						{/* Action Link Footer */}
-						<div className="pt-2 border-t border-[var(--border)] flex items-center justify-end">
+						<span className="pt-2 border-t border-[var(--border)] flex items-center justify-end">
 							<a
 								href={activeSource.url}
 								target="_blank"
@@ -239,11 +274,11 @@ export function SourcePill({
 								<span>Visit Source</span>
 								<ExternalLink className="w-3.5 h-3.5 text-[var(--muted)] group-hover:text-[var(--text)] transition-colors" />
 							</a>
-						</div>
-					</div>
-				</div>
+						</span>
+					</span>
+				</span>
 			)}
-		</div>
+		</span>
 	);
 }
 

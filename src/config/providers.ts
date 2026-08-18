@@ -43,7 +43,13 @@ export const LLM_PROVIDERS: LLMProviderInfo[] = [
 		name: "General Compute",
 		defaultBaseUrl: "https://api.generalcompute.com/v1",
 		defaultModel: "gpt-oss-120b",
-		models: [], // Models are fetched dynamically live from General Compute API
+		models: [
+			"gpt-oss-120b",
+			"deepseek-v3.1",
+			"deepseek-v3.2",
+			"gemma-4-31B-it",
+			"minimax-m2.7",
+		],
 		apiKeyUrl: "https://docs.generalcompute.com/api-keys",
 		description:
 			"ASIC-powered inference, 1000+ tokens/sec. $100 free credit on signup.",

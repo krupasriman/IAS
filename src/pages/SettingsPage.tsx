@@ -13,6 +13,7 @@ import {
 	Sparkles,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import ConfirmModal from "../components/ui/ConfirmModal";
 import ModelCombobox, {
 	type ModelVariant,
 } from "../components/ui/ModelCombobox";
@@ -48,6 +49,7 @@ export default function SettingsPage() {
 
 	const [showKey, setShowKey] = useState(false);
 	const [saved, setSaved] = useState(false);
+	const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
 	const handleSave = () => {
 		setSaved(true);
@@ -157,7 +159,14 @@ export default function SettingsPage() {
 
 	const modelOptions = useMemo(() => {
 		if (settings.llm.provider === "generalcompute") {
-			const list = generalComputeModels;
+			const list =
+				generalComputeModels.length > 0
+					? generalComputeModels
+					: (currentLLM.models || []).map((id) => ({
+							id,
+							name: id,
+							isFree: false,
+						}));
 			return list.map((m) => ({
 				id: m.id,
 				name: m.name || m.id,
@@ -639,17 +648,28 @@ export default function SettingsPage() {
 				<div className="flex justify-center mb-12">
 					<button
 						type="button"
-						onClick={() => {
-							if (window.confirm("Reset all settings to defaults?")) {
-								settingsContext.resetSettings();
-							}
-						}}
-						className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 text-slate-600 text-sm font-semibold hover:bg-red-50 hover:text-red-600 transition-colors"
+						onClick={() => setIsResetModalOpen(true)}
+						className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--surface-2)] text-[var(--muted)] hover:text-[var(--text)] text-sm font-semibold hover:bg-amber-500/10 transition-colors cursor-pointer border border-[var(--border)]"
 					>
 						<RotateCcw className="w-4 h-4" /> Reset Settings
 					</button>
 				</div>
 			</div>
+
+			{/* Reset Settings Confirmation Modal */}
+			<ConfirmModal
+				isOpen={isResetModalOpen}
+				title="Reset All Settings"
+				message="Are you sure you want to reset all API keys, model selections, and custom preferences to their default values?"
+				confirmText="Reset to Defaults"
+				cancelText="Cancel"
+				variant="warning"
+				onConfirm={() => {
+					settingsContext.resetSettings();
+					setIsResetModalOpen(false);
+				}}
+				onCancel={() => setIsResetModalOpen(false)}
+			/>
 		</div>
 	);
 }

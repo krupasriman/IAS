@@ -1,9 +1,4 @@
-import {
-	createTextStreamResponse,
-	type ModelMessage,
-	pipeTextStreamToResponse,
-	streamText,
-} from "ai";
+import { type ModelMessage, pipeTextStreamToResponse, streamText } from "ai";
 import type { Request as ExpressRequest, Response } from "express";
 import { Router } from "express";
 import { z } from "zod";
@@ -107,8 +102,5 @@ router.post("/generate/stream", async (req: ExpressRequest, res: Response) => {
 		}
 	}
 });
-
-// Reference to avoid unused import error
-void createTextStreamResponse;
 
 export default router;

@@ -17,30 +17,51 @@ function loadEncryptionKey(): Buffer {
 
 	const fromEnv = process.env.ENCRYPTION_KEY;
 	if (fromEnv) {
-		const decoded = Buffer.from(fromEnv, "base64");
-		if (decoded.length !== KEY_LENGTH) {
-			throw new Error(
-				`ENCRYPTION_KEY must be ${KEY_LENGTH} bytes (${KEY_LENGTH * 2} base64 chars)`,
+		try {
+			const decoded = Buffer.from(fromEnv, "base64");
+			if (decoded.length === KEY_LENGTH) {
+				encryptionKey = decoded;
+				return encryptionKey;
+			}
+			logger.warn(
+				`ENCRYPTION_KEY must be ${KEY_LENGTH} bytes (${KEY_LENGTH * 2} base64 chars). Using generated fallback key.`,
 			);
+		} catch {
+			// fallback to generated
 		}
-		encryptionKey = decoded;
-		return encryptionKey;
 	}
 
-	// Dev fallback: persist a generated key in data/ so keys survive restarts
-	const keyFile = path.join(__dirname, "../../data/.encryption.key");
-	if (fs.existsSync(keyFile)) {
-		encryptionKey = Buffer.from(fs.readFileSync(keyFile, "utf8"), "base64");
-		return encryptionKey;
+	// Dev / Serverless fallback paths
+	const possiblePaths = [
+		path.join(__dirname, "../../data/.encryption.key"),
+		"/tmp/.encryption.key",
+	];
+
+	for (const keyFile of possiblePaths) {
+		try {
+			if (fs.existsSync(keyFile)) {
+				encryptionKey = Buffer.from(fs.readFileSync(keyFile, "utf8"), "base64");
+				return encryptionKey;
+			}
+		} catch {
+			// ignore read error
+		}
 	}
 
 	const generated = randomBytes(KEY_LENGTH);
-	fs.mkdirSync(path.dirname(keyFile), { recursive: true });
-	fs.writeFileSync(keyFile, generated.toString("base64"), { mode: 0o600 });
+	for (const keyFile of possiblePaths) {
+		try {
+			fs.mkdirSync(path.dirname(keyFile), { recursive: true });
+			fs.writeFileSync(keyFile, generated.toString("base64"), { mode: 0o600 });
+			encryptionKey = generated;
+			return encryptionKey;
+		} catch {
+			// ignore write errors in read-only environments
+		}
+	}
+
+	// In-memory fallback for read-only environments
 	encryptionKey = generated;
-	logger.warn(
-		"Generated dev encryption key at data/.encryption.key. Set ENCRYPTION_KEY in production.",
-	);
 	return encryptionKey;
 }
 

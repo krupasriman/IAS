@@ -18,7 +18,7 @@
 - **Monorepo**: Single package with two entrypoints
   - **Frontend**: `src/main.tsx` → React 19 + Vite + TailwindCSS v4
   - **Backend**: `server/index.ts` → Express 5 + TSX (not compiled, runs via tsx)
-- **Persistence**: SQLite via **better-sqlite3** + **Drizzle ORM** (`data/ias.db`, WAL mode). Migrations auto-run at boot from `drizzle/*.sql`; generate new ones with `npx drizzle-kit generate`
+- **Persistence**: SQLite / Turso via **@libsql/client** + **Drizzle ORM** (`data/ias.db`). Migrations auto-run at boot from `drizzle/*.sql`; generate new ones with `npx drizzle-kit generate`
 - **Shared code**: `src/utils/`, `src/types/`, `src/services/` imported by both client and server
 - **Path alias**: `@` → `./src` (configured in `vite.config.ts` and `tsconfig.app.json`)
 - **LLM framework**: **LangChain** for structured topic generation (`server/services/structured.ts`), AI SDK for chat/streaming (`server/routes/llm.ts`, `stream.ts`)
@@ -65,7 +65,6 @@
 - Server hot reload: `tsx watch` restarts on `server/**/*.ts` changes; changes to `src/` shared code require server restart
 - Shared imports from `src/` in server use `.ts` extensions (required by tsx)
 - CI uses Node 22; ensure local version matches
-- better-sqlite3 is a native module — new installs may require `npm approve-scripts better-sqlite3`
 - **LangChain JSON mode**: structured topic generation uses `jsonMode` to support Zod schemas with transforms (e.g., `z.preprocess` for category normalization). If switching models, ensure the provider supports `jsonMode` (OpenRouter, Groq, GeneralCompute do).
 
 ## File Structure Highlights

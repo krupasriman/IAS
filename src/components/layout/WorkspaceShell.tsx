@@ -20,13 +20,11 @@ export default function WorkspaceShell({
 		closeSettings,
 	} = useWorkspace();
 	const navigate = useNavigate();
-	const [_isMobile, setIsMobile] = useState(false);
 	const [isTablet, setIsTablet] = useState(false);
 	const hasMounted = useRef(false);
 
 	useEffect(() => {
 		const check = () => {
-			setIsMobile(window.innerWidth < 768);
 			setIsTablet(window.innerWidth < 1024);
 		};
 		check();

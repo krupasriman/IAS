@@ -79,56 +79,106 @@ function fromTopic(topic: Topic): Omit<TopicRow, "createdAt" | "updatedAt"> {
 	};
 }
 
+function getSeedTopics(): Topic[] {
+	try {
+		const __dirname = path.dirname(fileURLToPath(import.meta.url));
+		const possiblePaths = [
+			path.resolve(__dirname, "../../public/data/topics.json"),
+			path.resolve(__dirname, "../../dist/data/topics.json"),
+		];
+		for (const seedPath of possiblePaths) {
+			if (fs.existsSync(seedPath)) {
+				return JSON.parse(fs.readFileSync(seedPath, "utf8")) as Topic[];
+			}
+		}
+	} catch {
+		// Ignore seed reading errors
+	}
+	return [];
+}
+
 export async function listTopics(): Promise<Topic[]> {
-	const rows = (await db.select().from(topics)) as unknown as TopicRow[];
-	return rows
-		.map(toTopic)
-		.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+	try {
+		const rows = (await db.select().from(topics)) as unknown as TopicRow[];
+		if (rows.length === 0) {
+			const seeds = getSeedTopics();
+			if (seeds.length > 0) return seeds;
+		}
+		return rows
+			.map(toTopic)
+			.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+	} catch (err) {
+		logger.warn({ err }, "Database query failed, returning seed topics");
+		return getSeedTopics();
+	}
 }
 
 export async function getTopic(id: string): Promise<Topic | null> {
-	const [row] = await db
-		.select()
-		.from(topics)
-		.where(eq(topics.id, id))
-		.limit(1);
-	return row ? toTopic(row as unknown as TopicRow) : null;
+	try {
+		const [row] = await db
+			.select()
+			.from(topics)
+			.where(eq(topics.id, id))
+			.limit(1);
+		if (row) return toTopic(row as unknown as TopicRow);
+	} catch (err) {
+		logger.warn({ err, id }, "Database query failed for getTopic");
+	}
+	const seeds = getSeedTopics();
+	return seeds.find((t) => t.id === id) ?? null;
 }
 
 export async function createTopic(topic: Topic): Promise<Topic> {
-	const row = {
-		...fromTopic(topic),
-		createdAt: topic.createdAt,
-		updatedAt: topic.updatedAt,
-	};
-	await db.insert(topics).values(row);
-	return topic;
-}
-
-export async function updateTopic(id: string, topic: Topic): Promise<Topic> {
-	const row = {
-		...fromTopic(topic),
-		createdAt: topic.createdAt,
-		updatedAt: topic.updatedAt,
-	};
-	await db.update(topics).set(row).where(eq(topics.id, id));
-	return topic;
-}
-
-export async function deleteTopic(id: string): Promise<boolean> {
-	const result = await db.delete(topics).where(eq(topics.id, id));
-	return (result.rowsAffected ?? 1) > 0;
-}
-
-export async function replaceAllTopics(items: Topic[]): Promise<void> {
-	await db.delete(topics);
-	for (const topic of items) {
+	try {
 		const row = {
 			...fromTopic(topic),
 			createdAt: topic.createdAt,
 			updatedAt: topic.updatedAt,
 		};
 		await db.insert(topics).values(row);
+	} catch (err) {
+		logger.error({ err }, "Failed to insert topic into DB");
+	}
+	return topic;
+}
+
+export async function updateTopic(id: string, topic: Topic): Promise<Topic> {
+	try {
+		const row = {
+			...fromTopic(topic),
+			createdAt: topic.createdAt,
+			updatedAt: topic.updatedAt,
+		};
+		await db.update(topics).set(row).where(eq(topics.id, id));
+	} catch (err) {
+		logger.error({ err }, "Failed to update topic in DB");
+	}
+	return topic;
+}
+
+export async function deleteTopic(id: string): Promise<boolean> {
+	try {
+		const result = await db.delete(topics).where(eq(topics.id, id));
+		return (result.rowsAffected ?? 1) > 0;
+	} catch (err) {
+		logger.error({ err }, "Failed to delete topic from DB");
+		return false;
+	}
+}
+
+export async function replaceAllTopics(items: Topic[]): Promise<void> {
+	try {
+		await db.delete(topics);
+		for (const topic of items) {
+			const row = {
+				...fromTopic(topic),
+				createdAt: topic.createdAt,
+				updatedAt: topic.updatedAt,
+			};
+			await db.insert(topics).values(row);
+		}
+	} catch (err) {
+		logger.error({ err }, "Failed to replace topics in DB");
 	}
 }
 
@@ -137,14 +187,12 @@ export async function seedIfEmpty(): Promise<void> {
 		const count = await db.select({ id: topics.id }).from(topics);
 		if (count.length > 0) return;
 
-		const __dirname = path.dirname(fileURLToPath(import.meta.url));
-		const seedPath = path.resolve(__dirname, "../../public/data/topics.json");
-		if (!fs.existsSync(seedPath)) return;
+		const seed = getSeedTopics();
+		if (seed.length === 0) return;
 
-		const seed = JSON.parse(fs.readFileSync(seedPath, "utf8")) as Topic[];
 		await replaceAllTopics(seed);
 		logger.info({ count: seed.length }, "Seeded database with default topics");
 	} catch (error) {
-		logger.error({ err: String(error) }, "Failed to seed database");
+		logger.warn({ err: String(error) }, "Database seeding skipped or deferred");
 	}
 }
