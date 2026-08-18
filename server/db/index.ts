@@ -41,16 +41,60 @@ export const client = createClient({
 
 export const db = drizzle(client, { schema });
 
+const INIT_SQL = `
+CREATE TABLE IF NOT EXISTS api_keys (
+	id text PRIMARY KEY NOT NULL,
+	kind text NOT NULL,
+	provider text NOT NULL,
+	encrypted text NOT NULL,
+	updated_at text NOT NULL
+);
+CREATE TABLE IF NOT EXISTS sessions (
+	token text PRIMARY KEY NOT NULL,
+	user_id text NOT NULL,
+	created_at text NOT NULL,
+	expires_at text NOT NULL
+);
+CREATE TABLE IF NOT EXISTS topics (
+	id text PRIMARY KEY NOT NULL,
+	title text NOT NULL,
+	category text NOT NULL,
+	meaning text NOT NULL,
+	quote_text text NOT NULL,
+	quote_source text NOT NULL,
+	pros text NOT NULL,
+	cons text NOT NULL,
+	way_forward text NOT NULL,
+	conclusion_negative text NOT NULL,
+	conclusion_positive text NOT NULL,
+	conclusion_raw text,
+	source text NOT NULL,
+	tags text,
+	created_at text NOT NULL,
+	updated_at text NOT NULL
+);
+CREATE TABLE IF NOT EXISTS users (
+	id text PRIMARY KEY NOT NULL,
+	username text NOT NULL,
+	password_hash text NOT NULL,
+	created_at text NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique ON users (username);
+`;
+
 // Auto-run migrations without top-level await for maximum environment compatibility
 export async function runMigrations(): Promise<void> {
 	try {
+		// Ensure base schema exists via direct DDL (works in serverless and standalone)
+		await client.executeMultiple(INIT_SQL);
+		logger.info(
+			{ target: url.startsWith("file:") ? localDbPath : "Turso Cloud" },
+			"Database schema initialized and ready",
+		);
+
 		const migrationsFolder = path.join(__dirname, "../../drizzle");
 		if (fs.existsSync(migrationsFolder)) {
 			await migrate(db, { migrationsFolder });
-			logger.info(
-				{ target: url.startsWith("file:") ? localDbPath : "Turso Cloud" },
-				"Database migrations applied and ready",
-			);
 		}
 	} catch (err) {
 		logger.warn({ err }, "Database migration check completed or skipped");

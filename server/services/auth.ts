@@ -56,22 +56,26 @@ export async function destroySession(token: string): Promise<void> {
 
 export async function getSessionUser(token: string): Promise<AuthUser | null> {
 	if (!token) return null;
-	const [row] = await db
-		.select()
-		.from(sessions)
-		.where(eq(sessions.token, token))
-		.limit(1);
+	try {
+		const [row] = await db
+			.select()
+			.from(sessions)
+			.where(eq(sessions.token, token))
+			.limit(1);
 
-	if (!row) return null;
-	if (new Date(row.expiresAt).getTime() < Date.now()) {
-		await db.delete(sessions).where(eq(sessions.token, token));
+		if (!row) return null;
+		if (new Date(row.expiresAt).getTime() < Date.now()) {
+			await db.delete(sessions).where(eq(sessions.token, token));
+			return null;
+		}
+		const [user] = await db
+			.select()
+			.from(users)
+			.where(eq(users.id, row.userId))
+			.limit(1);
+
+		return user ? { id: user.id, username: user.username } : null;
+	} catch {
 		return null;
 	}
-	const [user] = await db
-		.select()
-		.from(users)
-		.where(eq(users.id, row.userId))
-		.limit(1);
-
-	return user ? { id: user.id, username: user.username } : null;
 }

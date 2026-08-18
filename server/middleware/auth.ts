@@ -18,8 +18,12 @@ export async function attachAuthUser(
 	_res: Response,
 	next: NextFunction,
 ): Promise<void> {
-	const token = req.cookies?.[SESSION_COOKIE] ?? "";
-	req.authUser = token ? await getSessionUser(token) : null;
+	try {
+		const token = req.cookies?.[SESSION_COOKIE] ?? "";
+		req.authUser = token ? await getSessionUser(token) : null;
+	} catch {
+		req.authUser = null;
+	}
 	next();
 }
 

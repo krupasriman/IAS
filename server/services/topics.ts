@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { eq } from "drizzle-orm";
+import defaultSeedTopics from "../../public/data/topics.json";
 import type { Topic } from "../../src/types/topic.types";
 import { logger } from "../../src/utils/logger";
 import { db } from "../db/index";
@@ -81,6 +82,9 @@ function fromTopic(topic: Topic): Omit<TopicRow, "createdAt" | "updatedAt"> {
 
 function getSeedTopics(): Topic[] {
 	try {
+		if (Array.isArray(defaultSeedTopics) && defaultSeedTopics.length > 0) {
+			return defaultSeedTopics as unknown as Topic[];
+		}
 		const __dirname = path.dirname(fileURLToPath(import.meta.url));
 		const possiblePaths = [
 			path.resolve(__dirname, "../../public/data/topics.json"),
@@ -94,7 +98,7 @@ function getSeedTopics(): Topic[] {
 	} catch {
 		// Ignore seed reading errors
 	}
-	return [];
+	return (defaultSeedTopics as unknown as Topic[]) || [];
 }
 
 export async function listTopics(): Promise<Topic[]> {
