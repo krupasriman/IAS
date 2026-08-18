@@ -26,15 +26,26 @@ export class ServerTopicsApi implements TopicsApi {
 		return response;
 	}
 
+	private async json<T>(res: Response): Promise<T> {
+		const text = await res.text();
+		try {
+			return (text ? JSON.parse(text) : {}) as T;
+		} catch {
+			throw new Error(
+				`Server returned invalid JSON (${res.status} ${res.statusText}): ${text.slice(0, 100)}`,
+			);
+		}
+	}
+
 	async list(): Promise<Topic[]> {
 		const res = await this.request("");
-		const data = (await res.json()) as { topics: Topic[] };
+		const data = await this.json<{ topics: Topic[] }>(res);
 		return data.topics;
 	}
 
 	async get(id: string): Promise<Topic | null> {
 		const res = await this.request(`/${encodeURIComponent(id)}`);
-		const data = (await res.json()) as { topic: Topic };
+		const data = await this.json<{ topic: Topic }>(res);
 		return data.topic;
 	}
 
@@ -43,7 +54,7 @@ export class ServerTopicsApi implements TopicsApi {
 			method: "POST",
 			body: JSON.stringify(topic),
 		});
-		const data = (await res.json()) as { topic: Topic };
+		const data = await this.json<{ topic: Topic }>(res);
 		return data.topic;
 	}
 
@@ -52,7 +63,7 @@ export class ServerTopicsApi implements TopicsApi {
 			method: "PUT",
 			body: JSON.stringify(topic),
 		});
-		const data = (await res.json()) as { topic: Topic };
+		const data = await this.json<{ topic: Topic }>(res);
 		return data.topic;
 	}
 

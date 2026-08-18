@@ -1,12 +1,14 @@
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { eq } from "drizzle-orm";
-import defaultSeedTopics from "../../public/data/topics.json";
 import type { Topic } from "../../src/types/topic.types";
 import { logger } from "../../src/utils/logger";
 import { db } from "../db/index";
 import { topics } from "../db/schema";
+
+const require = createRequire(import.meta.url);
 
 interface TopicRow {
 	id: string;
@@ -82,9 +84,6 @@ function fromTopic(topic: Topic): Omit<TopicRow, "createdAt" | "updatedAt"> {
 
 function getSeedTopics(): Topic[] {
 	try {
-		if (Array.isArray(defaultSeedTopics) && defaultSeedTopics.length > 0) {
-			return defaultSeedTopics as unknown as Topic[];
-		}
 		let moduleDir = process.cwd();
 		try {
 			if (typeof import.meta !== "undefined" && import.meta?.url) {
@@ -98,16 +97,30 @@ function getSeedTopics(): Topic[] {
 		const possiblePaths = [
 			path.resolve(moduleDir, "../../public/data/topics.json"),
 			path.resolve(moduleDir, "../../dist/data/topics.json"),
+			path.resolve(process.cwd(), "public/data/topics.json"),
+			path.resolve(process.cwd(), "dist/data/topics.json"),
 		];
 		for (const seedPath of possiblePaths) {
 			if (fs.existsSync(seedPath)) {
-				return JSON.parse(fs.readFileSync(seedPath, "utf8")) as Topic[];
+				const content = fs.readFileSync(seedPath, "utf8");
+				const parsed = JSON.parse(content);
+				if (Array.isArray(parsed) && parsed.length > 0) {
+					return parsed as Topic[];
+				}
 			}
 		}
 	} catch {
 		// Ignore seed reading errors
 	}
-	return (defaultSeedTopics as unknown as Topic[]) || [];
+	try {
+		const required = require("../../public/data/topics.json");
+		if (Array.isArray(required) && required.length > 0) {
+			return required as Topic[];
+		}
+	} catch {
+		// Ignore require fallback error
+	}
+	return [];
 }
 
 export async function listTopics(): Promise<Topic[]> {

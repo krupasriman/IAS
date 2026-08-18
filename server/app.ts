@@ -23,6 +23,23 @@ const NODE_ENV = process.env.NODE_ENV || "development";
 // Trust proxy headers for Vercel / serverless reverse proxies
 app.set("trust proxy", 1);
 
+// Normalize URL on Vercel serverless where rewrites to /api might strip the subpath from req.url
+app.use((req, _res, next) => {
+	const matchedPath =
+		(req.headers["x-vercel-matched-path"] as string) ||
+		(req.headers["x-matched-path"] as string);
+	if (
+		matchedPath &&
+		(req.url === "/" || req.url === "/api" || req.url === "/api/")
+	) {
+		const query = req.url.includes("?")
+			? req.url.slice(req.url.indexOf("?"))
+			: "";
+		req.url = matchedPath + query;
+	}
+	next();
+});
+
 // Security headers
 app.use(
 	helmet({

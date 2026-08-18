@@ -18,7 +18,10 @@ const StreamRequestSchema = z.object({
 	apiKey: z.string().min(1).optional(),
 	model: z.string().min(1),
 	temperature: z.number().min(0).max(2).optional(),
-	baseUrl: z.string().url().optional(),
+	baseUrl: z.preprocess(
+		(val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
+		z.string().url().optional(),
+	),
 });
 
 const router = Router();

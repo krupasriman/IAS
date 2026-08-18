@@ -8,13 +8,13 @@ export interface ConfiguredKeys {
 export async function fetchConfiguredKeys(): Promise<ConfiguredKeys> {
 	try {
 		const res = await fetch(`${API_BASE}/api-keys`);
-		if (res.status === 429) {
+		if (res.status === 429 || !res.ok) {
 			return { llm: [], search: [] };
 		}
-		if (!res.ok) {
-			return { llm: [], search: [] };
-		}
-		const data = (await res.json()) as { configured: ConfiguredKeys };
+		const text = await res.text();
+		const data = (text ? JSON.parse(text) : {}) as {
+			configured?: ConfiguredKeys;
+		};
 		return data.configured ?? { llm: [], search: [] };
 	} catch {
 		return { llm: [], search: [] };

@@ -55,6 +55,17 @@ describe("LLMRequestSchema", () => {
 		});
 		expect(result.success).toBe(false);
 	});
+
+	it("accepts empty string baseUrl by converting to undefined", () => {
+		const result = LLMRequestSchema.safeParse({
+			...validRequest,
+			baseUrl: "",
+		});
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.baseUrl).toBeUndefined();
+		}
+	});
 });
 
 describe("PROVIDER_DEFAULTS", () => {

@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Client } from "@libsql/client";
@@ -7,6 +8,13 @@ import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { logger } from "../../src/utils/logger";
 import * as schema from "./schema";
+
+let customRequire: NodeRequire | undefined;
+try {
+	customRequire = createRequire(import.meta.url);
+} catch {
+	// Ignore
+}
 
 function getDirname(): string {
 	try {
@@ -34,6 +42,39 @@ const localDbPath =
 const url = process.env.TURSO_DATABASE_URL || `file:${localDbPath}`;
 const authToken = process.env.TURSO_AUTH_TOKEN;
 
+function createFallbackClient(): Client {
+	return {
+		execute: async () => ({
+			columns: [],
+			columnTypes: [],
+			rows: [],
+			rowsAffected: 0,
+			lastInsertRowid: undefined,
+		}),
+		batch: async () => [],
+		transaction: async () => ({
+			execute: async () => ({
+				columns: [],
+				columnTypes: [],
+				rows: [],
+				rowsAffected: 0,
+				lastInsertRowid: undefined,
+			}),
+			batch: async () => [],
+			executeMultiple: async () => {},
+			rollback: async () => {},
+			commit: async () => {},
+			close: () => {},
+			closed: false,
+		}),
+		executeMultiple: async () => {},
+		sync: async () => ({ frames_synced: 0, frame_no: 0 }),
+		close: () => {},
+		closed: false,
+		protocol: "file",
+	} as unknown as Client;
+}
+
 function createDbClient(): Client {
 	if (
 		url.startsWith("libsql:") ||
@@ -41,6 +82,13 @@ function createDbClient(): Client {
 		url.startsWith("http:")
 	) {
 		return createWebClient({ url, authToken });
+	}
+
+	if (isServerless && url.startsWith("file:")) {
+		logger.warn(
+			"Native SQLite driver unsupported in Serverless with local file; using fallback client",
+		);
+		return createFallbackClient();
 	}
 
 	try {
@@ -53,43 +101,15 @@ function createDbClient(): Client {
 			}
 		}
 		// Dynamic require for node client so native libsql is only loaded when available
-		const { createClient: createNodeClient } = require("@libsql/client");
+		if (!customRequire) throw new Error("createRequire not available");
+		const { createClient: createNodeClient } = customRequire("@libsql/client");
 		return createNodeClient({ url, authToken });
 	} catch (err) {
 		logger.warn(
 			{ err },
 			"Native SQLite driver unavailable; using safe fallback client",
 		);
-		return {
-			execute: async () => ({
-				columns: [],
-				columnTypes: [],
-				rows: [],
-				rowsAffected: 0,
-				lastInsertRowid: undefined,
-			}),
-			batch: async () => [],
-			transaction: async () => ({
-				execute: async () => ({
-					columns: [],
-					columnTypes: [],
-					rows: [],
-					rowsAffected: 0,
-					lastInsertRowid: undefined,
-				}),
-				batch: async () => [],
-				executeMultiple: async () => {},
-				rollback: async () => {},
-				commit: async () => {},
-				close: () => {},
-				closed: false,
-			}),
-			executeMultiple: async () => {},
-			sync: async () => ({ frames_synced: 0, frame_no: 0 }),
-			close: () => {},
-			closed: false,
-			protocol: "file",
-		} as unknown as Client;
+		return createFallbackClient();
 	}
 }
 

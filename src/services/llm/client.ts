@@ -32,7 +32,7 @@ export async function generateStructuredTopic(
 
 	const { provider, model, temperature, baseUrl } = settings;
 
-	if (isBrowser) {
+	if (typeof fetch !== "undefined") {
 		const response = await fetch(GENERATE_URL, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -49,12 +49,14 @@ export async function generateStructuredTopic(
 			}),
 		});
 
+		const text = await response.text();
 		let data: Record<string, unknown> = {};
 		try {
-			data = (await response.json()) as Record<string, unknown>;
+			data = (text ? JSON.parse(text) : {}) as Record<string, unknown>;
 		} catch {
-			const text = await response.text().catch(() => "");
-			throw new Error(`Server returned invalid JSON: ${text.slice(0, 200)}`);
+			throw new Error(
+				`Server returned invalid JSON (${response.status} ${response.statusText}): ${text.slice(0, 200)}`,
+			);
 		}
 
 		if (!response.ok) {
@@ -70,7 +72,7 @@ export async function generateStructuredTopic(
 	}
 
 	throw new Error(
-		"Structured topic generation is only available via the backend proxy.",
+		"Structured topic generation requires a fetch-compatible environment.",
 	);
 }
 
@@ -181,12 +183,14 @@ async function callLLMViaProxy(
 		}),
 	});
 
+	const text = await response.text();
 	let data: Record<string, unknown> = {};
 	try {
-		data = (await response.json()) as Record<string, unknown>;
+		data = (text ? JSON.parse(text) : {}) as Record<string, unknown>;
 	} catch {
-		const text = await response.text().catch(() => "");
-		throw new Error(`Server returned invalid JSON: ${text.slice(0, 200)}`);
+		throw new Error(
+			`Server returned invalid JSON (${response.status} ${response.statusText}): ${text.slice(0, 200)}`,
+		);
 	}
 
 	if (!response.ok) {
