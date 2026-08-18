@@ -1,7 +1,24 @@
 {
-	"files": [],
-	"references": [
-		{ "path": "./tsconfig.app.json" },
-		{ "path": "./tsconfig.node.json" }
-	]
+	"compilerOptions": {
+		"tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tsbuildinfo",
+		"target": "es2023",
+		"lib": ["ES2023", "DOM"],
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"types": ["vite/client", "node"],
+		"paths": {
+			"@/*": ["./src/*"]
+		},
+		"verbatimModuleSyntax": true,
+		"moduleDetection": "force",
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"noEmit": true,
+		"jsx": "react-jsx",
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"erasableSyntaxOnly": true,
+		"noFallthroughCasesInSwitch": true
+	},
+	"include": ["src", "server", "api", "vite.config.ts"]
 }

@@ -67,5 +67,29 @@ export default defineConfig(({ mode }) => {
 				},
 			},
 		},
+		build: {
+			chunkSizeWarningLimit: 1000,
+			rollupOptions: {
+				output: {
+					manualChunks(id: string) {
+						if (id.includes("node_modules")) {
+							if (
+								id.includes("react") ||
+								id.includes("react-dom") ||
+								id.includes("react-router-dom")
+							) {
+								return "vendor";
+							}
+							if (id.includes("@tanstack")) {
+								return "query";
+							}
+							if (id.includes("lucide-react")) {
+								return "ui";
+							}
+						}
+					},
+				},
+			},
+		},
 	};
 });
