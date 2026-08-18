@@ -45,9 +45,11 @@ let dynamicLimiter: express.RequestHandler = rateLimit({
 	validate: { xForwardedForHeader: false },
 });
 
-void createApiLimiter().then((limiter) => {
-	dynamicLimiter = limiter;
-});
+void createApiLimiter()
+	.then((limiter) => {
+		dynamicLimiter = limiter;
+	})
+	.catch(() => {});
 
 app.use(cors());
 app.use(express.json());
