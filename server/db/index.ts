@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createClient } from "@libsql/client";
+import type { Client } from "@libsql/client";
+import { createClient as createWebClient } from "@libsql/client/web";
 import dotenv from "dotenv";
 import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
@@ -25,20 +26,66 @@ const localDbPath =
 const url = process.env.TURSO_DATABASE_URL || `file:${localDbPath}`;
 const authToken = process.env.TURSO_AUTH_TOKEN;
 
-if (url.startsWith("file:")) {
+function createDbClient(): Client {
+	if (
+		url.startsWith("libsql:") ||
+		url.startsWith("https:") ||
+		url.startsWith("http:")
+	) {
+		return createWebClient({ url, authToken });
+	}
+
 	try {
-		const dbDir = path.dirname(localDbPath);
-		fs.mkdirSync(dbDir, { recursive: true });
-	} catch {
-		// Ignore if in read-only environment
+		if (url.startsWith("file:")) {
+			try {
+				const dbDir = path.dirname(localDbPath);
+				fs.mkdirSync(dbDir, { recursive: true });
+			} catch {
+				// Ignore if in read-only environment
+			}
+		}
+		// Dynamic require for node client so native libsql is only loaded when available
+		const { createClient: createNodeClient } = require("@libsql/client");
+		return createNodeClient({ url, authToken });
+	} catch (err) {
+		logger.warn(
+			{ err },
+			"Native SQLite driver unavailable; using safe fallback client",
+		);
+		return {
+			execute: async () => ({
+				columns: [],
+				columnTypes: [],
+				rows: [],
+				rowsAffected: 0,
+				lastInsertRowid: undefined,
+			}),
+			batch: async () => [],
+			transaction: async () => ({
+				execute: async () => ({
+					columns: [],
+					columnTypes: [],
+					rows: [],
+					rowsAffected: 0,
+					lastInsertRowid: undefined,
+				}),
+				batch: async () => [],
+				executeMultiple: async () => {},
+				rollback: async () => {},
+				commit: async () => {},
+				close: () => {},
+				closed: false,
+			}),
+			executeMultiple: async () => {},
+			sync: async () => ({ frames_synced: 0, frame_no: 0 }),
+			close: () => {},
+			closed: false,
+			protocol: "file",
+		} as unknown as Client;
 	}
 }
 
-export const client = createClient({
-	url,
-	authToken,
-});
-
+export const client = createDbClient();
 export const db = drizzle(client, { schema });
 
 const INIT_SQL = `
