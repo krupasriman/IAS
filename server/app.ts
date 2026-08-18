@@ -24,6 +24,9 @@ dotenv.config();
 const app = express();
 const NODE_ENV = process.env.NODE_ENV || "development";
 
+// Trust proxy headers for Vercel / serverless reverse proxies
+app.set("trust proxy", 1);
+
 // Security headers
 app.use(
 	helmet({
@@ -39,6 +42,7 @@ let dynamicLimiter: express.RequestHandler = rateLimit({
 	message: { error: "Too many requests, please try again later" },
 	standardHeaders: true,
 	legacyHeaders: false,
+	validate: { xForwardedForHeader: false },
 });
 
 void createApiLimiter().then((limiter) => {

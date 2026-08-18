@@ -48,6 +48,7 @@ export async function createApiLimiter(
 		message: { error: "Too many requests, please try again later" },
 		standardHeaders: true,
 		legacyHeaders: false,
+		validate: { xForwardedForHeader: false },
 	} as const;
 
 	const redisUrl = process.env.REDIS_URL;
