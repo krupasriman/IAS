@@ -85,10 +85,19 @@ function getSeedTopics(): Topic[] {
 		if (Array.isArray(defaultSeedTopics) && defaultSeedTopics.length > 0) {
 			return defaultSeedTopics as unknown as Topic[];
 		}
-		const __dirname = path.dirname(fileURLToPath(import.meta.url));
+		let moduleDir = process.cwd();
+		try {
+			if (typeof import.meta !== "undefined" && import.meta?.url) {
+				moduleDir = path.dirname(fileURLToPath(import.meta.url));
+			} else if (typeof __dirname !== "undefined") {
+				moduleDir = __dirname;
+			}
+		} catch {
+			// Ignore
+		}
 		const possiblePaths = [
-			path.resolve(__dirname, "../../public/data/topics.json"),
-			path.resolve(__dirname, "../../dist/data/topics.json"),
+			path.resolve(moduleDir, "../../public/data/topics.json"),
+			path.resolve(moduleDir, "../../dist/data/topics.json"),
 		];
 		for (const seedPath of possiblePaths) {
 			if (fs.existsSync(seedPath)) {

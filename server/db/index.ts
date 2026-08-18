@@ -8,13 +8,24 @@ import { migrate } from "drizzle-orm/libsql/migrator";
 import { logger } from "../../src/utils/logger";
 import * as schema from "./schema";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+function getDirname(): string {
+	try {
+		if (typeof import.meta !== "undefined" && import.meta?.url) {
+			return path.dirname(fileURLToPath(import.meta.url));
+		}
+	} catch {
+		// Ignore
+	}
+	return typeof __dirname !== "undefined" ? __dirname : process.cwd();
+}
+
+const moduleDir = getDirname();
 
 const isServerless = Boolean(
 	process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME,
 );
 
-const DATA_DIR = path.resolve(__dirname, "../../data");
+const DATA_DIR = path.resolve(moduleDir, "../../data");
 const localDbPath =
 	isServerless && !process.env.TURSO_DATABASE_URL
 		? "/tmp/ias.db"
@@ -136,7 +147,7 @@ export async function runMigrations(): Promise<void> {
 			"Database schema initialized and ready",
 		);
 
-		const migrationsFolder = path.join(__dirname, "../../drizzle");
+		const migrationsFolder = path.join(moduleDir, "../../drizzle");
 		if (fs.existsSync(migrationsFolder)) {
 			try {
 				await migrate(db, { migrationsFolder });

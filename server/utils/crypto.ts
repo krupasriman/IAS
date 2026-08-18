@@ -4,7 +4,18 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { logger } from "../../src/utils/logger";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+function getDirname(): string {
+	try {
+		if (typeof import.meta !== "undefined" && import.meta?.url) {
+			return path.dirname(fileURLToPath(import.meta.url));
+		}
+	} catch {
+		// Ignore
+	}
+	return typeof __dirname !== "undefined" ? __dirname : process.cwd();
+}
+
+const moduleDir = getDirname();
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12;
@@ -33,7 +44,7 @@ function loadEncryptionKey(): Buffer {
 
 	// Dev / Serverless fallback paths
 	const possiblePaths = [
-		path.join(__dirname, "../../data/.encryption.key"),
+		path.join(moduleDir, "../../data/.encryption.key"),
 		"/tmp/.encryption.key",
 	];
 
