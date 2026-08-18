@@ -1,7 +1,7 @@
 import type { Request as ExpressRequest, Response } from "express";
 import { Router } from "express";
 import { z } from "zod";
-import { CategorySchema } from "../../src/utils/topicSchema.ts";
+import { CategorySchema } from "../../src/utils/topicSchema";
 import {
 	createTopic,
 	deleteTopic,
@@ -9,8 +9,8 @@ import {
 	listTopics,
 	replaceAllTopics,
 	updateTopic,
-} from "../services/topics.ts";
-import { sendError, sendNotFound } from "../utils/errors.ts";
+} from "../services/topics";
+import { sendError, sendNotFound } from "../utils/errors";
 
 const router = Router();
 

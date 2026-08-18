@@ -1,11 +1,11 @@
 import type { NextFunction, Request, Response } from "express";
-import type { AuthUser } from "../services/auth.ts";
+import type { AuthUser } from "../services/auth";
 import {
 	getSessionUser,
 	isAuthEnabled,
 	SESSION_COOKIE,
-} from "../services/auth.ts";
-import { sendError } from "../utils/errors.ts";
+} from "../services/auth";
+import { sendError } from "../utils/errors";
 
 declare module "express-serve-static-core" {
 	interface Request {

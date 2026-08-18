@@ -1,11 +1,8 @@
 import type { ChatOpenAI } from "@langchain/openai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { getLangChainModel } from "../../src/services/llm/langchainProvider.ts";
-import {
-	generateStructuredCompletion,
-	StructuredLLMError,
-} from "./structured.ts";
+import { getLangChainModel } from "../../src/services/llm/langchainProvider";
+import { generateStructuredCompletion, StructuredLLMError } from "./structured";
 
 vi.mock("../../src/services/llm/langchainProvider.ts", () => ({
 	getLangChainModel: vi.fn(),

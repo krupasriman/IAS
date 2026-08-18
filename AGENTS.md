@@ -49,7 +49,7 @@
 - `biome check` includes formatting + import organization
 
 ## Notable Conventions
-- **Server imports client code directly** via relative paths (e.g., `../src/utils/logger.ts`) — works because server runs via `tsx`
+- **Server imports client code directly** via relative paths (e.g., `../src/utils/logger`) — works because server runs via `tsx`
 - **No separate server build** — `tsx` executes TypeScript directly in dev; `npm run build` only builds frontend
 - **Zod** for validation (shared schemas in `src/utils/validator.ts`, `server/validation/llm.ts`)
 - **pino** for structured logging (configured in `src/utils/logger.ts`)
@@ -63,7 +63,7 @@
 ## Common Gotchas
 - Port conflicts: Vite (5173) + Express (3001) — ensure both free
 - Server hot reload: `tsx watch` restarts on `server/**/*.ts` changes; changes to `src/` shared code require server restart
-- Shared imports from `src/` in server use `.ts` extensions (required by tsx)
+- Use extensionless imports (e.g. `../src/utils/logger`) for standard TypeScript and bundler/Vercel compatibility
 - CI uses Node 22; ensure local version matches
 - **LangChain JSON mode**: structured topic generation uses `jsonMode` to support Zod schemas with transforms (e.g., `z.preprocess` for category normalization). If switching models, ensure the provider supports `jsonMode` (OpenRouter, Groq, GeneralCompute do).
 

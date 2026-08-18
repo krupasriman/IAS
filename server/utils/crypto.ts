@@ -2,7 +2,7 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { logger } from "../../src/utils/logger.ts";
+import { logger } from "../../src/utils/logger";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

@@ -1,4 +1,4 @@
-import type { LLMProvider } from "../../types/settings.types.ts";
+import type { LLMProvider } from "../../types/settings.types";
 
 export const PROVIDER_DEFAULTS: Record<LLMProvider, string> = {
 	openrouter: "https://openrouter.ai/api/v1",

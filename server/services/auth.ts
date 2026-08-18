@@ -1,7 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { db } from "../db/index.ts";
-import { sessions, users } from "../db/schema.ts";
+import { db } from "../db/index";
+import { sessions, users } from "../db/schema";
 
 export interface AuthUser {
 	id: string;

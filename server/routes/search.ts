@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { logger } from "../../src/utils/logger.ts";
-import { sendError } from "../utils/errors.ts";
+import { logger } from "../../src/utils/logger";
+import { sendError } from "../utils/errors";
 
 const router = Router();
 

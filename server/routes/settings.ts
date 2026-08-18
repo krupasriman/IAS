@@ -5,8 +5,8 @@ import {
 	deleteApiKey,
 	listConfiguredApiKeys,
 	storeApiKey,
-} from "../services/apiKeys.ts";
-import { sendError, sendNotFound } from "../utils/errors.ts";
+} from "../services/apiKeys";
+import { sendError, sendNotFound } from "../utils/errors";
 
 const router = Router();
 

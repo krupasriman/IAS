@@ -1,4 +1,4 @@
-import { getApiKey } from "./apiKeys.ts";
+import { getApiKey } from "./apiKeys";
 
 export async function resolveLlmApiKey(
 	provider: string,

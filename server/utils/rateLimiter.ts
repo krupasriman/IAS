@@ -1,7 +1,7 @@
 import rateLimit from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
 import { createClient, type RedisClientType } from "redis";
-import { logger } from "../../src/utils/logger.ts";
+import { logger } from "../../src/utils/logger";
 
 let redisClient: RedisClientType | null = null;
 

@@ -1,17 +1,17 @@
 import type { Request as ExpressRequest, Response } from "express";
 import { Router } from "express";
 import { z } from "zod";
-import { logger } from "../../src/utils/logger.ts";
-import { buildUserPrompt, IAS_SYSTEM_PROMPT } from "../../src/utils/prompts.ts";
+import { logger } from "../../src/utils/logger";
+import { buildUserPrompt, IAS_SYSTEM_PROMPT } from "../../src/utils/prompts";
 import {
 	CategorySchema,
 	LlmTopicSchema,
 	StructuredTopicSchema,
-} from "../../src/utils/topicSchema.ts";
-import { resolveLlmApiKey } from "../services/keyResolver.ts";
-import { generateStructuredCompletion } from "../services/structured.ts";
-import { sendError } from "../utils/errors.ts";
-import { LLMProviderSchema } from "../validation/llm.ts";
+} from "../../src/utils/topicSchema";
+import { resolveLlmApiKey } from "../services/keyResolver";
+import { generateStructuredCompletion } from "../services/structured";
+import { sendError } from "../utils/errors";
+import { LLMProviderSchema } from "../validation/llm";
 
 const GenerateRequestSchema = z.object({
 	topic: z.string().min(1).max(200),

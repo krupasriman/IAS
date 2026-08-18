@@ -2,10 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { eq } from "drizzle-orm";
-import type { Topic } from "../../src/types/topic.types.ts";
-import { logger } from "../../src/utils/logger.ts";
-import { db } from "../db/index.ts";
-import { topics } from "../db/schema.ts";
+import type { Topic } from "../../src/types/topic.types";
+import { logger } from "../../src/utils/logger";
+import { db } from "../db/index";
+import { topics } from "../db/schema";
 
 interface TopicRow {
 	id: string;

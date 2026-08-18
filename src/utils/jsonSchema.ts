@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { StructuredTopicSchema } from "./topicSchema.ts";
+import { StructuredTopicSchema } from "./topicSchema";
 
 export const structuredTopicJsonSchema = z.toJSONSchema(StructuredTopicSchema);
 

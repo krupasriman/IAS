@@ -7,8 +7,8 @@
 		"skipLibCheck": true,
 
 		/* Bundler mode */
-		"module": "nodenext",
-		"allowImportingTsExtensions": true,
+		"module": "esnext",
+		"moduleResolution": "bundler",
 		"verbatimModuleSyntax": true,
 		"moduleDetection": "force",
 		"esModuleInterop": true,
@@ -20,5 +20,5 @@
 		"erasableSyntaxOnly": true,
 		"noFallthroughCasesInSwitch": true
 	},
-	"include": ["vite.config.ts", "server"]
+	"include": ["vite.config.ts", "server", "api"]
 }

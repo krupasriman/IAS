@@ -1,6 +1,6 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { LanguageModel } from "ai";
-import { PROVIDER_DEFAULTS } from "./providerDefaults.ts";
+import { PROVIDER_DEFAULTS } from "./providerDefaults";
 
 export type LLMProvider = "openrouter" | "groq" | "generalcompute";
 

@@ -5,8 +5,8 @@ import { createClient } from "@libsql/client";
 import dotenv from "dotenv";
 import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
-import { logger } from "../../src/utils/logger.ts";
-import * as schema from "./schema.ts";
+import { logger } from "../../src/utils/logger";
+import * as schema from "./schema";
 
 dotenv.config();
 

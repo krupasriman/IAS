@@ -1,6 +1,6 @@
 import type express from "express";
-import { sendValidationError } from "../utils/errors.ts";
-import { LLMRequestSchema } from "../validation/llm.ts";
+import { sendValidationError } from "../utils/errors";
+import { LLMRequestSchema } from "../validation/llm";
 
 export const validateLLMRequest: express.RequestHandler = (req, res, next) => {
 	const result = LLMRequestSchema.safeParse(req.body);

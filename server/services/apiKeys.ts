@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
-import { db } from "../db/index.ts";
-import { apiKeys } from "../db/schema.ts";
-import { decryptSecret, encryptSecret } from "../utils/crypto.ts";
+import { db } from "../db/index";
+import { apiKeys } from "../db/schema";
+import { decryptSecret, encryptSecret } from "../utils/crypto";
 
 export type ApiKeyKind = "llm" | "search";
 

@@ -2,13 +2,13 @@ import { type ModelMessage, pipeTextStreamToResponse, streamText } from "ai";
 import type { Request as ExpressRequest, Response } from "express";
 import { Router } from "express";
 import { z } from "zod";
-import { getLanguageModel } from "../../src/services/llm/provider.ts";
-import { logger } from "../../src/utils/logger.ts";
-import { buildUserPrompt, IAS_SYSTEM_PROMPT } from "../../src/utils/prompts.ts";
-import { CategorySchema } from "../../src/utils/topicSchema.ts";
-import { resolveLlmApiKey } from "../services/keyResolver.ts";
-import { sendError } from "../utils/errors.ts";
-import { LLMProviderSchema } from "../validation/llm.ts";
+import { getLanguageModel } from "../../src/services/llm/provider";
+import { logger } from "../../src/utils/logger";
+import { buildUserPrompt, IAS_SYSTEM_PROMPT } from "../../src/utils/prompts";
+import { CategorySchema } from "../../src/utils/topicSchema";
+import { resolveLlmApiKey } from "../services/keyResolver";
+import { sendError } from "../utils/errors";
+import { LLMProviderSchema } from "../validation/llm";
 
 const StreamRequestSchema = z.object({
 	topic: z.string().min(1).max(200),

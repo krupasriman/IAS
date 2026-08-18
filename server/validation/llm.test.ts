@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { getLanguageModel } from "../../src/services/llm/provider.ts";
-import { PROVIDER_DEFAULTS } from "../../src/services/llm/providerDefaults.ts";
-import { type LLMRequest, LLMRequestSchema } from "./llm.ts";
+import { getLanguageModel } from "../../src/services/llm/provider";
+import { PROVIDER_DEFAULTS } from "../../src/services/llm/providerDefaults";
+import { type LLMRequest, LLMRequestSchema } from "./llm";
 
 const validRequest: LLMRequest = {
 	provider: "openrouter",

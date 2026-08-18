@@ -7,8 +7,8 @@ import {
 	isAuthEnabled,
 	SESSION_COOKIE,
 	verifyCredentials,
-} from "../services/auth.ts";
-import { sendError } from "../utils/errors.ts";
+} from "../services/auth";
+import { sendError } from "../utils/errors";
 
 const router = Router();
 

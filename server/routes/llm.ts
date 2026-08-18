@@ -1,12 +1,12 @@
 import { generateText, type ModelMessage } from "ai";
 import type { Request as ExpressRequest, Response } from "express";
 import { Router } from "express";
-import { getLanguageModel } from "../../src/services/llm/provider.ts";
-import { logger } from "../../src/utils/logger.ts";
-import { resolveLlmApiKey } from "../services/keyResolver.ts";
-import { sendError, sendServerError } from "../utils/errors.ts";
-import { validateLLMRequest } from "../validation/llm.middleware.ts";
-import type { LLMRequest } from "../validation/llm.ts";
+import { getLanguageModel } from "../../src/services/llm/provider";
+import { logger } from "../../src/utils/logger";
+import { resolveLlmApiKey } from "../services/keyResolver";
+import { sendError, sendServerError } from "../utils/errors";
+import type { LLMRequest } from "../validation/llm";
+import { validateLLMRequest } from "../validation/llm.middleware";
 
 const router = Router();
 

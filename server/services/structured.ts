@@ -4,9 +4,9 @@ import {
 	SystemMessage,
 } from "@langchain/core/messages";
 import type { ZodType } from "zod";
-import { getLangChainModel } from "../../src/services/llm/langchainProvider.ts";
-import type { ProviderConfig } from "../../src/services/llm/provider.ts";
-import { logger } from "../../src/utils/logger.ts";
+import { getLangChainModel } from "../../src/services/llm/langchainProvider";
+import type { ProviderConfig } from "../../src/services/llm/provider";
+import { logger } from "../../src/utils/logger";
 
 export const MAX_STRUCTURED_RETRIES = 2;
 

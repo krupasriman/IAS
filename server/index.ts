@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
-import { logger } from "../src/utils/logger.ts";
-import app from "./app.ts";
-import { sendNotFound } from "./utils/errors.ts";
+import { logger } from "../src/utils/logger";
+import app from "./app";
+import { sendNotFound } from "./utils/errors";
 
 dotenv.config();
 
@@ -21,7 +21,7 @@ app.listen(PORT, () => {
 async function shutdown(signal: string) {
 	logger.info({ signal }, "Shutting down");
 	try {
-		const { closeRedis } = await import("./utils/rateLimiter.ts");
+		const { closeRedis } = await import("./utils/rateLimiter");
 		await closeRedis();
 	} catch {
 		// best-effort

@@ -1,10 +1,10 @@
 import { ChatOpenAI } from "@langchain/openai";
-import type { ProviderConfig } from "./provider.ts";
+import type { ProviderConfig } from "./provider";
 import {
 	DEFAULT_MAX_TOKENS,
 	DEFAULT_TEMPERATURE,
 	PROVIDER_DEFAULTS,
-} from "./providerDefaults.ts";
+} from "./providerDefaults";
 
 /**
  * Builds a LangChain `ChatOpenAI` bound to an OpenAI-compatible endpoint.
