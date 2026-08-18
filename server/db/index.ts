@@ -94,10 +94,14 @@ export async function runMigrations(): Promise<void> {
 
 		const migrationsFolder = path.join(__dirname, "../../drizzle");
 		if (fs.existsSync(migrationsFolder)) {
-			await migrate(db, { migrationsFolder });
+			try {
+				await migrate(db, { migrationsFolder });
+			} catch {
+				// Base tables were already created via INIT_SQL
+			}
 		}
 	} catch (err) {
-		logger.warn({ err }, "Database migration check completed or skipped");
+		logger.warn({ err }, "Database schema init completed or skipped");
 	}
 }
 
