@@ -4,7 +4,7 @@ import { Router } from "express";
 import { getLanguageModel } from "../../src/services/llm/provider";
 import { logger } from "../../src/utils/logger";
 import { resolveLlmApiKey } from "../services/keyResolver";
-import { sendError, sendServerError } from "../utils/errors";
+import { sendError } from "../utils/errors";
 import type { LLMRequest } from "../validation/llm";
 import { validateLLMRequest } from "../validation/llm.middleware";
 
@@ -53,12 +53,45 @@ router.post(
 
 			res.status(200).json({ content: result.text });
 		} catch (error: unknown) {
-			const message =
-				typeof error === "object" && error !== null && "message" in error
-					? String((error as { message: unknown }).message)
-					: "Failed to process LLM request";
-			logger.error({ err: message }, "Failed to process LLM request");
-			sendServerError(res, message);
+			let statusCode = 502;
+			let message = "Failed to process LLM request";
+
+			if (typeof error === "object" && error !== null) {
+				const errObj = error as {
+					statusCode?: number;
+					status?: number;
+					message?: string;
+					responseBody?: string;
+				};
+				if (typeof errObj.statusCode === "number" && errObj.statusCode >= 400) {
+					statusCode = errObj.statusCode;
+				} else if (typeof errObj.status === "number" && errObj.status >= 400) {
+					statusCode = errObj.status;
+				}
+
+				if (errObj.responseBody) {
+					try {
+						const parsed = JSON.parse(errObj.responseBody);
+						if (parsed?.error?.message) {
+							message = parsed.error.message;
+						} else if (typeof parsed?.error === "string") {
+							message = parsed.error;
+						} else if (errObj.message) {
+							message = errObj.message;
+						}
+					} catch {
+						message = errObj.message || errObj.responseBody;
+					}
+				} else if (errObj.message) {
+					message = errObj.message;
+				}
+			}
+
+			logger.error(
+				{ err: message, statusCode },
+				"Failed to process LLM request",
+			);
+			sendError(res, statusCode, message);
 		}
 	},
 );

@@ -18,11 +18,17 @@ export function getLangChainModel(config: ProviderConfig): ChatOpenAI {
 	const { provider, apiKey, model, baseUrl } = config;
 	const baseURL = (baseUrl || PROVIDER_DEFAULTS[provider]).replace(/\/$/, "");
 
+	const defaultHeaders: Record<string, string> = {};
+	if (provider === "openrouter") {
+		defaultHeaders["HTTP-Referer"] = "https://ias-black.vercel.app";
+		defaultHeaders["X-Title"] = "IAS Study Notes Generator";
+	}
+
 	return new ChatOpenAI({
 		model,
 		apiKey,
 		temperature: DEFAULT_TEMPERATURE,
 		maxTokens: DEFAULT_MAX_TOKENS,
-		configuration: { baseURL },
+		configuration: { baseURL, defaultHeaders },
 	});
 }

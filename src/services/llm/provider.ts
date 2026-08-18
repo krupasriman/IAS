@@ -15,10 +15,17 @@ export function getLanguageModel(config: ProviderConfig): LanguageModel {
 	const { provider, apiKey, model, baseUrl } = config;
 	const url = (baseUrl || PROVIDER_DEFAULTS[provider]).replace(/\/$/, "");
 
+	const headers: Record<string, string> = {};
+	if (provider === "openrouter") {
+		headers["HTTP-Referer"] = "https://ias-black.vercel.app";
+		headers["X-Title"] = "IAS Study Notes Generator";
+	}
+
 	const compat = createOpenAICompatible({
 		name: provider,
 		apiKey,
 		baseURL: url,
+		headers,
 	});
 	return compat(model);
 }
