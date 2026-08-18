@@ -24,7 +24,12 @@ export async function verifyCredentials(
 	username: string,
 	password: string,
 ): Promise<AuthUser | null> {
-	const row = db.select().from(users).where(eq(users.username, username)).get();
+	const [row] = await db
+		.select()
+		.from(users)
+		.where(eq(users.username, username))
+		.limit(1);
+
 	if (!row) return null;
 	const expected = Buffer.from(row.passwordHash, "hex");
 	const actual = Buffer.from(hashPassword(password), "hex");
@@ -36,29 +41,37 @@ export async function verifyCredentials(
 
 export async function createSession(user: AuthUser): Promise<string> {
 	const token = randomBytes(32).toString("hex");
-	db.insert(sessions)
-		.values({
-			token,
-			userId: user.id,
-			createdAt: new Date().toISOString(),
-			expiresAt: new Date(Date.now() + SESSION_TTL_MS).toISOString(),
-		})
-		.run();
+	await db.insert(sessions).values({
+		token,
+		userId: user.id,
+		createdAt: new Date().toISOString(),
+		expiresAt: new Date(Date.now() + SESSION_TTL_MS).toISOString(),
+	});
 	return token;
 }
 
 export async function destroySession(token: string): Promise<void> {
-	db.delete(sessions).where(eq(sessions.token, token)).run();
+	await db.delete(sessions).where(eq(sessions.token, token));
 }
 
 export async function getSessionUser(token: string): Promise<AuthUser | null> {
 	if (!token) return null;
-	const row = db.select().from(sessions).where(eq(sessions.token, token)).get();
+	const [row] = await db
+		.select()
+		.from(sessions)
+		.where(eq(sessions.token, token))
+		.limit(1);
+
 	if (!row) return null;
 	if (new Date(row.expiresAt).getTime() < Date.now()) {
-		db.delete(sessions).where(eq(sessions.token, token)).run();
+		await db.delete(sessions).where(eq(sessions.token, token));
 		return null;
 	}
-	const user = db.select().from(users).where(eq(users.id, row.userId)).get();
+	const [user] = await db
+		.select()
+		.from(users)
+		.where(eq(users.id, row.userId))
+		.limit(1);
+
 	return user ? { id: user.id, username: user.username } : null;
 }

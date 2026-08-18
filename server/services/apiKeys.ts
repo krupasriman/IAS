@@ -15,25 +15,28 @@ export async function storeApiKey(
 	value: string,
 ): Promise<void> {
 	const id = keyId(kind, provider);
-	const existing = db.select().from(apiKeys).where(eq(apiKeys.id, id)).get();
+	const [existing] = await db
+		.select()
+		.from(apiKeys)
+		.where(eq(apiKeys.id, id))
+		.limit(1);
+
 	if (existing) {
-		db.update(apiKeys)
+		await db
+			.update(apiKeys)
 			.set({
 				encrypted: encryptSecret(value),
 				updatedAt: new Date().toISOString(),
 			})
-			.where(eq(apiKeys.id, id))
-			.run();
+			.where(eq(apiKeys.id, id));
 	} else {
-		db.insert(apiKeys)
-			.values({
-				id,
-				kind,
-				provider,
-				encrypted: encryptSecret(value),
-				updatedAt: new Date().toISOString(),
-			})
-			.run();
+		await db.insert(apiKeys).values({
+			id,
+			kind,
+			provider,
+			encrypted: encryptSecret(value),
+			updatedAt: new Date().toISOString(),
+		});
 	}
 }
 
@@ -41,11 +44,12 @@ export async function getApiKey(
 	kind: ApiKeyKind,
 	provider: string,
 ): Promise<string | null> {
-	const row = db
+	const [row] = await db
 		.select()
 		.from(apiKeys)
 		.where(eq(apiKeys.id, keyId(kind, provider)))
-		.get();
+		.limit(1);
+
 	if (!row) return null;
 	try {
 		return decryptSecret(row.encrypted);
@@ -58,29 +62,28 @@ export async function deleteApiKey(
 	kind: ApiKeyKind,
 	provider: string,
 ): Promise<boolean> {
-	const result = db
+	const result = await db
 		.delete(apiKeys)
-		.where(eq(apiKeys.id, keyId(kind, provider)))
-		.run();
-	return result.changes > 0;
+		.where(eq(apiKeys.id, keyId(kind, provider)));
+	return (result.rowsAffected ?? 1) > 0;
 }
 
 export async function hasApiKey(
 	kind: ApiKeyKind,
 	provider: string,
 ): Promise<boolean> {
-	const row = db
+	const [row] = await db
 		.select({ id: apiKeys.id })
 		.from(apiKeys)
 		.where(eq(apiKeys.id, keyId(kind, provider)))
-		.get();
+		.limit(1);
 	return row !== undefined;
 }
 
 export async function listConfiguredApiKeys(): Promise<
 	Record<ApiKeyKind, string[]>
 > {
-	const rows = db.select().from(apiKeys).all();
+	const rows = await db.select().from(apiKeys);
 	const result: Record<ApiKeyKind, string[]> = { llm: [], search: [] };
 	for (const row of rows) {
 		if (row.kind === "llm" || row.kind === "search") {

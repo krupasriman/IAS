@@ -80,14 +80,18 @@ function fromTopic(topic: Topic): Omit<TopicRow, "createdAt" | "updatedAt"> {
 }
 
 export async function listTopics(): Promise<Topic[]> {
-	const rows = db.select().from(topics).all() as unknown as TopicRow[];
+	const rows = (await db.select().from(topics)) as unknown as TopicRow[];
 	return rows
 		.map(toTopic)
 		.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 export async function getTopic(id: string): Promise<Topic | null> {
-	const row = db.select().from(topics).where(eq(topics.id, id)).get();
+	const [row] = await db
+		.select()
+		.from(topics)
+		.where(eq(topics.id, id))
+		.limit(1);
 	return row ? toTopic(row as unknown as TopicRow) : null;
 }
 
@@ -97,7 +101,7 @@ export async function createTopic(topic: Topic): Promise<Topic> {
 		createdAt: topic.createdAt,
 		updatedAt: topic.updatedAt,
 	};
-	db.insert(topics).values(row).run();
+	await db.insert(topics).values(row);
 	return topic;
 }
 
@@ -107,36 +111,36 @@ export async function updateTopic(id: string, topic: Topic): Promise<Topic> {
 		createdAt: topic.createdAt,
 		updatedAt: topic.updatedAt,
 	};
-	db.update(topics).set(row).where(eq(topics.id, id)).run();
+	await db.update(topics).set(row).where(eq(topics.id, id));
 	return topic;
 }
 
 export async function deleteTopic(id: string): Promise<boolean> {
-	const result = db.delete(topics).where(eq(topics.id, id)).run();
-	return result.changes > 0;
+	const result = await db.delete(topics).where(eq(topics.id, id));
+	return (result.rowsAffected ?? 1) > 0;
 }
 
 export async function replaceAllTopics(items: Topic[]): Promise<void> {
-	db.delete(topics).run();
+	await db.delete(topics);
 	for (const topic of items) {
 		const row = {
 			...fromTopic(topic),
 			createdAt: topic.createdAt,
 			updatedAt: topic.updatedAt,
 		};
-		db.insert(topics).values(row).run();
+		await db.insert(topics).values(row);
 	}
 }
 
 export async function seedIfEmpty(): Promise<void> {
-	const count = db.select({ id: topics.id }).from(topics).all();
-	if (count.length > 0) return;
-
-	const __dirname = path.dirname(fileURLToPath(import.meta.url));
-	const seedPath = path.resolve(__dirname, "../../public/data/topics.json");
-	if (!fs.existsSync(seedPath)) return;
-
 	try {
+		const count = await db.select({ id: topics.id }).from(topics);
+		if (count.length > 0) return;
+
+		const __dirname = path.dirname(fileURLToPath(import.meta.url));
+		const seedPath = path.resolve(__dirname, "../../public/data/topics.json");
+		if (!fs.existsSync(seedPath)) return;
+
 		const seed = JSON.parse(fs.readFileSync(seedPath, "utf8")) as Topic[];
 		await replaceAllTopics(seed);
 		logger.info({ count: seed.length }, "Seeded database with default topics");
