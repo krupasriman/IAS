@@ -1,6 +1,4 @@
-import cookieParser from "cookie-parser";
 import cors from "cors";
-import dotenv from "dotenv";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
@@ -18,8 +16,6 @@ import topicsRouter from "./routes/topics";
 import { seedIfEmpty } from "./services/topics";
 import { sendNotFound, sendServerError } from "./utils/errors";
 import { createApiLimiter } from "./utils/rateLimiter";
-
-dotenv.config();
 
 const app = express();
 const NODE_ENV = process.env.NODE_ENV || "development";
@@ -53,7 +49,26 @@ void createApiLimiter()
 
 app.use(cors());
 app.use(express.json());
-app.use(cookieParser());
+
+// Native cookie parser for serverless compatibility
+app.use((req, _res, next) => {
+	const cookieHeader = req.headers.cookie;
+	const cookies: Record<string, string> = {};
+	if (cookieHeader) {
+		for (const part of cookieHeader.split(";")) {
+			const [k, ...v] = part.trim().split("=");
+			if (k) {
+				try {
+					cookies[k] = decodeURIComponent(v.join("="));
+				} catch {
+					cookies[k] = v.join("=");
+				}
+			}
+		}
+	}
+	req.cookies = cookies;
+	next();
+});
 
 // Attach session user (if any) to every request
 app.use(attachAuthUser);
