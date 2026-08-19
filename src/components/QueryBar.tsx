@@ -191,7 +191,7 @@ export default function QueryBar({
 					{!llmConfigured && (
 						<button
 							type="button"
-							onClick={openSettings}
+							onClick={() => openSettings("llm")}
 							className="text-xs px-3 py-1.5 rounded-full font-medium flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
 							style={{
 								background: "var(--warn-bg)",

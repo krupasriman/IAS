@@ -17,20 +17,25 @@ export default function WorkspaceShell({
 		toggleSidebar,
 		startNewTopic,
 		isSettingsOpen,
+		settingsInitialTab,
 		closeSettings,
 	} = useWorkspace();
 	const navigate = useNavigate();
-	const [isTablet, setIsTablet] = useState(false);
+	const [isMobile, setIsMobile] = useState(false);
 	const hasMounted = useRef(false);
 
 	useEffect(() => {
 		const check = () => {
-			setIsTablet(window.innerWidth < 1024);
+			setIsMobile(window.innerWidth < 768);
 		};
 		check();
 		if (!hasMounted.current) {
 			hasMounted.current = true;
-			if (window.innerWidth < 1024) setSidebarOpen(false);
+			if (window.innerWidth < 768) {
+				setSidebarOpen(false);
+			} else {
+				setSidebarOpen(true);
+			}
 		}
 		window.addEventListener("resize", check);
 		return () => window.removeEventListener("resize", check);
@@ -55,7 +60,7 @@ export default function WorkspaceShell({
 
 	const sidebarClass = [
 		"ws-sidebar",
-		isTablet
+		isMobile
 			? sidebarOpen
 				? "mobile-open"
 				: ""
@@ -68,8 +73,8 @@ export default function WorkspaceShell({
 
 	return (
 		<div className="ws-shell">
-			{/* Sidebar overlay on tablet/mobile */}
-			{isTablet && sidebarOpen && (
+			{/* Sidebar overlay on mobile only */}
+			{isMobile && sidebarOpen && (
 				<div
 					className="mobile-overlay"
 					onClick={() => setSidebarOpen(false)}
@@ -98,7 +103,11 @@ export default function WorkspaceShell({
 			</div>
 
 			{/* ChatGPT-style Settings Modal */}
-			<SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} />
+			<SettingsModal
+				isOpen={isSettingsOpen}
+				onClose={closeSettings}
+				initialTab={settingsInitialTab}
+			/>
 		</div>
 	);
 }

@@ -1,4 +1,5 @@
 import {
+	AlertCircle,
 	Bot,
 	CheckCircle2,
 	Database,
@@ -24,35 +25,45 @@ import { useWorkspace } from "../context/WorkspaceContext";
 import { useSettings } from "../hooks/useSettings";
 import { useTopics } from "../hooks/useTopics";
 import { callLLM } from "../services/llm/client";
+import { DEFAULT_OPENROUTER_MODELS } from "../services/llm/models";
 import type { LLMProvider, SearchProvider } from "../types/settings.types";
+import {
+	getApiKeyPlaceholder,
+	validateApiKeyFormat,
+} from "../utils/apiKeyValidator";
 
 interface SettingsModalProps {
 	isOpen: boolean;
 	onClose: () => void;
+	initialTab?: SettingsTab;
 }
 
-type SettingsTab = "general" | "llm" | "search" | "data" | "security";
+export type SettingsTab = "general" | "llm" | "search" | "data" | "security";
 
-export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+export default function SettingsModal({
+	isOpen,
+	onClose,
+	initialTab = "general",
+}: SettingsModalProps) {
 	const { dark, toggleDark } = useWorkspace();
 	const { topics } = useTopics();
 	const {
 		settings,
-		llmConfigured,
-		searchConfigured,
+		isLlmProviderConfigured,
+		isSearchProviderConfigured,
 		openRouterModels,
 		openRouterLoading,
 		generalComputeModels,
 		generalComputeLoading,
 		setLLMProvider,
-		setLLMApiKey,
+		setLLMApiKeyForProvider,
 		setLLMModel,
 		setSearchProvider,
-		setSearchApiKey,
+		setSearchApiKeyForProvider,
 		setMaxResults,
 	} = useSettings();
 
-	const [activeTab, setActiveTab] = useState<SettingsTab>("general");
+	const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
 	const [searchFilter, setSearchFilter] = useState("");
 	const [showKey, setShowKey] = useState(false);
 
@@ -90,9 +101,10 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
 	const [showFreeOnly, setShowFreeOnly] = useState(false);
 
-	// Sync draft with store when modal opens
+	// Sync draft and active tab with store when modal opens
 	useEffect(() => {
 		if (isOpen) {
+			setActiveTab(initialTab);
 			setDraftDark(dark);
 			setDraftLLMProvider(settings.llm.provider);
 			setDraftLLMApiKeys({ ...settings.llm.apiKeys });
@@ -104,7 +116,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 			setSaveNotification(null);
 			setTestResult({ status: "idle", message: "" });
 		}
-	}, [isOpen, settings, dark]);
+	}, [isOpen, initialTab, settings, dark]);
 
 	// Check for unsaved modifications
 	const isDirty = useMemo(() => {
@@ -230,12 +242,16 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 			}));
 		}
 
-		let list = openRouterModels;
+		const list =
+			openRouterModels.length > 0
+				? openRouterModels
+				: DEFAULT_OPENROUTER_MODELS;
+		let filtered = list;
 		if (showFreeOnly) {
-			list = list.filter((m) => m.isFree);
+			filtered = filtered.filter((m) => m.isFree);
 		}
 
-		const formatted: ModelOption[] = list.map((m) => ({
+		const formatted: ModelOption[] = filtered.map((m) => ({
 			id: m.id,
 			name: m.name,
 			isFree: m.isFree,
@@ -246,7 +262,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 		const isCurrentModelInList = formatted.some((m) => m.id === currentModel);
 
 		if (currentModel && !isCurrentModelInList) {
-			const existing = openRouterModels.find((m) => m.id === currentModel);
+			const existing = list.find((m) => m.id === currentModel);
 			formatted.unshift({
 				id: currentModel,
 				name: existing ? existing.name : currentModel,
@@ -269,13 +285,54 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 	const currentVariant =
 		draftModelVariant || (draftLLMModel.includes(":free") ? "free" : "default");
 
+	const llmKeyValidation = useMemo(
+		() =>
+			validateApiKeyFormat(
+				draftLLMProvider,
+				draftLLMApiKeys[draftLLMProvider] || "",
+			),
+		[draftLLMProvider, draftLLMApiKeys],
+	);
+
+	const searchKeyValidation = useMemo(
+		() =>
+			currentSearch.requiredKey
+				? validateApiKeyFormat(
+						draftSearchProvider,
+						draftSearchApiKeys[draftSearchProvider] || "",
+					)
+				: { isValid: true },
+		[currentSearch.requiredKey, draftSearchProvider, draftSearchApiKeys],
+	);
+
 	const handleTest = async () => {
+		const key = (draftLLMApiKeys[draftLLMProvider] || "").trim();
+		if (!key && draftLLMProvider !== "generalcompute") {
+			setTestResult({
+				status: "error",
+				message: `Please enter a ${currentLLM.name} API key before testing connection.`,
+			});
+			return;
+		}
+
+		if (!llmKeyValidation.isValid) {
+			setTestResult({
+				status: "error",
+				message: llmKeyValidation.error || "Invalid API key format.",
+			});
+			return;
+		}
+
 		setTestResult({ status: "testing", message: "Testing connection..." });
 		try {
 			const testConfig = {
 				...settings.llm,
 				provider: draftLLMProvider,
-				apiKeys: draftLLMApiKeys,
+				apiKeys: {
+					...draftLLMApiKeys,
+					[draftLLMProvider]: key,
+				},
+				apiKey: key,
 				model: draftLLMModel,
 			};
 			const response = await callLLM(
@@ -306,15 +363,31 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
 	// Explicit manual save handler
 	const handleSave = () => {
+		if (!llmKeyValidation.isValid) {
+			setTestResult({
+				status: "error",
+				message: llmKeyValidation.error || "Invalid LLM API key format",
+			});
+			return;
+		}
+		if (currentSearch.requiredKey && !searchKeyValidation.isValid) {
+			setTestResult({
+				status: "error",
+				message: searchKeyValidation.error || "Invalid Search API key format",
+			});
+			return;
+		}
+
 		if (draftDark !== dark) {
 			toggleDark();
 		}
 		if (draftLLMProvider !== settings.llm.provider) {
 			setLLMProvider(draftLLMProvider);
 		}
-		const draftLLMKey = draftLLMApiKeys[draftLLMProvider] || "";
-		if (draftLLMKey !== (settings.llm.apiKeys[draftLLMProvider] || "")) {
-			setLLMApiKey(draftLLMKey);
+		for (const [p, k] of Object.entries(draftLLMApiKeys)) {
+			if (k !== (settings.llm.apiKeys[p as LLMProvider] || "")) {
+				setLLMApiKeyForProvider(p as LLMProvider, k);
+			}
 		}
 		if (draftLLMModel !== settings.llm.model) {
 			setLLMModel(draftLLMModel);
@@ -322,11 +395,10 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 		if (draftSearchProvider !== settings.search.provider) {
 			setSearchProvider(draftSearchProvider);
 		}
-		const draftSearchKey = draftSearchApiKeys[draftSearchProvider] || "";
-		if (
-			draftSearchKey !== (settings.search.apiKeys[draftSearchProvider] || "")
-		) {
-			setSearchApiKey(draftSearchKey);
+		for (const [p, k] of Object.entries(draftSearchApiKeys)) {
+			if (k !== (settings.search.apiKeys[p as SearchProvider] || "")) {
+				setSearchApiKeyForProvider(p as SearchProvider, k);
+			}
 		}
 		if (draftMaxResults !== (settings.search.maxResults ?? 8)) {
 			setMaxResults(draftMaxResults);
@@ -355,7 +427,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 	);
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+		<div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
 			{/* Backdrop */}
 			<div
 				className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
@@ -413,7 +485,10 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 								<button
 									key={tab.id}
 									type="button"
-									onClick={() => setActiveTab(tab.id)}
+									onClick={() => {
+										setActiveTab(tab.id);
+										setTestResult({ status: "idle", message: "" });
+									}}
 									className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all text-left cursor-pointer ${
 										isActive
 											? "bg-[var(--surface)] text-[var(--text)] shadow-sm font-semibold border border-[var(--border)]"
@@ -432,12 +507,19 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 						<button
 							type="button"
 							onClick={handleSave}
-							className={`w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold shadow-sm transition-all cursor-pointer ${
-								isDirty
-									? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md"
-									: saved
-										? "bg-emerald-600 text-white"
-										: "bg-[var(--surface-2)] text-[var(--text-2)] hover:bg-[var(--surface-3)]"
+							disabled={
+								!llmKeyValidation.isValid ||
+								(currentSearch.requiredKey && !searchKeyValidation.isValid)
+							}
+							className={`w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold shadow-sm transition-all ${
+								!llmKeyValidation.isValid ||
+								(currentSearch.requiredKey && !searchKeyValidation.isValid)
+									? "bg-[var(--surface-2)] text-[var(--muted)] opacity-50 cursor-not-allowed"
+									: isDirty
+										? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md cursor-pointer"
+										: saved
+											? "bg-emerald-600 text-white cursor-pointer"
+											: "bg-[var(--surface-2)] text-[var(--text-2)] hover:bg-[var(--surface-3)] cursor-pointer"
 							}`}
 						>
 							{saved ? (
@@ -449,11 +531,19 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 								{saved ? "Saved!" : isDirty ? "Save Changes *" : "Save Changes"}
 							</span>
 						</button>
-						{isDirty && (
-							<span className="text-[10px] text-center text-amber-600 dark:text-amber-400 font-medium">
-								Unsaved changes pending
+						{(!llmKeyValidation.isValid ||
+							(currentSearch.requiredKey && !searchKeyValidation.isValid)) && (
+							<span className="text-[10px] text-center text-red-500 font-medium">
+								Fix invalid API key format
 							</span>
 						)}
+						{isDirty &&
+							llmKeyValidation.isValid &&
+							(!currentSearch.requiredKey || searchKeyValidation.isValid) && (
+								<span className="text-[10px] text-center text-amber-600 dark:text-amber-400 font-medium">
+									Unsaved changes pending
+								</span>
+							)}
 					</div>
 				</div>
 
@@ -579,7 +669,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 										>
 											LLM Provider
 										</label>
-										{llmConfigured && (
+										{isLlmProviderConfigured(draftLLMProvider) && (
 											<span className="flex items-center gap-1 text-xs font-semibold text-emerald-500">
 												<CheckCircle2 className="w-3.5 h-3.5" /> Configured
 											</span>
@@ -591,6 +681,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 										onChange={(e) => {
 											const prov = e.target.value as LLMProvider;
 											setDraftLLMProvider(prov);
+											setTestResult({ status: "idle", message: "" });
 											const provConfig = LLM_PROVIDERS.find(
 												(p) => p.id === prov,
 											);
@@ -643,9 +734,14 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 													...prev,
 													[draftLLMProvider]: val,
 												}));
+												setTestResult({ status: "idle", message: "" });
 											}}
-											placeholder="sk-..."
-											className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 pr-10 text-sm text-[var(--text)] outline-none font-mono"
+											placeholder={getApiKeyPlaceholder(draftLLMProvider)}
+											className={`w-full rounded-xl border bg-[var(--surface)] px-3.5 py-2.5 pr-10 text-sm text-[var(--text)] outline-none font-mono ${
+												!llmKeyValidation.isValid
+													? "border-red-400 focus:ring-2 focus:ring-red-500/40"
+													: "border-[var(--border)]"
+											}`}
 										/>
 										<button
 											type="button"
@@ -659,6 +755,12 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 											)}
 										</button>
 									</div>
+									{!llmKeyValidation.isValid && (
+										<p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+											<AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+											{llmKeyValidation.error}
+										</p>
+									)}
 								</div>
 
 								{/* Model Selection */}
@@ -689,6 +791,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 										onChange={(modelId) => {
 											setDraftLLMModel(modelId);
 											setDraftModelVariant("default");
+											setTestResult({ status: "idle", message: "" });
 										}}
 										onVariantChange={(variantId) => {
 											setDraftModelVariant(variantId);
@@ -702,6 +805,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 												? baseModel + variant.suffix
 												: baseModel;
 											setDraftLLMModel(newModelId);
+											setTestResult({ status: "idle", message: "" });
 										}}
 										currentVariant={currentVariant}
 										placeholder="Select model..."
@@ -719,7 +823,12 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 									<button
 										type="button"
 										onClick={handleTest}
-										disabled={testResult.status === "testing"}
+										disabled={
+											(!draftLLMApiKeys[draftLLMProvider]?.trim() &&
+												draftLLMProvider !== "generalcompute") ||
+											!llmKeyValidation.isValid ||
+											testResult.status === "testing"
+										}
 										className="px-4 py-2 rounded-xl text-xs font-semibold border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] transition-colors disabled:opacity-40 cursor-pointer"
 									>
 										{testResult.status === "testing"
@@ -755,7 +864,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 										>
 											Search Engine Provider
 										</label>
-										{searchConfigured && (
+										{isSearchProviderConfigured(draftSearchProvider) && (
 											<span className="flex items-center gap-1 text-xs font-semibold text-emerald-500">
 												<CheckCircle2 className="w-3.5 h-3.5" /> Configured
 											</span>
@@ -811,9 +920,19 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 													[draftSearchProvider]: val,
 												}));
 											}}
-											placeholder="Enter API key"
-											className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 text-sm text-[var(--text)] outline-none font-mono"
+											placeholder={getApiKeyPlaceholder(draftSearchProvider)}
+											className={`w-full rounded-xl border bg-[var(--surface)] px-3.5 py-2.5 text-sm text-[var(--text)] outline-none font-mono ${
+												!searchKeyValidation.isValid
+													? "border-red-400 focus:ring-2 focus:ring-red-500/40"
+													: "border-[var(--border)]"
+											}`}
 										/>
+										{!searchKeyValidation.isValid && (
+											<p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+												<AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+												{searchKeyValidation.error}
+											</p>
+										)}
 									</div>
 								)}
 

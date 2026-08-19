@@ -12,10 +12,11 @@ import helmet from "helmet";
 
 // src/utils/logger.ts
 import pino from "pino";
+var isProduction = process.env.NODE_ENV === "production";
 var isServerless = Boolean(
   process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
 );
-var isDev = process.env.NODE_ENV === "development" && !isServerless;
+var isDev = !isProduction && !isServerless;
 var logger = pino({
   level: process.env.LOG_LEVEL || "info",
   transport: isDev ? {
@@ -643,12 +644,17 @@ function keyId(kind, provider) {
   return `${kind}:${provider}`;
 }
 async function storeApiKey(kind, provider, value) {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "sk-..." || trimmed === "gsk_...") {
+    await deleteApiKey(kind, provider);
+    return;
+  }
   try {
     const id = keyId(kind, provider);
     const [existing] = await db.select().from(apiKeys).where(eq2(apiKeys.id, id)).limit(1);
     if (existing) {
       await db.update(apiKeys).set({
-        encrypted: encryptSecret(value),
+        encrypted: encryptSecret(trimmed),
         updatedAt: (/* @__PURE__ */ new Date()).toISOString()
       }).where(eq2(apiKeys.id, id));
     } else {
@@ -656,7 +662,7 @@ async function storeApiKey(kind, provider, value) {
         id,
         kind,
         provider,
-        encrypted: encryptSecret(value),
+        encrypted: encryptSecret(trimmed),
         updatedAt: (/* @__PURE__ */ new Date()).toISOString()
       });
     }
@@ -686,7 +692,13 @@ async function listConfiguredApiKeys() {
     const result = { llm: [], search: [] };
     for (const row of rows) {
       if (row.kind === "llm" || row.kind === "search") {
-        result[row.kind].push(row.provider);
+        try {
+          const decrypted = decryptSecret(row.encrypted);
+          if (decrypted?.trim() && decrypted !== "sk-..." && decrypted !== "gsk_...") {
+            result[row.kind].push(row.provider);
+          }
+        } catch {
+        }
       }
     }
     return result;
@@ -697,8 +709,9 @@ async function listConfiguredApiKeys() {
 
 // server/services/keyResolver.ts
 async function resolveLlmApiKey(provider, requestKey) {
-  if (requestKey) return requestKey;
-  return getApiKey("llm", provider);
+  if (requestKey?.trim()) return requestKey.trim();
+  const stored = await getApiKey("llm", provider);
+  return stored?.trim() ? stored.trim() : null;
 }
 
 // server/services/structured.ts
@@ -1002,6 +1015,14 @@ router3.post(
           message = errObj.message;
         }
       }
+      const provider = req.body?.provider || "provider";
+      if (message.includes("Missing Authentication header") || message.includes("No API key")) {
+        message = `Missing API key for ${provider}. Please enter a valid ${provider.toUpperCase()} API key in Settings.`;
+        statusCode = 400;
+      } else if (message.includes("Upstream idle timeout")) {
+        message = "Upstream provider timed out due to high traffic on free models. Please retry or select another model.";
+        statusCode = 504;
+      }
       logger.error(
         { err: message, statusCode },
         "Failed to process LLM request"
@@ -1017,16 +1038,21 @@ import { Router as Router4 } from "express";
 var router4 = Router4();
 async function fetchModels(url2, authHeader, logName) {
   try {
-    const headers = {};
+    const headers = {
+      "HTTP-Referer": "https://ias.app",
+      "X-Title": "IAS Study Notes Generator"
+    };
     if (authHeader) {
       const key = authHeader.replace(/^Bearer\s+/i, "").trim();
-      headers.Authorization = `Bearer ${key}`;
+      if (key) {
+        headers.Authorization = `Bearer ${key}`;
+      }
     }
     const response = await fetch(url2, { headers });
     if (!response.ok) {
       logger.warn(
         { status: response.status },
-        `${logName} models request failed`
+        `${logName} models request failed with status ${response.status}`
       );
       return {
         status: response.status,
@@ -1043,17 +1069,24 @@ async function fetchModels(url2, authHeader, logName) {
     return { status: 200, body: data };
   } catch (error) {
     const message = typeof error === "object" && error !== null && "message" in error ? String(error.message) : `Failed to fetch models from ${logName}`;
-    logger.error({ err: message }, `Failed to fetch models from ${logName}`);
+    logger.warn({ err: message }, `Failed to fetch models from ${logName}`);
     return {
-      status: 500,
+      status: 502,
       body: { error: message }
     };
   }
 }
 router4.get("/openrouter/models", async (req, res) => {
+  let authHeader = req.headers.authorization;
+  if (!authHeader) {
+    const key = await resolveLlmApiKey("openrouter");
+    if (key) {
+      authHeader = `Bearer ${key}`;
+    }
+  }
   const result = await fetchModels(
     "https://openrouter.ai/api/v1/models",
-    req.headers.authorization,
+    authHeader,
     "OpenRouter"
   );
   if (result.status === 200) {
@@ -1063,9 +1096,16 @@ router4.get("/openrouter/models", async (req, res) => {
   }
 });
 router4.get("/generalcompute/models", async (req, res) => {
+  let authHeader = req.headers.authorization;
+  if (!authHeader) {
+    const key = await resolveLlmApiKey("generalcompute");
+    if (key) {
+      authHeader = `Bearer ${key}`;
+    }
+  }
   const result = await fetchModels(
     "https://api.generalcompute.com/v1/public/models",
-    req.headers.authorization,
+    authHeader,
     "General Compute"
   );
   if (result.status === 200) {

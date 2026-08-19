@@ -17,6 +17,8 @@ export interface SearchHistoryItem {
 	timestamp: number;
 }
 
+export type SettingsTab = "general" | "llm" | "search" | "data" | "security";
+
 const HISTORY_KEY = "ias_search_history_list";
 
 interface WorkspaceCtx {
@@ -28,7 +30,8 @@ interface WorkspaceCtx {
 	newTopicCounter: number;
 	startNewTopic: () => void;
 	isSettingsOpen: boolean;
-	openSettings: () => void;
+	settingsInitialTab: SettingsTab;
+	openSettings: (tab?: SettingsTab) => void;
 	closeSettings: () => void;
 	searchHistory: SearchHistoryItem[];
 	addToSearchHistory: (
@@ -88,6 +91,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
 	const [newTopicCounter, setNewTopicCounter] = useState(0);
 	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+	const [settingsInitialTab, setSettingsInitialTab] =
+		useState<SettingsTab>("general");
 
 	const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>(
 		() => {
@@ -132,7 +137,13 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 		setPendingLoadHistoryItem(null);
 		setNewTopicCounter((c) => c + 1);
 	}, []);
-	const openSettings = useCallback(() => setIsSettingsOpen(true), []);
+	const openSettings = useCallback((tab: SettingsTab = "general") => {
+		setSettingsInitialTab(tab);
+		setIsSettingsOpen(true);
+		if (typeof window !== "undefined" && window.innerWidth < 1024) {
+			setSidebarOpen(false);
+		}
+	}, []);
 	const closeSettings = useCallback(() => setIsSettingsOpen(false), []);
 
 	const addToSearchHistory = useCallback(
@@ -189,6 +200,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 				newTopicCounter,
 				startNewTopic,
 				isSettingsOpen,
+				settingsInitialTab,
 				openSettings,
 				closeSettings,
 				searchHistory,

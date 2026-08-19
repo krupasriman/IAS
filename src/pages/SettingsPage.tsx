@@ -20,7 +20,12 @@ import ModelCombobox, {
 import { LLM_PROVIDERS, SEARCH_PROVIDERS } from "../config/providers";
 import { useSettings } from "../hooks/useSettings";
 import { callLLM } from "../services/llm/client";
+import { DEFAULT_OPENROUTER_MODELS } from "../services/llm/models";
 import type { LLMProvider, SearchProvider } from "../types/settings.types";
+import {
+	getApiKeyPlaceholder,
+	validateApiKeyFormat,
+} from "../utils/apiKeyValidator";
 
 export default function SettingsPage() {
 	const settingsContext = useSettings();
@@ -51,7 +56,38 @@ export default function SettingsPage() {
 	const [saved, setSaved] = useState(false);
 	const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
+	const llmKeyValidation = useMemo(
+		() => validateApiKeyFormat(settings.llm.provider, currentLLMApiKey),
+		[settings.llm.provider, currentLLMApiKey],
+	);
+
+	const searchKeyValidation = useMemo(
+		() =>
+			currentSearch.requiredKey
+				? validateApiKeyFormat(settings.search.provider, currentSearchApiKey)
+				: { isValid: true },
+		[currentSearch.requiredKey, settings.search.provider, currentSearchApiKey],
+	);
+
+	const isFormValid =
+		llmKeyValidation.isValid &&
+		(!currentSearch.requiredKey || searchKeyValidation.isValid);
+
 	const handleSave = () => {
+		if (!llmKeyValidation.isValid) {
+			setTestResult({
+				status: "error",
+				message: llmKeyValidation.error || "Invalid LLM API key format",
+			});
+			return;
+		}
+		if (currentSearch.requiredKey && !searchKeyValidation.isValid) {
+			setTestResult({
+				status: "error",
+				message: searchKeyValidation.error || "Invalid Search API key format",
+			});
+			return;
+		}
 		setSaved(true);
 		setTimeout(() => setSaved(false), 2000);
 	};
@@ -182,7 +218,10 @@ export default function SettingsPage() {
 			}));
 		}
 
-		let list = openRouterModels;
+		let list =
+			openRouterModels.length > 0
+				? openRouterModels
+				: DEFAULT_OPENROUTER_MODELS;
 		if (showFreeOnly) {
 			list = list.filter((m) => m.isFree);
 		}
@@ -198,7 +237,7 @@ export default function SettingsPage() {
 		const isCurrentModelInList = formatted.some((m) => m.id === currentModel);
 
 		if (currentModel && !isCurrentModelInList) {
-			const existing = openRouterModels.find((m) => m.id === currentModel);
+			const existing = list.find((m) => m.id === currentModel);
 			formatted.unshift({
 				id: currentModel,
 				name: existing ? existing.name : currentModel,
@@ -222,8 +261,35 @@ export default function SettingsPage() {
 		modelVariant || (settings.llm.model.includes(":free") ? "free" : "default");
 
 	const handleTest = async () => {
+		const key = currentLLMApiKey.trim();
+		if (!key && settings.llm.provider !== "generalcompute") {
+			setTestResult({
+				status: "error",
+				message: `Please enter a ${currentLLM.name} API key before testing connection.`,
+			});
+			return;
+		}
+
+		if (!llmKeyValidation.isValid) {
+			setTestResult({
+				status: "error",
+				message: llmKeyValidation.error || "Invalid API key format.",
+			});
+			return;
+		}
+
 		setTestResult({ status: "testing", message: "Testing connection..." });
 		try {
+			const testConfig = {
+				...settings.llm,
+				provider: settings.llm.provider,
+				apiKeys: {
+					...settings.llm.apiKeys,
+					[settings.llm.provider]: key,
+				},
+				apiKey: key,
+				model: settings.llm.model,
+			};
 			const response = await callLLM(
 				[
 					{
@@ -233,7 +299,7 @@ export default function SettingsPage() {
 					},
 					{ role: "user", content: "Test connection" },
 				],
-				settings.llm,
+				testConfig,
 			);
 			setTestResult({
 				status: "success",
@@ -270,10 +336,13 @@ export default function SettingsPage() {
 					<button
 						type="button"
 						onClick={handleSave}
+						disabled={!isFormValid}
 						className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold text-sm transition-all ${
-							saved
-								? "bg-emerald-500 text-white"
-								: "bg-blue-600 text-white hover:bg-blue-700 shadow-md"
+							!isFormValid
+								? "bg-slate-300 text-slate-500 cursor-not-allowed opacity-60"
+								: saved
+									? "bg-emerald-500 text-white"
+									: "bg-blue-600 text-white hover:bg-blue-700 shadow-md cursor-pointer"
 						}`}
 					>
 						{saved ? (
@@ -312,9 +381,10 @@ export default function SettingsPage() {
 							<select
 								id="llm-provider"
 								value={settings.llm.provider}
-								onChange={(e) =>
-									settingsContext.setLLMProvider(e.target.value as LLMProvider)
-								}
+								onChange={(e) => {
+									settingsContext.setLLMProvider(e.target.value as LLMProvider);
+									setTestResult({ status: "idle", message: "" });
+								}}
 								className={inputClass}
 							>
 								{LLM_PROVIDERS.map((p) => (
@@ -348,6 +418,7 @@ export default function SettingsPage() {
 									options={modelOptions}
 									onChange={(modelId) => {
 										settingsContext.setLLMModel(modelId);
+										setTestResult({ status: "idle", message: "" });
 										// Reset variant when model changes
 										setModelVariant("default");
 									}}
@@ -364,6 +435,7 @@ export default function SettingsPage() {
 											? baseModel + variant.suffix
 											: baseModel;
 										settingsContext.setLLMModel(newModelId);
+										setTestResult({ status: "idle", message: "" });
 									}}
 									currentVariant={currentVariant}
 									placeholder="Select a model..."
@@ -372,7 +444,7 @@ export default function SettingsPage() {
 									loading={openRouterLoading}
 									error={openRouterError}
 									onRefresh={() => refreshOpenRouterModels(true)}
-									totalCount={openRouterModels.length}
+									totalCount={openRouterModels.length || modelOptions.length}
 								/>
 							) : settings.llm.provider === "generalcompute" ? (
 								<ModelCombobox
@@ -380,6 +452,7 @@ export default function SettingsPage() {
 									options={modelOptions}
 									onChange={(modelId) => {
 										settingsContext.setLLMModel(modelId);
+										setTestResult({ status: "idle", message: "" });
 									}}
 									placeholder="Select a model..."
 									loading={generalComputeLoading}
@@ -390,7 +463,10 @@ export default function SettingsPage() {
 							) : (
 								<select
 									value={settings.llm.model}
-									onChange={(e) => settingsContext.setLLMModel(e.target.value)}
+									onChange={(e) => {
+										settingsContext.setLLMModel(e.target.value);
+										setTestResult({ status: "idle", message: "" });
+									}}
 									className={inputClass}
 								>
 									{modelOptions.map((m) => (
@@ -404,23 +480,32 @@ export default function SettingsPage() {
 						</div>
 
 						<div className="sm:col-span-2">
-							<label className={labelClass} htmlFor="llm-api-key">
-								API Key
-							</label>
+							<div className="flex items-center justify-between mb-1.5">
+								<label className={labelClass} htmlFor="llm-api-key">
+									{currentLLM.name} API Key
+								</label>
+							</div>
 							<div className="relative">
 								<Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
 								<input
 									id="llm-api-key"
 									type={showKey ? "text" : "password"}
 									value={currentLLMApiKey}
-									onChange={(e) => settingsContext.setLLMApiKey(e.target.value)}
-									placeholder="sk-..."
-									className={`${inputClass} pl-10 pr-10`}
+									onChange={(e) => {
+										settingsContext.setLLMApiKey(e.target.value);
+										setTestResult({ status: "idle", message: "" });
+									}}
+									placeholder={getApiKeyPlaceholder(settings.llm.provider)}
+									className={`${inputClass} pl-10 pr-10 ${
+										!llmKeyValidation.isValid
+											? "border-red-400 focus:ring-red-500/40 focus:border-red-500"
+											: ""
+									}`}
 								/>
 								<button
 									type="button"
 									onClick={() => setShowKey(!showKey)}
-									className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+									className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
 								>
 									{showKey ? (
 										<EyeOff className="w-4 h-4" />
@@ -429,6 +514,12 @@ export default function SettingsPage() {
 									)}
 								</button>
 							</div>
+							{!llmKeyValidation.isValid && (
+								<p className="text-xs text-red-600 mt-1.5 flex items-center gap-1">
+									<AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+									{llmKeyValidation.error}
+								</p>
+							)}
 						</div>
 
 						<div>
@@ -439,7 +530,10 @@ export default function SettingsPage() {
 								id="llm-base-url"
 								type="text"
 								value={settings.llm.baseUrl}
-								onChange={(e) => settingsContext.setLLMBaseUrl(e.target.value)}
+								onChange={(e) => {
+									settingsContext.setLLMBaseUrl(e.target.value);
+									setTestResult({ status: "idle", message: "" });
+								}}
 								className={inputClass}
 							/>
 						</div>
@@ -475,11 +569,19 @@ export default function SettingsPage() {
 						<button
 							type="button"
 							onClick={handleTest}
-							disabled={!llmConfigured || testResult.status === "testing"}
+							disabled={
+								(!currentLLMApiKey.trim() &&
+									settings.llm.provider !== "generalcompute") ||
+								!llmKeyValidation.isValid ||
+								testResult.status === "testing"
+							}
 							className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-								!llmConfigured
+								(
+									!currentLLMApiKey.trim() &&
+										settings.llm.provider !== "generalcompute"
+								) || !llmKeyValidation.isValid
 									? "bg-slate-100 text-slate-400 cursor-not-allowed"
-									: "bg-slate-900 text-white hover:bg-slate-800"
+									: "bg-slate-900 text-white hover:bg-slate-800 cursor-pointer shadow-sm"
 							}`}
 						>
 							<Sparkles className="w-4 h-4" />
@@ -561,7 +663,7 @@ export default function SettingsPage() {
 						{currentSearch.requiredKey ? (
 							<div>
 								<label className={labelClass} htmlFor="search-api-key">
-									API Key{" "}
+									{currentSearch.name} API Key{" "}
 									{currentSearch.id === "langsearch" ? "(optional)" : ""}
 								</label>
 								<input
@@ -571,11 +673,19 @@ export default function SettingsPage() {
 									onChange={(e) =>
 										settingsContext.setSearchApiKey(e.target.value)
 									}
-									placeholder={
-										currentSearch.requiredKey ? "Required" : "Optional"
-									}
-									className={inputClass}
+									placeholder={getApiKeyPlaceholder(settings.search.provider)}
+									className={`${inputClass} ${
+										!searchKeyValidation.isValid
+											? "border-red-400 focus:ring-red-500/40 focus:border-red-500"
+											: ""
+									}`}
 								/>
+								{!searchKeyValidation.isValid && (
+									<p className="text-xs text-red-600 mt-1.5 flex items-center gap-1">
+										<AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+										{searchKeyValidation.error}
+									</p>
+								)}
 							</div>
 						) : (
 							<div className="flex items-end">

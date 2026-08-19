@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import {
+	DEFAULT_GENERAL_COMPUTE_MODELS,
+	DEFAULT_OPENROUTER_MODELS,
 	fetchGeneralComputeModels,
 	fetchOpenRouterModels,
 	type GeneralComputeModelInfo,
@@ -47,14 +49,20 @@ export function useProviderModels() {
 		setGeneralComputeNonce((n) => n + 1);
 	}, []);
 
+	const openRouterData = openRouterQuery.data;
+	const generalComputeData = generalComputeQuery.data;
+
 	return {
-		openRouterModels: (openRouterQuery.data ?? []) as OpenRouterModelInfo[],
+		openRouterModels: (openRouterData && openRouterData.length > 0
+			? openRouterData
+			: DEFAULT_OPENROUTER_MODELS) as OpenRouterModelInfo[],
 		openRouterLoading: openRouterQuery.isFetching,
 		openRouterError: openRouterQuery.isError
 			? (openRouterQuery.error as Error).message
 			: null,
-		generalComputeModels: (generalComputeQuery.data ??
-			[]) as GeneralComputeModelInfo[],
+		generalComputeModels: (generalComputeData && generalComputeData.length > 0
+			? generalComputeData
+			: DEFAULT_GENERAL_COMPUTE_MODELS) as GeneralComputeModelInfo[],
 		generalComputeLoading: generalComputeQuery.isFetching,
 		generalComputeError: generalComputeQuery.isError
 			? (generalComputeQuery.error as Error).message

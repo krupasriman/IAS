@@ -14,6 +14,11 @@ export async function storeApiKey(
 	provider: string,
 	value: string,
 ): Promise<void> {
+	const trimmed = value.trim();
+	if (!trimmed || trimmed === "sk-..." || trimmed === "gsk_...") {
+		await deleteApiKey(kind, provider);
+		return;
+	}
 	try {
 		const id = keyId(kind, provider);
 		const [existing] = await db
@@ -26,7 +31,7 @@ export async function storeApiKey(
 			await db
 				.update(apiKeys)
 				.set({
-					encrypted: encryptSecret(value),
+					encrypted: encryptSecret(trimmed),
 					updatedAt: new Date().toISOString(),
 				})
 				.where(eq(apiKeys.id, id));
@@ -35,7 +40,7 @@ export async function storeApiKey(
 				id,
 				kind,
 				provider,
-				encrypted: encryptSecret(value),
+				encrypted: encryptSecret(trimmed),
 				updatedAt: new Date().toISOString(),
 			});
 		}
@@ -100,7 +105,18 @@ export async function listConfiguredApiKeys(): Promise<
 		const result: Record<ApiKeyKind, string[]> = { llm: [], search: [] };
 		for (const row of rows) {
 			if (row.kind === "llm" || row.kind === "search") {
-				result[row.kind].push(row.provider);
+				try {
+					const decrypted = decryptSecret(row.encrypted);
+					if (
+						decrypted?.trim() &&
+						decrypted !== "sk-..." &&
+						decrypted !== "gsk_..."
+					) {
+						result[row.kind].push(row.provider);
+					}
+				} catch {
+					// Invalid decryption, skip
+				}
 			}
 		}
 		return result;

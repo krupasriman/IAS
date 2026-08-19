@@ -1,9 +1,10 @@
 import pino from "pino";
 
+const isProduction = process.env.NODE_ENV === "production";
 const isServerless = Boolean(
 	process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME,
 );
-const isDev = process.env.NODE_ENV === "development" && !isServerless;
+const isDev = !isProduction && !isServerless;
 
 export const logger = pino({
 	level: process.env.LOG_LEVEL || "info",

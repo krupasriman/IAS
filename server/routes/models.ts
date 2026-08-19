@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { logger } from "../../src/utils/logger";
+import { resolveLlmApiKey } from "../services/keyResolver";
 import { sendError } from "../utils/errors";
 
 const router = Router();
@@ -15,16 +16,21 @@ async function fetchModels(
 	logName: string,
 ): Promise<{ status: number; body: ModelsApiResponse }> {
 	try {
-		const headers: Record<string, string> = {};
+		const headers: Record<string, string> = {
+			"HTTP-Referer": "https://ias.app",
+			"X-Title": "IAS Study Notes Generator",
+		};
 		if (authHeader) {
 			const key = authHeader.replace(/^Bearer\s+/i, "").trim();
-			headers.Authorization = `Bearer ${key}`;
+			if (key) {
+				headers.Authorization = `Bearer ${key}`;
+			}
 		}
 		const response = await fetch(url, { headers });
 		if (!response.ok) {
 			logger.warn(
 				{ status: response.status },
-				`${logName} models request failed`,
+				`${logName} models request failed with status ${response.status}`,
 			);
 			return {
 				status: response.status,
@@ -44,18 +50,25 @@ async function fetchModels(
 			typeof error === "object" && error !== null && "message" in error
 				? String((error as { message: unknown }).message)
 				: `Failed to fetch models from ${logName}`;
-		logger.error({ err: message }, `Failed to fetch models from ${logName}`);
+		logger.warn({ err: message }, `Failed to fetch models from ${logName}`);
 		return {
-			status: 500,
+			status: 502,
 			body: { error: message },
 		};
 	}
 }
 
 router.get("/openrouter/models", async (req, res) => {
+	let authHeader = req.headers.authorization;
+	if (!authHeader) {
+		const key = await resolveLlmApiKey("openrouter");
+		if (key) {
+			authHeader = `Bearer ${key}`;
+		}
+	}
 	const result = await fetchModels(
 		"https://openrouter.ai/api/v1/models",
-		req.headers.authorization,
+		authHeader,
 		"OpenRouter",
 	);
 	if (result.status === 200) {
@@ -66,9 +79,16 @@ router.get("/openrouter/models", async (req, res) => {
 });
 
 router.get("/generalcompute/models", async (req, res) => {
+	let authHeader = req.headers.authorization;
+	if (!authHeader) {
+		const key = await resolveLlmApiKey("generalcompute");
+		if (key) {
+			authHeader = `Bearer ${key}`;
+		}
+	}
 	const result = await fetchModels(
 		"https://api.generalcompute.com/v1/public/models",
-		req.headers.authorization,
+		authHeader,
 		"General Compute",
 	);
 	if (result.status === 200) {

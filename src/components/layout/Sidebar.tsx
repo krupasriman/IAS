@@ -242,7 +242,7 @@ export default function Sidebar({ collapsed }: SidebarProps) {
 
 					<button
 						type="button"
-						onClick={openSettings}
+						onClick={() => openSettings()}
 						className="p-2 rounded-xl hover:bg-[var(--surface-2)] transition-colors text-[var(--muted)] hover:text-[var(--text)] cursor-pointer"
 						title="Open Settings"
 					>

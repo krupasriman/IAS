@@ -24,6 +24,142 @@ const CACHE_TTL = 1000 * 60 * 60; // 1 hour
 
 const GENERAL_COMPUTE_CACHE_KEY = "ias_generalcompute_models_cache";
 
+export const DEFAULT_OPENROUTER_MODELS: OpenRouterModelInfo[] = [
+	{
+		id: "meta-llama/llama-3.3-70b-instruct:free",
+		name: "Meta: Llama 3.3 70B Instruct (free)",
+		contextLength: 131072,
+		isFree: true,
+		description: "Meta flagship open-weight 70B model. Free on OpenRouter.",
+	},
+	{
+		id: "meta-llama/llama-3.1-8b-instruct:free",
+		name: "Meta: Llama 3.1 8B Instruct (free)",
+		contextLength: 131072,
+		isFree: true,
+		description: "Fast 8B parameter model from Meta. Free on OpenRouter.",
+	},
+	{
+		id: "meta-llama/llama-3.1-70b-instruct:free",
+		name: "Meta: Llama 3.1 70B Instruct (free)",
+		contextLength: 131072,
+		isFree: true,
+		description:
+			"High-capability 70B parameter model from Meta. Free on OpenRouter.",
+	},
+	{
+		id: "meta-llama/llama-3.1-405b-instruct:free",
+		name: "Meta: Llama 3.1 405B Instruct (free)",
+		contextLength: 131072,
+		isFree: true,
+		description: "Flagship 405B parameter model from Meta. Free on OpenRouter.",
+	},
+	{
+		id: "google/gemini-2.0-flash-exp:free",
+		name: "Google: Gemini 2.0 Flash Experimental (free)",
+		contextLength: 1048576,
+		isFree: true,
+		description:
+			"Google Gemini 2.0 Flash with 1M context window. Free on OpenRouter.",
+	},
+	{
+		id: "google/gemini-2.0-flash-thinking-exp:free",
+		name: "Google: Gemini 2.0 Flash Thinking (free)",
+		contextLength: 32768,
+		isFree: true,
+		description:
+			"Gemini 2.0 reasoning model with chain of thought. Free on OpenRouter.",
+	},
+	{
+		id: "deepseek/deepseek-r1:free",
+		name: "DeepSeek: DeepSeek R1 (free)",
+		contextLength: 64000,
+		isFree: true,
+		description:
+			"DeepSeek R1 reasoning model with chain of thought. Free on OpenRouter.",
+	},
+	{
+		id: "deepseek/deepseek-chat:free",
+		name: "DeepSeek: DeepSeek V3 (free)",
+		contextLength: 64000,
+		isFree: true,
+		description:
+			"DeepSeek V3 671B MoE conversational model. Free on OpenRouter.",
+	},
+	{
+		id: "qwen/qwen-2.5-72b-instruct:free",
+		name: "Qwen: Qwen 2.5 72B Instruct (free)",
+		contextLength: 32768,
+		isFree: true,
+		description:
+			"High performance 72B open model by Alibaba. Free on OpenRouter.",
+	},
+	{
+		id: "qwen/qwen-2.5-7b-instruct:free",
+		name: "Qwen: Qwen 2.5 7B Instruct (free)",
+		contextLength: 32768,
+		isFree: true,
+		description: "Fast 7B open model by Alibaba. Free on OpenRouter.",
+	},
+	{
+		id: "mistralai/mistral-7b-instruct:free",
+		name: "Mistral: Mistral 7B Instruct (free)",
+		contextLength: 32768,
+		isFree: true,
+		description: "Fast and instruction-tuned 7B model. Free on OpenRouter.",
+	},
+	{
+		id: "google/gemma-2-9b-it:free",
+		name: "Google: Gemma 2 9B (free)",
+		contextLength: 8192,
+		isFree: true,
+		description:
+			"High performance lightweight 9B model from Google. Free on OpenRouter.",
+	},
+	{
+		id: "openai/gpt-4o",
+		name: "OpenAI: GPT-4o",
+		contextLength: 128000,
+		isFree: false,
+		description: "OpenAI flagship multimodal intelligence model.",
+	},
+	{
+		id: "openai/gpt-4o-mini",
+		name: "OpenAI: GPT-4o-mini",
+		contextLength: 128000,
+		isFree: false,
+		description: "Fast, affordable small model for everyday tasks.",
+	},
+	{
+		id: "anthropic/claude-3.5-sonnet",
+		name: "Anthropic: Claude 3.5 Sonnet",
+		contextLength: 200000,
+		isFree: false,
+		description: "Industry-leading reasoning, coding, and comprehension.",
+	},
+	{
+		id: "anthropic/claude-3.5-haiku",
+		name: "Anthropic: Claude 3.5 Haiku",
+		contextLength: 200000,
+		isFree: false,
+		description: "Ultra-fast, cost-effective reasoning from Anthropic.",
+	},
+	{
+		id: "meta-llama/llama-3.3-70b-instruct",
+		name: "Meta: Llama 3.3 70B Instruct",
+		contextLength: 131072,
+		isFree: false,
+		description: "Meta's flagship 70B model with high throughput.",
+	},
+	{
+		id: "deepseek/deepseek-r1",
+		name: "DeepSeek: DeepSeek R1",
+		contextLength: 64000,
+		isFree: false,
+		description: "DeepSeek R1 reasoning model with high speed and reliability.",
+	},
+];
+
 export async function fetchOpenRouterModels(
 	apiKey?: string,
 	forceRefresh = false,
@@ -36,7 +172,7 @@ export async function fetchOpenRouterModels(
 				if (
 					Date.now() - timestamp < CACHE_TTL &&
 					Array.isArray(data) &&
-					data.length > 0
+					data.length >= 5
 				) {
 					return data;
 				}
@@ -46,31 +182,70 @@ export async function fetchOpenRouterModels(
 		}
 	}
 
-	const url = "https://openrouter.ai/api/v1/models";
-	const headers: Record<string, string> = {};
+	const headers: Record<string, string> = {
+		"HTTP-Referer":
+			typeof window !== "undefined"
+				? window.location.origin
+				: "https://ias.app",
+		"X-Title": "IAS Study Notes Generator",
+	};
 	if (apiKey?.trim()) {
 		headers.Authorization = `Bearer ${apiKey.trim()}`;
 	}
 
-	const res = await fetch(url, { headers });
-	if (!res.ok) {
+	let res: Response | null = null;
+
+	// 1. Try direct OpenRouter API (public endpoint)
+	try {
+		res = await fetch("https://openrouter.ai/api/v1/models", { headers });
+		// If 401/403 because of invalid key, retry without Authorization header
+		if (res && (res.status === 401 || res.status === 403)) {
+			res = await fetch("https://openrouter.ai/api/v1/models", {
+				headers: {
+					"HTTP-Referer": headers["HTTP-Referer"],
+					"X-Title": headers["X-Title"],
+				},
+			});
+		}
+	} catch {
+		// Network or CORS issue, fall back to backend proxy
+	}
+
+	// 2. Fallback to backend proxy (/api/openrouter/models)
+	if (!res?.ok) {
+		try {
+			res = await fetch("/api/openrouter/models", { headers });
+			if (res && (res.status === 401 || res.status === 403)) {
+				res = await fetch("/api/openrouter/models");
+			}
+		} catch {
+			// Proxy request failed
+		}
+	}
+
+	// 3. Fallback to cached or default models if network/502/endpoint errors occur
+	if (!res?.ok) {
 		try {
 			const cached = localStorage.getItem(CACHE_KEY);
 			if (cached) {
 				const { data } = JSON.parse(cached);
-				if (Array.isArray(data) && data.length > 0) {
+				if (Array.isArray(data) && data.length >= 5) {
 					return data;
 				}
 			}
 		} catch {
 			// Ignore fallback cache errors
 		}
-		throw new Error(
-			`Failed to fetch OpenRouter models (${res.status} ${res.statusText})`,
-		);
+		return DEFAULT_OPENROUTER_MODELS;
 	}
 
-	const data = await res.json();
+	let data: Record<string, unknown> | null = null;
+	try {
+		data = (await res.json()) as Record<string, unknown>;
+	} catch {
+		return DEFAULT_OPENROUTER_MODELS;
+	}
+
 	const rawList = Array.isArray(data?.data) ? data.data : [];
 
 	const models: OpenRouterModelInfo[] = rawList
@@ -92,28 +267,34 @@ export async function fetchOpenRouterModels(
 			const completionCost = Number(pricing.completion ?? 0);
 			const requestCost = Number(pricing.request ?? 0);
 			const imageCost = Number(pricing.image ?? 0);
+			const modelId = String(raw.id);
 			const isFree =
-				promptCost === 0 &&
-				completionCost === 0 &&
-				requestCost === 0 &&
-				imageCost === 0;
+				modelId.endsWith(":free") ||
+				(promptCost === 0 &&
+					completionCost === 0 &&
+					requestCost === 0 &&
+					imageCost === 0);
 
 			return {
-				id: String(raw.id),
+				id: modelId,
 				name:
 					typeof raw.name === "string"
 						? raw.name
-						: (raw.name as unknown as string) || String(raw.id),
+						: (raw.name as unknown as string) || modelId,
 				contextLength: Number(raw.context_length ?? 0),
 				isFree,
 				description: typeof raw.description === "string" ? raw.description : "",
-				created: raw.created,
+				created: typeof raw.created === "number" ? raw.created : undefined,
 			};
 		})
 		.sort(
 			(a: OpenRouterModelInfo, b: OpenRouterModelInfo) =>
 				Number(b.isFree) - Number(a.isFree) || a.name.localeCompare(b.name),
 		);
+
+	if (models.length === 0) {
+		return DEFAULT_OPENROUTER_MODELS;
+	}
 
 	try {
 		localStorage.setItem(

@@ -87,6 +87,20 @@ router.post(
 				}
 			}
 
+			const provider =
+				(req.body as Partial<LLMRequest>)?.provider || "provider";
+			if (
+				message.includes("Missing Authentication header") ||
+				message.includes("No API key")
+			) {
+				message = `Missing API key for ${provider}. Please enter a valid ${provider.toUpperCase()} API key in Settings.`;
+				statusCode = 400;
+			} else if (message.includes("Upstream idle timeout")) {
+				message =
+					"Upstream provider timed out due to high traffic on free models. Please retry or select another model.";
+				statusCode = 504;
+			}
+
 			logger.error(
 				{ err: message, statusCode },
 				"Failed to process LLM request",

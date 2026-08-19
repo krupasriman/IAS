@@ -65,9 +65,17 @@ function migrate(parsed: Record<string, unknown>): AppSettings {
 	const llmKeys = (llm.apiKeys ?? {}) as Record<string, unknown>;
 	const searchKeys = (search.apiKeys ?? {}) as Record<string, unknown>;
 
-	// Clean out any previously saved default/leaked GC keys
+	// Clean out any previously saved default/placeholder keys
 	if (llmKeys.generalcompute === "gc_z8JDf42M5wo1KZ0-xkaZ3zEhxnR-RP1I") {
 		llmKeys.generalcompute = "";
+	}
+	for (const [k, v] of Object.entries(llmKeys)) {
+		if (
+			typeof v === "string" &&
+			(v === "sk-..." || v === "gsk_..." || v.trim() === "")
+		) {
+			llmKeys[k] = "";
+		}
 	}
 
 	llm.apiKeys = { ...EMPTY_LLM_KEYS, ...llmKeys };
@@ -80,11 +88,13 @@ interface SettingsState {
 
 	setLLMProvider: (provider: LLMProvider) => void;
 	setLLMApiKey: (key: string) => void;
+	setLLMApiKeyForProvider: (provider: LLMProvider, key: string) => void;
 	setLLMModel: (model: string) => void;
 	setLLMBaseUrl: (url: string) => void;
 	setTemperature: (temp: number) => void;
 	setSearchProvider: (provider: SearchProvider) => void;
 	setSearchApiKey: (key: string) => void;
+	setSearchApiKeyForProvider: (provider: SearchProvider, key: string) => void;
 	setMaxResults: (n: number) => void;
 	setTheme: (theme: AppSettings["theme"]) => void;
 	setAutoSaveWebNotes: (val: boolean) => void;
@@ -152,17 +162,22 @@ export const useSettingsStore = create<SettingsState>()(
 
 			setLLMApiKey: (key) => {
 				const provider = get().settings.llm.provider;
+				get().setLLMApiKeyForProvider(provider, key);
+			},
+
+			setLLMApiKeyForProvider: (provider, key) => {
+				const trimmed = key.trim();
 				set((state) => ({
 					settings: {
 						...state.settings,
 						llm: {
 							...state.settings.llm,
-							apiKeys: { ...state.settings.llm.apiKeys, [provider]: key },
+							apiKeys: { ...state.settings.llm.apiKeys, [provider]: trimmed },
 						},
 					},
 				}));
-				if (key) {
-					storeServerApiKey("llm", provider, key).catch(() => {
+				if (trimmed) {
+					storeServerApiKey("llm", provider, trimmed).catch(() => {
 						// ignore sync failures; local key remains usable
 					});
 				}
@@ -213,17 +228,25 @@ export const useSettingsStore = create<SettingsState>()(
 
 			setSearchApiKey: (key) => {
 				const provider = get().settings.search.provider;
+				get().setSearchApiKeyForProvider(provider, key);
+			},
+
+			setSearchApiKeyForProvider: (provider, key) => {
+				const trimmed = key.trim();
 				set((state) => ({
 					settings: {
 						...state.settings,
 						search: {
 							...state.settings.search,
-							apiKeys: { ...state.settings.search.apiKeys, [provider]: key },
+							apiKeys: {
+								...state.settings.search.apiKeys,
+								[provider]: trimmed,
+							},
 						},
 					},
 				}));
-				if (key) {
-					storeServerApiKey("search", provider, key).catch(() => {
+				if (trimmed) {
+					storeServerApiKey("search", provider, trimmed).catch(() => {
 						// ignore sync failures; local key remains usable
 					});
 				}

@@ -13,7 +13,10 @@ const isBrowser = typeof window !== "undefined";
 const PROXY_URL = "/api/llm";
 const GENERATE_URL = "/api/generate";
 
-function getApiKey(settings: LLMSettings): string {
+function getApiKey(settings: LLMSettings & { apiKey?: string }): string {
+	if (typeof settings.apiKey === "string" && settings.apiKey.trim()) {
+		return settings.apiKey.trim();
+	}
 	return (settings.apiKeys?.[settings.provider] || "").trim();
 }
 
