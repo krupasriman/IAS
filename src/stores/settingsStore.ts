@@ -16,7 +16,7 @@ const STORAGE_KEY = "ias_settings";
 const EMPTY_LLM_KEYS: Record<LLMProvider, string> = {
 	openrouter: "",
 	groq: "",
-	generalcompute: "gc_z8JDf42M5wo1KZ0-xkaZ3zEhxnR-RP1I",
+	generalcompute: "",
 };
 
 const EMPTY_SEARCH_KEYS: Record<SearchProvider, string> = {
@@ -64,6 +64,12 @@ function migrate(parsed: Record<string, unknown>): AppSettings {
 	}
 	const llmKeys = (llm.apiKeys ?? {}) as Record<string, unknown>;
 	const searchKeys = (search.apiKeys ?? {}) as Record<string, unknown>;
+
+	// Clean out any previously saved default/leaked GC keys
+	if (llmKeys.generalcompute === "gc_z8JDf42M5wo1KZ0-xkaZ3zEhxnR-RP1I") {
+		llmKeys.generalcompute = "";
+	}
+
 	llm.apiKeys = { ...EMPTY_LLM_KEYS, ...llmKeys };
 	search.apiKeys = { ...EMPTY_SEARCH_KEYS, ...searchKeys };
 	return parsed as unknown as AppSettings;
