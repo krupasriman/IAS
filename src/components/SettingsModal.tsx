@@ -8,14 +8,13 @@ import {
 	EyeOff,
 	Globe,
 	Moon,
-	Save,
 	Search,
 	Settings,
 	Shield,
 	Sun,
 	X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ModelCombobox, {
 	type ModelOption,
 	type ModelVariant,
@@ -66,30 +65,16 @@ export default function SettingsModal({
 	const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
 	const [searchFilter, setSearchFilter] = useState("");
 	const [showKey, setShowKey] = useState(false);
-
-	// ── Draft State (Edits are kept locally until manual Save) ──
-	const [draftDark, setDraftDark] = useState<boolean>(dark);
-	const [draftLLMProvider, setDraftLLMProvider] = useState<LLMProvider>(
-		settings.llm.provider,
-	);
-	const [draftLLMApiKeys, setDraftLLMApiKeys] = useState<
-		Record<LLMProvider, string>
-	>({ ...settings.llm.apiKeys });
-	const [draftLLMModel, setDraftLLMModel] = useState<string>(
-		settings.llm.model,
-	);
-	const [draftModelVariant, setDraftModelVariant] = useState<string>("default");
-	const [draftSearchProvider, setDraftSearchProvider] =
-		useState<SearchProvider>(settings.search.provider);
-	const [draftSearchApiKeys, setDraftSearchApiKeys] = useState<
-		Record<SearchProvider, string>
-	>({ ...settings.search.apiKeys });
-	const [draftMaxResults, setDraftMaxResults] = useState<number>(
-		settings.search.maxResults ?? 8,
-	);
+	const [modelVariant, setModelVariant] = useState<string>("default");
 
 	const [saved, setSaved] = useState(false);
-	const [saveNotification, setSaveNotification] = useState<string | null>(null);
+	const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	const triggerSaved = useCallback(() => {
+		setSaved(true);
+		if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+		saveTimerRef.current = setTimeout(() => setSaved(false), 2000);
+	}, []);
 
 	const [testResult, setTestResult] = useState<{
 		status: "idle" | "testing" | "success" | "error";
@@ -101,85 +86,30 @@ export default function SettingsModal({
 
 	const [showFreeOnly, setShowFreeOnly] = useState(false);
 
-	// Sync draft and active tab with store when modal opens
+	// Sync active tab when modal opens
 	useEffect(() => {
 		if (isOpen) {
 			setActiveTab(initialTab);
-			setDraftDark(dark);
-			setDraftLLMProvider(settings.llm.provider);
-			setDraftLLMApiKeys({ ...settings.llm.apiKeys });
-			setDraftLLMModel(settings.llm.model);
-			setDraftSearchProvider(settings.search.provider);
-			setDraftSearchApiKeys({ ...settings.search.apiKeys });
-			setDraftMaxResults(settings.search.maxResults ?? 8);
-			setSaved(false);
-			setSaveNotification(null);
 			setTestResult({ status: "idle", message: "" });
 		}
-	}, [isOpen, initialTab, settings, dark]);
+	}, [isOpen, initialTab]);
 
-	// Check for unsaved modifications
-	const isDirty = useMemo(() => {
-		if (draftDark !== dark) return true;
-		if (draftLLMProvider !== settings.llm.provider) return true;
-		if (draftLLMModel !== settings.llm.model) return true;
-		if (draftSearchProvider !== settings.search.provider) return true;
-		if (draftMaxResults !== (settings.search.maxResults ?? 8)) return true;
-		if (
-			(draftLLMApiKeys[draftLLMProvider] || "") !==
-			(settings.llm.apiKeys[draftLLMProvider] || "")
-		)
-			return true;
-		if (
-			(draftSearchApiKeys[draftSearchProvider] || "") !==
-			(settings.search.apiKeys[draftSearchProvider] || "")
-		)
-			return true;
-		return false;
-	}, [
-		draftDark,
-		dark,
-		draftLLMProvider,
-		settings.llm.provider,
-		draftLLMModel,
-		settings.llm.model,
-		draftSearchProvider,
-		settings.search.provider,
-		draftMaxResults,
-		settings.search.maxResults,
-		draftLLMApiKeys,
-		settings.llm.apiKeys,
-		draftSearchApiKeys,
-		settings.search.apiKeys,
-	]);
-
-	// Close attempt interceptor (blocked if unsaved changes exist)
-	const handleAttemptClose = () => {
-		if (isDirty) {
-			return;
-		}
-		onClose();
-	};
-
-	// Close on Escape key (blocked if unsaved changes exist)
+	// Close on Escape key
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (e.key === "Escape" && isOpen) {
-				if (isDirty) {
-					e.preventDefault();
-					return;
-				}
 				onClose();
 			}
 		};
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [isOpen, onClose, isDirty]);
+	}, [isOpen, onClose]);
 
 	const currentLLM =
-		LLM_PROVIDERS.find((p) => p.id === draftLLMProvider) ?? LLM_PROVIDERS[0];
+		LLM_PROVIDERS.find((p) => p.id === settings.llm.provider) ??
+		LLM_PROVIDERS[0];
 	const currentSearch =
-		SEARCH_PROVIDERS.find((p) => p.id === draftSearchProvider) ??
+		SEARCH_PROVIDERS.find((p) => p.id === settings.search.provider) ??
 		SEARCH_PROVIDERS[0];
 
 	// Model variant mappings
@@ -218,7 +148,7 @@ export default function SettingsModal({
 	);
 
 	const modelOptions: ModelOption[] = useMemo(() => {
-		if (draftLLMProvider === "generalcompute") {
+		if (settings.llm.provider === "generalcompute") {
 			const list =
 				generalComputeModels.length > 0
 					? generalComputeModels
@@ -233,7 +163,7 @@ export default function SettingsModal({
 				isFree: m.isFree || false,
 			}));
 		}
-		if (draftLLMProvider !== "openrouter") {
+		if (settings.llm.provider !== "openrouter") {
 			return (currentLLM.models || []).map((id) => ({
 				id,
 				name: id,
@@ -258,7 +188,7 @@ export default function SettingsModal({
 			variants: modelVariants[m.id] || undefined,
 		}));
 
-		const currentModel = draftLLMModel;
+		const currentModel = settings.llm.model;
 		const isCurrentModelInList = formatted.some((m) => m.id === currentModel);
 
 		if (currentModel && !isCurrentModelInList) {
@@ -273,8 +203,8 @@ export default function SettingsModal({
 
 		return formatted;
 	}, [
-		draftLLMProvider,
-		draftLLMModel,
+		settings.llm.provider,
+		settings.llm.model,
 		openRouterModels,
 		generalComputeModels,
 		showFreeOnly,
@@ -283,31 +213,28 @@ export default function SettingsModal({
 	]);
 
 	const currentVariant =
-		draftModelVariant || (draftLLMModel.includes(":free") ? "free" : "default");
+		modelVariant || (settings.llm.model.includes(":free") ? "free" : "default");
+
+	const currentLLMApiKey = settings.llm.apiKeys[settings.llm.provider] || "";
+	const currentSearchApiKey =
+		settings.search.apiKeys[settings.search.provider] || "";
 
 	const llmKeyValidation = useMemo(
-		() =>
-			validateApiKeyFormat(
-				draftLLMProvider,
-				draftLLMApiKeys[draftLLMProvider] || "",
-			),
-		[draftLLMProvider, draftLLMApiKeys],
+		() => validateApiKeyFormat(settings.llm.provider, currentLLMApiKey),
+		[settings.llm.provider, currentLLMApiKey],
 	);
 
 	const searchKeyValidation = useMemo(
 		() =>
 			currentSearch.requiredKey
-				? validateApiKeyFormat(
-						draftSearchProvider,
-						draftSearchApiKeys[draftSearchProvider] || "",
-					)
+				? validateApiKeyFormat(settings.search.provider, currentSearchApiKey)
 				: { isValid: true },
-		[currentSearch.requiredKey, draftSearchProvider, draftSearchApiKeys],
+		[currentSearch.requiredKey, settings.search.provider, currentSearchApiKey],
 	);
 
 	const handleTest = async () => {
-		const key = (draftLLMApiKeys[draftLLMProvider] || "").trim();
-		if (!key && draftLLMProvider !== "generalcompute") {
+		const key = currentLLMApiKey.trim();
+		if (!key && settings.llm.provider !== "generalcompute") {
 			setTestResult({
 				status: "error",
 				message: `Please enter a ${currentLLM.name} API key before testing connection.`,
@@ -327,13 +254,7 @@ export default function SettingsModal({
 		try {
 			const testConfig = {
 				...settings.llm,
-				provider: draftLLMProvider,
-				apiKeys: {
-					...draftLLMApiKeys,
-					[draftLLMProvider]: key,
-				},
 				apiKey: key,
-				model: draftLLMModel,
 			};
 			const response = await callLLM(
 				[
@@ -361,57 +282,6 @@ export default function SettingsModal({
 		}
 	};
 
-	// Explicit manual save handler
-	const handleSave = () => {
-		if (!llmKeyValidation.isValid) {
-			setTestResult({
-				status: "error",
-				message: llmKeyValidation.error || "Invalid LLM API key format",
-			});
-			return;
-		}
-		if (currentSearch.requiredKey && !searchKeyValidation.isValid) {
-			setTestResult({
-				status: "error",
-				message: searchKeyValidation.error || "Invalid Search API key format",
-			});
-			return;
-		}
-
-		if (draftDark !== dark) {
-			toggleDark();
-		}
-		if (draftLLMProvider !== settings.llm.provider) {
-			setLLMProvider(draftLLMProvider);
-		}
-		for (const [p, k] of Object.entries(draftLLMApiKeys)) {
-			if (k !== (settings.llm.apiKeys[p as LLMProvider] || "")) {
-				setLLMApiKeyForProvider(p as LLMProvider, k);
-			}
-		}
-		if (draftLLMModel !== settings.llm.model) {
-			setLLMModel(draftLLMModel);
-		}
-		if (draftSearchProvider !== settings.search.provider) {
-			setSearchProvider(draftSearchProvider);
-		}
-		for (const [p, k] of Object.entries(draftSearchApiKeys)) {
-			if (k !== (settings.search.apiKeys[p as SearchProvider] || "")) {
-				setSearchApiKeyForProvider(p as SearchProvider, k);
-			}
-		}
-		if (draftMaxResults !== (settings.search.maxResults ?? 8)) {
-			setMaxResults(draftMaxResults);
-		}
-
-		setSaved(true);
-		setSaveNotification("Settings saved successfully!");
-		setTimeout(() => {
-			setSaved(false);
-			setSaveNotification(null);
-		}, 3500);
-	};
-
 	if (!isOpen) return null;
 
 	const tabs: { id: SettingsTab; label: string; icon: typeof Settings }[] = [
@@ -431,7 +301,7 @@ export default function SettingsModal({
 			{/* Backdrop */}
 			<div
 				className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-				onClick={handleAttemptClose}
+				onClick={onClose}
 				aria-hidden="true"
 			/>
 
@@ -449,13 +319,9 @@ export default function SettingsModal({
 					<div className="flex items-center justify-between mb-4">
 						<button
 							type="button"
-							onClick={handleAttemptClose}
+							onClick={onClose}
 							className="w-8 h-8 rounded-xl hover:bg-[var(--surface-2)] flex items-center justify-center text-[var(--muted)] hover:text-[var(--text)] transition-colors cursor-pointer border border-[var(--border)]"
-							title={
-								isDirty
-									? "Save or discard changes before closing"
-									: "Close settings"
-							}
+							title="Close settings"
 						>
 							<X className="w-4 h-4" />
 						</button>
@@ -502,48 +368,26 @@ export default function SettingsModal({
 						})}
 					</nav>
 
-					{/* Manual Save Button */}
+					{/* Bottom Actions */}
 					<div className="pt-3 border-t border-[var(--border)] flex flex-col gap-1.5">
 						<button
 							type="button"
-							onClick={handleSave}
-							disabled={
-								!llmKeyValidation.isValid ||
-								(currentSearch.requiredKey && !searchKeyValidation.isValid)
-							}
-							className={`w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold shadow-sm transition-all ${
-								!llmKeyValidation.isValid ||
-								(currentSearch.requiredKey && !searchKeyValidation.isValid)
-									? "bg-[var(--surface-2)] text-[var(--muted)] opacity-50 cursor-not-allowed"
-									: isDirty
-										? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md cursor-pointer"
-										: saved
-											? "bg-emerald-600 text-white cursor-pointer"
-											: "bg-[var(--surface-2)] text-[var(--text-2)] hover:bg-[var(--surface-3)] cursor-pointer"
-							}`}
+							onClick={onClose}
+							className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold shadow-sm transition-all bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
 						>
-							{saved ? (
-								<CheckCircle2 className="w-3.5 h-3.5 text-white" />
-							) : (
-								<Save className="w-3.5 h-3.5" />
-							)}
-							<span>
-								{saved ? "Saved!" : isDirty ? "Save Changes *" : "Save Changes"}
-							</span>
+							<CheckCircle2 className="w-3.5 h-3.5" />
+							<span>Done</span>
 						</button>
-						{(!llmKeyValidation.isValid ||
-							(currentSearch.requiredKey && !searchKeyValidation.isValid)) && (
+						{saved && (
+							<span className="text-[11px] text-center text-emerald-500 font-medium animate-in fade-in flex items-center justify-center gap-1">
+								<CheckCircle2 className="w-3 h-3" /> All changes auto-saved
+							</span>
+						)}
+						{!llmKeyValidation.isValid && (
 							<span className="text-[10px] text-center text-red-500 font-medium">
 								Fix invalid API key format
 							</span>
 						)}
-						{isDirty &&
-							llmKeyValidation.isValid &&
-							(!currentSearch.requiredKey || searchKeyValidation.isValid) && (
-								<span className="text-[10px] text-center text-amber-600 dark:text-amber-400 font-medium">
-									Unsaved changes pending
-								</span>
-							)}
 					</div>
 				</div>
 
@@ -574,14 +418,6 @@ export default function SettingsModal({
 						</div>
 					</div>
 
-					{/* Save Success Notification */}
-					{saveNotification && (
-						<div className="mx-6 mt-4 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-							<CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-							<span>{saveNotification}</span>
-						</div>
-					)}
-
 					{/* Panel Body */}
 					<div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
 						{/* ── TAB 1: GENERAL ── */}
@@ -600,9 +436,12 @@ export default function SettingsModal({
 									<div className="flex items-center gap-1.5 p-1 rounded-xl bg-[var(--surface-2)] border border-[var(--border)]">
 										<button
 											type="button"
-											onClick={() => setDraftDark(false)}
+											onClick={() => {
+												if (dark) toggleDark();
+												triggerSaved();
+											}}
 											className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-												!draftDark
+												!dark
 													? "bg-[var(--surface)] text-[var(--text)] shadow-sm"
 													: "text-[var(--muted)]"
 											}`}
@@ -612,9 +451,12 @@ export default function SettingsModal({
 										</button>
 										<button
 											type="button"
-											onClick={() => setDraftDark(true)}
+											onClick={() => {
+												if (!dark) toggleDark();
+												triggerSaved();
+											}}
 											className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-												draftDark
+												dark
 													? "bg-[var(--surface)] text-[var(--text)] shadow-sm"
 													: "text-[var(--muted)]"
 											}`}
@@ -669,7 +511,7 @@ export default function SettingsModal({
 										>
 											LLM Provider
 										</label>
-										{isLlmProviderConfigured(draftLLMProvider) && (
+										{isLlmProviderConfigured(settings.llm.provider) && (
 											<span className="flex items-center gap-1 text-xs font-semibold text-emerald-500">
 												<CheckCircle2 className="w-3.5 h-3.5" /> Configured
 											</span>
@@ -677,17 +519,12 @@ export default function SettingsModal({
 									</div>
 									<select
 										id="llm-provider-select"
-										value={draftLLMProvider}
+										value={settings.llm.provider}
 										onChange={(e) => {
 											const prov = e.target.value as LLMProvider;
-											setDraftLLMProvider(prov);
+											setLLMProvider(prov);
 											setTestResult({ status: "idle", message: "" });
-											const provConfig = LLM_PROVIDERS.find(
-												(p) => p.id === prov,
-											);
-											if (provConfig) {
-												setDraftLLMModel(provConfig.defaultModel);
-											}
+											triggerSaved();
 										}}
 										className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3.5 py-2.5 text-sm text-[var(--text)] outline-none"
 									>
@@ -727,16 +564,14 @@ export default function SettingsModal({
 										<input
 											id="llm-api-key"
 											type={showKey ? "text" : "password"}
-											value={draftLLMApiKeys[draftLLMProvider] || ""}
+											value={currentLLMApiKey}
 											onChange={(e) => {
 												const val = e.target.value;
-												setDraftLLMApiKeys((prev) => ({
-													...prev,
-													[draftLLMProvider]: val,
-												}));
+												setLLMApiKeyForProvider(settings.llm.provider, val);
 												setTestResult({ status: "idle", message: "" });
+												triggerSaved();
 											}}
-											placeholder={getApiKeyPlaceholder(draftLLMProvider)}
+											placeholder={getApiKeyPlaceholder(settings.llm.provider)}
 											className={`w-full rounded-xl border bg-[var(--surface)] px-3.5 py-2.5 pr-10 text-sm text-[var(--text)] outline-none font-mono ${
 												!llmKeyValidation.isValid
 													? "border-red-400 focus:ring-2 focus:ring-red-500/40"
@@ -772,7 +607,7 @@ export default function SettingsModal({
 										>
 											Model
 										</label>
-										{draftLLMProvider === "openrouter" && (
+										{settings.llm.provider === "openrouter" && (
 											<label className="flex items-center gap-1.5 text-xs text-[var(--muted)] cursor-pointer">
 												<input
 													type="checkbox"
@@ -786,16 +621,17 @@ export default function SettingsModal({
 									</div>
 
 									<ModelCombobox
-										value={draftLLMModel}
+										value={settings.llm.model}
 										options={modelOptions}
 										onChange={(modelId) => {
-											setDraftLLMModel(modelId);
-											setDraftModelVariant("default");
+											setLLMModel(modelId);
+											setModelVariant("default");
 											setTestResult({ status: "idle", message: "" });
+											triggerSaved();
 										}}
 										onVariantChange={(variantId) => {
-											setDraftModelVariant(variantId);
-											const baseModel = draftLLMModel
+											setModelVariant(variantId);
+											const baseModel = settings.llm.model
 												.replace(/:free$/, "")
 												.replace(/:extended$/, "");
 											const variant = modelVariants[baseModel]?.find(
@@ -804,13 +640,14 @@ export default function SettingsModal({
 											const newModelId = variant
 												? baseModel + variant.suffix
 												: baseModel;
-											setDraftLLMModel(newModelId);
+											setLLMModel(newModelId);
 											setTestResult({ status: "idle", message: "" });
+											triggerSaved();
 										}}
 										currentVariant={currentVariant}
 										placeholder="Select model..."
 										loading={
-											draftLLMProvider === "openrouter"
+											settings.llm.provider === "openrouter"
 												? openRouterLoading
 												: generalComputeLoading
 										}
@@ -824,8 +661,8 @@ export default function SettingsModal({
 										type="button"
 										onClick={handleTest}
 										disabled={
-											(!draftLLMApiKeys[draftLLMProvider]?.trim() &&
-												draftLLMProvider !== "generalcompute") ||
+											(!currentLLMApiKey.trim() &&
+												settings.llm.provider !== "generalcompute") ||
 											!llmKeyValidation.isValid ||
 											testResult.status === "testing"
 										}
@@ -864,7 +701,7 @@ export default function SettingsModal({
 										>
 											Search Engine Provider
 										</label>
-										{isSearchProviderConfigured(draftSearchProvider) && (
+										{isSearchProviderConfigured(settings.search.provider) && (
 											<span className="flex items-center gap-1 text-xs font-semibold text-emerald-500">
 												<CheckCircle2 className="w-3.5 h-3.5" /> Configured
 											</span>
@@ -872,10 +709,11 @@ export default function SettingsModal({
 									</div>
 									<select
 										id="search-provider-select"
-										value={draftSearchProvider}
-										onChange={(e) =>
-											setDraftSearchProvider(e.target.value as SearchProvider)
-										}
+										value={settings.search.provider}
+										onChange={(e) => {
+											setSearchProvider(e.target.value as SearchProvider);
+											triggerSaved();
+										}}
 										className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3.5 py-2.5 text-sm text-[var(--text)] outline-none"
 									>
 										{SEARCH_PROVIDERS.map((p) => (
@@ -912,15 +750,17 @@ export default function SettingsModal({
 										<input
 											id="search-api-key"
 											type="password"
-											value={draftSearchApiKeys[draftSearchProvider] || ""}
+											value={currentSearchApiKey}
 											onChange={(e) => {
-												const val = e.target.value;
-												setDraftSearchApiKeys((prev) => ({
-													...prev,
-													[draftSearchProvider]: val,
-												}));
+												setSearchApiKeyForProvider(
+													settings.search.provider,
+													e.target.value,
+												);
+												triggerSaved();
 											}}
-											placeholder={getApiKeyPlaceholder(draftSearchProvider)}
+											placeholder={getApiKeyPlaceholder(
+												settings.search.provider,
+											)}
 											className={`w-full rounded-xl border bg-[var(--surface)] px-3.5 py-2.5 text-sm text-[var(--text)] outline-none font-mono ${
 												!searchKeyValidation.isValid
 													? "border-red-400 focus:ring-2 focus:ring-red-500/40"
@@ -948,8 +788,11 @@ export default function SettingsModal({
 										type="number"
 										min={3}
 										max={20}
-										value={draftMaxResults}
-										onChange={(e) => setDraftMaxResults(Number(e.target.value))}
+										value={settings.search.maxResults ?? 8}
+										onChange={(e) => {
+											setMaxResults(Number(e.target.value));
+											triggerSaved();
+										}}
 										className="w-32 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)] outline-none"
 									/>
 								</div>

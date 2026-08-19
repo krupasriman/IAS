@@ -37,10 +37,8 @@ describe("apiKeyValidator", () => {
 
 	it("validates Groq keys", () => {
 		expect(
-			validateApiKeyFormat(
-				"groq",
-				"gsk_dummytestkey12345678901234567890abcdef",
-			).isValid,
+			validateApiKeyFormat("groq", "gsk_dummytestkey12345678901234567890abcdef")
+				.isValid,
 		).toBe(true);
 		expect(
 			validateApiKeyFormat(
