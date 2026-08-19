@@ -27,15 +27,41 @@ app.set("trust proxy", 1);
 app.use((req, _res, next) => {
 	const matchedPath =
 		(req.headers["x-vercel-matched-path"] as string) ||
-		(req.headers["x-matched-path"] as string);
+		(req.headers["x-matched-path"] as string) ||
+		(req.headers["x-forwarded-uri"] as string) ||
+		(req.headers["x-original-url"] as string) ||
+		(req.headers["x-rewrite-url"] as string);
+
 	if (
 		matchedPath &&
-		(req.url === "/" || req.url === "/api" || req.url === "/api/")
+		(req.url === "/" ||
+			req.url === "/api" ||
+			req.url === "/api/" ||
+			req.url === "/index" ||
+			req.url === "/api/index")
 	) {
 		const query = req.url.includes("?")
 			? req.url.slice(req.url.indexOf("?"))
 			: "";
-		req.url = matchedPath + query;
+		req.url =
+			(matchedPath.startsWith("/") ? matchedPath : `/${matchedPath}`) + query;
+	} else if (
+		(req.url === "/" ||
+			req.url === "/api" ||
+			req.url === "/api/" ||
+			req.url === "/index" ||
+			req.url === "/api/index") &&
+		req.headers["x-now-route-matches"]
+	) {
+		const routeMatches = req.headers["x-now-route-matches"] as string;
+		const match = routeMatches.match(/1=([^&;]+)/);
+		if (match?.[1]) {
+			const subpath = decodeURIComponent(match[1]);
+			const query = req.url.includes("?")
+				? req.url.slice(req.url.indexOf("?"))
+				: "";
+			req.url = `/api/${subpath}${query}`;
+		}
 	}
 	next();
 });

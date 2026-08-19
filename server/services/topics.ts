@@ -8,7 +8,14 @@ import { logger } from "../../src/utils/logger";
 import { db } from "../db/index";
 import { topics } from "../db/schema";
 
-const require = createRequire(import.meta.url);
+let customRequire: NodeRequire | undefined;
+try {
+	if (typeof import.meta !== "undefined" && import.meta?.url) {
+		customRequire = createRequire(import.meta.url);
+	}
+} catch {
+	// Ignore
+}
 
 interface TopicRow {
 	id: string;
@@ -113,9 +120,11 @@ function getSeedTopics(): Topic[] {
 		// Ignore seed reading errors
 	}
 	try {
-		const required = require("../../public/data/topics.json");
-		if (Array.isArray(required) && required.length > 0) {
-			return required as Topic[];
+		if (customRequire) {
+			const required = customRequire("../../public/data/topics.json");
+			if (Array.isArray(required) && required.length > 0) {
+				return required as Topic[];
+			}
 		}
 	} catch {
 		// Ignore require fallback error

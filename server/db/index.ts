@@ -11,7 +11,9 @@ import * as schema from "./schema";
 
 let customRequire: NodeRequire | undefined;
 try {
-	customRequire = createRequire(import.meta.url);
+	if (typeof import.meta !== "undefined" && import.meta?.url) {
+		customRequire = createRequire(import.meta.url);
+	}
 } catch {
 	// Ignore
 }

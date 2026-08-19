@@ -16,7 +16,7 @@ const STORAGE_KEY = "ias_settings";
 const EMPTY_LLM_KEYS: Record<LLMProvider, string> = {
 	openrouter: "",
 	groq: "",
-	generalcompute: "",
+	generalcompute: "gc_z8JDf42M5wo1KZ0-xkaZ3zEhxnR-RP1I",
 };
 
 const EMPTY_SEARCH_KEYS: Record<SearchProvider, string> = {
@@ -29,10 +29,10 @@ const EMPTY_SEARCH_KEYS: Record<SearchProvider, string> = {
 
 const DEFAULT_SETTINGS: AppSettings = {
 	llm: {
-		provider: "openrouter",
+		provider: "generalcompute",
 		apiKeys: EMPTY_LLM_KEYS,
-		baseUrl: LLM_PROVIDERS[0].defaultBaseUrl,
-		model: LLM_PROVIDERS[0].defaultModel,
+		baseUrl: "https://api.generalcompute.com/v1",
+		model: "gpt-oss-120b",
 		temperature: 0.3,
 	},
 	search: {
