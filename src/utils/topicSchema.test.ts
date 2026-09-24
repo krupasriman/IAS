@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { StructuredTopicSchema } from "./topicSchema";
+import {
+	formatTopicValidationError,
+	StructuredTopicSchema,
+	unwrapTopicPayload,
+} from "./topicSchema";
 
 const validTopic = {
 	title: "Judicial Review",
@@ -132,5 +136,43 @@ describe("StructuredTopicSchema", () => {
 		);
 		const result = StructuredTopicSchema.safeParse({ ...validTopic, pros });
 		expect(result.success).toBe(false);
+	});
+});
+
+describe("unwrapTopicPayload", () => {
+	it("returns flat object directly", () => {
+		expect(unwrapTopicPayload(validTopic)).toBe(validTopic);
+	});
+
+	it("unwraps nested topic key", () => {
+		const wrapped = { topic: validTopic };
+		expect(unwrapTopicPayload(wrapped)).toBe(validTopic);
+	});
+
+	it("unwraps nested data key", () => {
+		const wrapped = { data: validTopic };
+		expect(unwrapTopicPayload(wrapped)).toBe(validTopic);
+	});
+
+	it("unwraps single child wrapper object", () => {
+		const wrapped = { studyNote: validTopic };
+		expect(unwrapTopicPayload(wrapped)).toBe(validTopic);
+	});
+});
+
+describe("formatTopicValidationError", () => {
+	it("formats missing field zod errors into human-readable message", () => {
+		const parseResult = StructuredTopicSchema.safeParse({});
+		expect(parseResult.success).toBe(false);
+		if (!parseResult.success) {
+			const formatted = formatTopicValidationError(parseResult.error);
+			expect(formatted).toMatch(/Missing required fields/i);
+			expect(formatted).not.toContain('"code": "invalid_type"');
+		}
+	});
+
+	it("passes through standard Error messages", () => {
+		const msg = formatTopicValidationError(new Error("Network timeout"));
+		expect(msg).toBe("Network timeout");
 	});
 });

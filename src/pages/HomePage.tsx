@@ -11,7 +11,7 @@ import {
 	Sparkles,
 	X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import GenerationLoadingState from "../components/GenerationLoadingState";
 import QueryBar from "../components/QueryBar";
@@ -86,6 +86,17 @@ export default function HomePage() {
 			addToSearchHistory(query || topic.title, topic, webSearch.searchResults);
 		},
 	});
+
+	const displayError = useMemo(() => {
+		if (!webSearch.error) return "";
+		if (
+			webSearch.error.startsWith("[") &&
+			webSearch.error.includes("invalid_type")
+		) {
+			return "The AI model returned an incomplete response structure. Please try generating again or select another model in Settings.";
+		}
+		return webSearch.error;
+	}, [webSearch.error]);
 
 	const handleToggleWeb = (v: boolean) => {
 		setWebEnabled(v);
@@ -237,11 +248,11 @@ export default function HomePage() {
 			{/* ── Main Canvas Scroll Area ── */}
 			<div className="flex-1 overflow-y-auto min-h-0">
 				{/* Error / Guidance Notification */}
-				{webSearch.error && (
+				{displayError && (
 					<div className="max-w-4xl mx-auto px-4 mt-4 animate-in fade-in slide-in-from-top-2 duration-200">
 						<div
 							className={`flex items-start justify-between gap-3 p-3.5 rounded-2xl text-sm border ${
-								webSearch.error.includes("UPSC")
+								displayError.includes("UPSC")
 									? "border-amber-200 dark:border-amber-900/40 bg-amber-500/10 text-amber-900 dark:text-amber-200"
 									: "border-red-200 dark:border-red-900/40 bg-[var(--danger-bg)] text-[var(--danger)]"
 							}`}
@@ -250,12 +261,12 @@ export default function HomePage() {
 								<AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
 								<div>
 									<p className="font-semibold text-xs uppercase tracking-wide">
-										{webSearch.error.includes("UPSC")
+										{displayError.includes("UPSC")
 											? "Topic Guidance"
 											: "Generation Failed"}
 									</p>
 									<p className="text-xs mt-0.5 opacity-90 leading-relaxed">
-										{webSearch.error}
+										{displayError}
 									</p>
 								</div>
 							</div>

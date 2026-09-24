@@ -12,6 +12,7 @@
 	/* ChatGPT Light palette */
 	--bg: #ffffff;
 	--surface: #ffffff;
+	--surface-1: #ffffff;
 	--surface-sidebar: #f9f9f9;
 	--surface-2: #f3f3f3;
 	--surface-3: #e5e5e5;
@@ -38,6 +39,7 @@ html.dark {
 	/* ChatGPT Dark palette */
 	--bg: #212121;
 	--surface: #212121;
+	--surface-1: #212121;
 	--surface-sidebar: #171717;
 	--surface-2: #2f2f2f;
 	--surface-3: #383838;

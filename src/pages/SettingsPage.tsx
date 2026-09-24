@@ -55,8 +55,6 @@ export default function SettingsPage() {
 
 	const [pendingLlmKey, setPendingLlmKey] = useState("");
 	const [pendingSearchKey, setPendingSearchKey] = useState("");
-	const [isEditingLlmKey, setIsEditingLlmKey] = useState(false);
-	const [isEditingSearchKey, setIsEditingSearchKey] = useState(false);
 	const [keySaving, setKeySaving] = useState(false);
 	const [searchKeySaving, setSearchKeySaving] = useState(false);
 	const [saved, setSaved] = useState(false);
@@ -71,9 +69,6 @@ export default function SettingsPage() {
 	const isSearchVaultConfigured =
 		serverKeys.search.includes(settings.search.provider) ||
 		isSearchProviderConfigured(settings.search.provider);
-
-	const hasSavedLlmKey = isLlmVaultConfigured && !isEditingLlmKey;
-	const hasSavedSearchKey = isSearchVaultConfigured && !isEditingSearchKey;
 
 	const llmKeyValidation = useMemo(() => {
 		if (!pendingLlmKey.trim()) {
@@ -425,7 +420,6 @@ export default function SettingsPage() {
 									const newProvider = e.target.value as LLMProvider;
 									settingsContext.setLLMProvider(newProvider);
 									setPendingLlmKey("");
-									setIsEditingLlmKey(false);
 									setTestResult({ status: "idle", message: "" });
 									const hasKey = serverKeys.llm.includes(newProvider);
 									if (!hasKey) {
@@ -550,21 +544,15 @@ export default function SettingsPage() {
 										type="password"
 										autoComplete="new-password"
 										spellCheck={false}
-										value={hasSavedLlmKey ? "••••••••••••••••" : pendingLlmKey}
-										onFocus={(e) => {
-											if (hasSavedLlmKey) {
-												e.target.select();
-											}
-										}}
+										value={pendingLlmKey}
 										onChange={(e) => {
-											setIsEditingLlmKey(true);
 											const val = e.target.value;
-											setPendingLlmKey(val.replace(/•/g, ""));
+											setPendingLlmKey(val);
 											setTestResult({ status: "idle", message: "" });
 										}}
 										placeholder={
 											isLlmVaultConfigured
-												? "•••••••••••••••• (Encrypted in Server Vault)"
+												? "•••••••••••••••• (Encrypted in Vault — enter new key to replace)"
 												: `Enter ${currentLLM.name} API key (${getApiKeyPlaceholder(settings.llm.provider)})`
 										}
 										className={`${inputClass} pl-10 ${
@@ -604,7 +592,6 @@ export default function SettingsPage() {
 													key,
 												);
 												setPendingLlmKey("");
-												setIsEditingLlmKey(false);
 												setTestResult({
 													status: "success",
 													message: `${currentLLM.name} key encrypted and saved to server vault!`,
@@ -640,7 +627,6 @@ export default function SettingsPage() {
 												settings.llm.provider,
 											).catch(() => {});
 											setPendingLlmKey("");
-											setIsEditingLlmKey(false);
 											setTestResult({ status: "idle", message: "" });
 											setTimeout(() => llmKeyInputRef.current?.focus(), 50);
 										}}
@@ -786,7 +772,6 @@ export default function SettingsPage() {
 									const newProvider = e.target.value as SearchProvider;
 									settingsContext.setSearchProvider(newProvider);
 									setPendingSearchKey("");
-									setIsEditingSearchKey(false);
 									setTestResult({ status: "idle", message: "" });
 									const info = SEARCH_PROVIDERS.find(
 										(p) => p.id === newProvider,
@@ -845,25 +830,15 @@ export default function SettingsPage() {
 											type="password"
 											autoComplete="new-password"
 											spellCheck={false}
-											value={
-												hasSavedSearchKey
-													? "••••••••••••••••"
-													: pendingSearchKey
-											}
-											onFocus={(e) => {
-												if (hasSavedSearchKey) {
-													e.target.select();
-												}
-											}}
+											value={pendingSearchKey}
 											onChange={(e) => {
-												setIsEditingSearchKey(true);
 												const val = e.target.value;
-												setPendingSearchKey(val.replace(/•/g, ""));
+												setPendingSearchKey(val);
 												setTestResult({ status: "idle", message: "" });
 											}}
 											placeholder={
 												isSearchVaultConfigured
-													? "•••••••••••••••• (Encrypted in Server Vault)"
+													? "•••••••••••••••• (Encrypted in Vault — enter new key to replace)"
 													: `Enter ${currentSearch.name} API key (${getApiKeyPlaceholder(settings.search.provider)})`
 											}
 											className={`${inputClass} pl-10 ${
@@ -904,7 +879,6 @@ export default function SettingsPage() {
 														key,
 													);
 													setPendingSearchKey("");
-													setIsEditingSearchKey(false);
 													setTestResult({
 														status: "success",
 														message: `${currentSearch.name} key encrypted and saved to server vault!`,
@@ -941,7 +915,6 @@ export default function SettingsPage() {
 													settings.search.provider,
 												).catch(() => {});
 												setPendingSearchKey("");
-												setIsEditingSearchKey(false);
 												setTestResult({ status: "idle", message: "" });
 												setTimeout(
 													() => searchKeyInputRef.current?.focus(),

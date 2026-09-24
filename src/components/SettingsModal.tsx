@@ -70,8 +70,6 @@ export default function SettingsModal({
 	const [searchFilter, setSearchFilter] = useState("");
 	const [pendingLlmKey, setPendingLlmKey] = useState("");
 	const [pendingSearchKey, setPendingSearchKey] = useState("");
-	const [isEditingLlmKey, setIsEditingLlmKey] = useState(false);
-	const [isEditingSearchKey, setIsEditingSearchKey] = useState(false);
 	const [modalLlmSaving, setModalLlmSaving] = useState(false);
 	const [modalSearchSaving, setModalSearchSaving] = useState(false);
 	const [modelVariant, setModelVariant] = useState<string>("default");
@@ -103,9 +101,7 @@ export default function SettingsModal({
 		if (isOpen) {
 			setActiveTab(initialTab);
 			setTestResult({ status: "idle", message: "" });
-			setIsEditingLlmKey(false);
 			setPendingLlmKey("");
-			setIsEditingSearchKey(false);
 			setPendingSearchKey("");
 		}
 	}, [isOpen, initialTab]);
@@ -237,9 +233,6 @@ export default function SettingsModal({
 	const isSearchVaultConfigured =
 		serverKeys.search.includes(settings.search.provider) ||
 		isSearchProviderConfigured(settings.search.provider);
-
-	const hasSavedLlmKey = isLlmVaultConfigured && !isEditingLlmKey;
-	const hasSavedSearchKey = isSearchVaultConfigured && !isEditingSearchKey;
 
 	const llmKeyValidation = useMemo(() => {
 		if (!pendingLlmKey.trim()) {
@@ -540,7 +533,6 @@ export default function SettingsModal({
 											const prov = e.target.value as LLMProvider;
 											setLLMProvider(prov);
 											setPendingLlmKey("");
-											setIsEditingLlmKey(false);
 											setTestResult({ status: "idle", message: "" });
 											const hasKey =
 												serverKeys.llm.includes(prov) ||
@@ -605,23 +597,15 @@ export default function SettingsModal({
 												type="password"
 												autoComplete="new-password"
 												spellCheck={false}
-												value={
-													hasSavedLlmKey ? "••••••••••••••••" : pendingLlmKey
-												}
-												onFocus={(e) => {
-													if (hasSavedLlmKey) {
-														e.target.select();
-													}
-												}}
+												value={pendingLlmKey}
 												onChange={(e) => {
-													setIsEditingLlmKey(true);
 													const val = e.target.value;
-													setPendingLlmKey(val.replace(/•/g, ""));
+													setPendingLlmKey(val);
 													setTestResult({ status: "idle", message: "" });
 												}}
 												placeholder={
 													isLlmVaultConfigured
-														? "•••••••••••••••• (Encrypted in Server Vault)"
+														? "•••••••••••••••• (Encrypted in Vault — enter new key to replace)"
 														: `Enter ${currentLLM.name} API key (${getApiKeyPlaceholder(settings.llm.provider)})`
 												}
 												className={`w-full rounded-xl border bg-[var(--surface)] px-3.5 py-2.5 text-sm text-[var(--text)] outline-none font-mono ${
@@ -662,7 +646,6 @@ export default function SettingsModal({
 															key,
 														);
 														setPendingLlmKey("");
-														setIsEditingLlmKey(false);
 														triggerSaved();
 														setTestResult({
 															status: "success",
@@ -697,7 +680,6 @@ export default function SettingsModal({
 														settings.llm.provider,
 													).catch(() => {});
 													setPendingLlmKey("");
-													setIsEditingLlmKey(false);
 													setTestResult({ status: "idle", message: "" });
 													setTimeout(() => llmInputRef.current?.focus(), 50);
 												}}
@@ -836,7 +818,6 @@ export default function SettingsModal({
 											const prov = e.target.value as SearchProvider;
 											setSearchProvider(prov);
 											setPendingSearchKey("");
-											setIsEditingSearchKey(false);
 											const info = SEARCH_PROVIDERS.find((p) => p.id === prov);
 											const hasKey =
 												serverKeys.search.includes(prov) ||
@@ -900,24 +881,14 @@ export default function SettingsModal({
 													type="password"
 													autoComplete="new-password"
 													spellCheck={false}
-													value={
-														hasSavedSearchKey
-															? "••••••••••••••••"
-															: pendingSearchKey
-													}
-													onFocus={(e) => {
-														if (hasSavedSearchKey) {
-															e.target.select();
-														}
-													}}
+													value={pendingSearchKey}
 													onChange={(e) => {
-														setIsEditingSearchKey(true);
 														const val = e.target.value;
-														setPendingSearchKey(val.replace(/•/g, ""));
+														setPendingSearchKey(val);
 													}}
 													placeholder={
 														isSearchVaultConfigured
-															? "•••••••••••••••• (Encrypted in Server Vault)"
+															? "•••••••••••••••• (Encrypted in Vault — enter new key to replace)"
 															: `Enter ${currentSearch.name} API key (${getApiKeyPlaceholder(settings.search.provider)})`
 													}
 													className={`w-full rounded-xl border bg-[var(--surface)] px-3.5 py-2.5 text-sm text-[var(--text)] outline-none font-mono ${
@@ -952,7 +923,6 @@ export default function SettingsModal({
 																key,
 															);
 															setPendingSearchKey("");
-															setIsEditingSearchKey(false);
 															triggerSaved();
 														} finally {
 															setModalSearchSaving(false);
@@ -977,7 +947,6 @@ export default function SettingsModal({
 															settings.search.provider,
 														).catch(() => {});
 														setPendingSearchKey("");
-														setIsEditingSearchKey(false);
 														setTestResult({ status: "idle", message: "" });
 														setTimeout(
 															() => searchInputRef.current?.focus(),

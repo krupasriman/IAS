@@ -1,4 +1,4 @@
-import { index, pgTable, text } from "drizzle-orm/pg-core";
+import { index, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
 	id: text("id").primaryKey(),
@@ -52,13 +52,24 @@ export const topics = pgTable(
 	],
 );
 
-export const apiKeys = pgTable("api_keys", {
-	id: text("id").primaryKey(),
-	userId: text("user_id")
-		.notNull()
-		.references(() => users.id, { onDelete: "cascade" }),
-	kind: text("kind").notNull(),
-	provider: text("provider").notNull(),
-	encrypted: text("encrypted").notNull(),
-	updatedAt: text("updated_at").notNull(),
-});
+export const apiKeys = pgTable(
+	"api_keys",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		kind: text("kind").notNull(),
+		provider: text("provider").notNull(),
+		encrypted: text("encrypted").notNull(),
+		updatedAt: text("updated_at").notNull(),
+	},
+	(table) => [
+		index("api_keys_user_id_idx").on(table.userId),
+		uniqueIndex("api_keys_user_kind_provider_idx").on(
+			table.userId,
+			table.kind,
+			table.provider,
+		),
+	],
+);

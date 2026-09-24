@@ -19,7 +19,7 @@ const LoginSchema = z.object({
 });
 
 const RegisterSchema = z.object({
-	username: z.string().min(3).max(50),
+	username: z.string().min(3).max(100),
 	password: z.string().min(8).max(100),
 	role: z.enum(["admin", "user"]).optional(),
 });

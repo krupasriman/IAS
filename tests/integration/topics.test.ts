@@ -1,8 +1,28 @@
 import request from "supertest";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import app from "../../server/app";
+import {
+	createSession,
+	createUser,
+	SESSION_COOKIE,
+} from "../../server/services/auth";
 
 describe("Topics API & Correlation ID Integration", () => {
+	let authCookie = "";
+
+	beforeAll(async () => {
+		try {
+			const u = await createUser(
+				`topics_test_${Date.now()}@example.com`,
+				"Password123!",
+			);
+			const sessionId = await createSession(u);
+			authCookie = `${SESSION_COOKIE}=${sessionId}`;
+		} catch {
+			// In local auth mode or if user already created
+		}
+	});
+
 	it("should attach X-Correlation-ID header on all responses", async () => {
 		const res = await request(app).get("/api/health");
 
@@ -23,7 +43,9 @@ describe("Topics API & Correlation ID Integration", () => {
 	});
 
 	it("should return topic list or seed fallback", async () => {
-		const res = await request(app).get("/api/topics");
+		const req = request(app).get("/api/topics");
+		if (authCookie) req.set("Cookie", authCookie);
+		const res = await req;
 
 		expect(res.status).toBe(200);
 		expect(res.body).toHaveProperty("topics");
@@ -31,7 +53,9 @@ describe("Topics API & Correlation ID Integration", () => {
 	});
 
 	it("should return paginated envelope when limit query param is passed", async () => {
-		const res = await request(app).get("/api/topics?limit=2");
+		const req = request(app).get("/api/topics?limit=2");
+		if (authCookie) req.set("Cookie", authCookie);
+		const res = await req;
 
 		expect(res.status).toBe(200);
 		expect(res.body).toHaveProperty("items");
@@ -42,27 +66,32 @@ describe("Topics API & Correlation ID Integration", () => {
 	});
 
 	it("should return 404 when querying an unknown or unauthorized topic ID", async () => {
-		const res = await request(app).get("/api/topics/unauthorized_topic_99999");
+		const req = request(app).get("/api/topics/unauthorized_topic_99999");
+		if (authCookie) req.set("Cookie", authCookie);
+		const res = await req;
 		expect(res.status).toBe(404);
 	});
 
 	it("should reject deletion of unauthorized or nonexistent topic ID", async () => {
-		const res = await request(app)
+		const req = request(app)
 			.delete("/api/topics/unauthorized_topic_99999")
 			.set("X-Requested-With", "XMLHttpRequest");
+		if (authCookie) req.set("Cookie", authCookie);
+		const res = await req;
 		expect(res.status).toBe(404);
 	});
 
 	it("should reject off-topic non-study queries with 400 on /api/generate", async () => {
-		const res = await request(app)
+		const req = request(app)
 			.post("/api/generate")
-			.set("X-Requested-With", "XMLHttpRequest")
-			.send({
-				topic: "what is my name",
-				provider: "groq",
-				apiKey: "gsk_dummy_test_key_1234567890",
-				model: "llama-3.3-70b-versatile",
-			});
+			.set("X-Requested-With", "XMLHttpRequest");
+		if (authCookie) req.set("Cookie", authCookie);
+		const res = await req.send({
+			topic: "what is my name",
+			provider: "groq",
+			apiKey: "gsk_dummy_test_key_1234567890",
+			model: "llama-3.3-70b-versatile",
+		});
 
 		expect(res.status).toBe(400);
 		expect(res.body.error).toMatch(/UPSC \/ IAS/i);

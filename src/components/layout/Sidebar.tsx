@@ -12,6 +12,7 @@ import {
 	History,
 	Landmark,
 	Leaf,
+	LogOut,
 	Moon,
 	PanelLeft,
 	Scale,
@@ -25,6 +26,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import { useWorkspace } from "../../context/WorkspaceContext";
 import { CATEGORIES } from "../../data/categories";
 import { useTopics } from "../../hooks/useTopics";
@@ -63,6 +65,7 @@ export default function Sidebar({ collapsed }: SidebarProps) {
 		triggerCategorySelect,
 	} = useWorkspace();
 	const { topics } = useTopics();
+	const { user, authEnabled, logout } = useAuth();
 	const location = useLocation();
 	const navigate = useNavigate();
 	const [categoriesOpen, setCategoriesOpen] = useState(false);
@@ -222,6 +225,41 @@ export default function Sidebar({ collapsed }: SidebarProps) {
 					</div>
 				)}
 			</div>
+
+			{/* User Account / Profile Section */}
+			{authEnabled && user && (
+				<div className="px-3 py-2 border-t border-[var(--border)] flex items-center justify-between gap-2">
+					<div className="flex items-center gap-2 min-w-0 flex-1">
+						<div className="w-7 h-7 rounded-full bg-[var(--accent)]/10 text-[var(--accent)] flex items-center justify-center font-bold text-xs shrink-0 border border-[var(--accent)]/20">
+							{user.username.charAt(0).toUpperCase()}
+						</div>
+						{!collapsed && (
+							<div className="min-w-0 flex-1">
+								<span
+									className="text-xs font-semibold block truncate text-[var(--text)]"
+									title={user.username}
+								>
+									{user.username}
+								</span>
+								<span className="text-[10px] text-emerald-600 dark:text-emerald-400 block leading-none font-medium mt-0.5">
+									BYOK Vault Active
+								</span>
+							</div>
+						)}
+					</div>
+					{!collapsed && (
+						<button
+							type="button"
+							onClick={() => logout()}
+							className="p-1.5 rounded-lg hover:bg-red-500/10 text-[var(--muted)] hover:text-red-500 transition-colors cursor-pointer shrink-0"
+							title="Sign Out"
+							aria-label="Sign Out"
+						>
+							<LogOut className="w-3.5 h-3.5" />
+						</button>
+					)}
+				</div>
+			)}
 
 			{/* Dark Mode & Settings Footer */}
 			<div className="p-2 border-t border-[var(--border)]">

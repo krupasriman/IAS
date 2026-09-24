@@ -87,6 +87,7 @@ CREATE INDEX IF NOT EXISTS topics_category_idx ON topics(user_id, category);
 CREATE INDEX IF NOT EXISTS topics_user_updated_idx ON topics(user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS topics_user_cat_updated_idx ON topics(user_id, category, updated_at DESC);
 CREATE INDEX IF NOT EXISTS api_keys_user_id_idx ON api_keys(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS api_keys_user_kind_provider_idx ON api_keys(user_id, kind, provider);
 `;
 
 export async function runMigrations(): Promise<void> {

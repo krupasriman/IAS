@@ -2,7 +2,11 @@ import { PanelLeft } from "lucide-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import { useWorkspace } from "../../context/WorkspaceContext";
+import { useSettingsStore } from "../../stores/settingsStore";
+import AuthModal from "../auth/AuthModal";
+import BYOKSetupModal from "../BYOKSetupModal";
 import SettingsModal from "../SettingsModal";
 import Sidebar from "./Sidebar";
 
@@ -20,9 +24,21 @@ export default function WorkspaceShell({
 		settingsInitialTab,
 		closeSettings,
 	} = useWorkspace();
+	const { user, authEnabled, isLoading: authLoading } = useAuth();
 	const navigate = useNavigate();
 	const [isMobile, setIsMobile] = useState(false);
+	const [hasDismissedByok, setHasDismissedByok] = useState(false);
 	const hasMounted = useRef(false);
+
+	const hasConfiguredKey = useSettingsStore((s) => s.hasConfiguredKey);
+	const isCheckingKeyStatus = useSettingsStore((s) => s.isCheckingKeyStatus);
+	const loadServerKeys = useSettingsStore((s) => s.loadServerKeys);
+
+	useEffect(() => {
+		if (!authEnabled || user) {
+			void loadServerKeys(true);
+		}
+	}, [authEnabled, user, loadServerKeys]);
 
 	useEffect(() => {
 		const check = () => {
@@ -101,6 +117,22 @@ export default function WorkspaceShell({
 				)}
 				{children}
 			</div>
+
+			{/* Authentication Modal if auth enabled and not logged in */}
+			{authEnabled && !authLoading && !user && (
+				<AuthModal isOpen={true} canDismiss={false} />
+			)}
+
+			{/* BYOK Onboarding Modal when user is logged in (or auth disabled) and unconfigured */}
+			{(!authEnabled || user) && (
+				<BYOKSetupModal
+					isOpen={
+						!hasConfiguredKey && !isCheckingKeyStatus && !hasDismissedByok
+					}
+					onClose={() => setHasDismissedByok(true)}
+					canDismiss={true}
+				/>
+			)}
 
 			{/* ChatGPT-style Settings Modal */}
 			<SettingsModal

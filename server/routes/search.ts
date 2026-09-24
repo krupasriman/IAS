@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { logger } from "../../src/utils/logger";
+import { validateTopicRelevance } from "../../src/utils/topicGuardrail";
 import { executeServerSearch } from "../services/search/broker";
 import { sendError } from "../utils/errors";
 
@@ -46,6 +47,17 @@ router.post("/search", async (req, res) => {
 		sendError(res, 400, "Invalid search request payload");
 		return;
 	}
+
+	const relevance = validateTopicRelevance(parsed.data.query);
+	if (!relevance.isRelevant) {
+		sendError(
+			res,
+			400,
+			relevance.reason || "Search query is not relevant to UPSC syllabus",
+		);
+		return;
+	}
+
 	const userId = req.authUser?.id || "usr_local_admin_0000000000";
 	try {
 		const result = await executeServerSearch(
@@ -65,6 +77,16 @@ router.get("/search/duckduckgo", async (req, res) => {
 	const query = req.query.q as string;
 	if (!query) {
 		sendError(res, 400, 'Query parameter "q" is required');
+		return;
+	}
+
+	const relevance = validateTopicRelevance(query);
+	if (!relevance.isRelevant) {
+		sendError(
+			res,
+			400,
+			relevance.reason || "Search query is not relevant to UPSC syllabus",
+		);
 		return;
 	}
 

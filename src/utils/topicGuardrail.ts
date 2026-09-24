@@ -54,7 +54,7 @@ const CASUAL_GREETINGS = new Set([
 	"pong",
 ]);
 
-// Regular expression patterns for off-topic personal and casual queries
+// Regular expression patterns for off-topic personal, casual chit-chat, and adversarial prompt injections
 const OFF_TOPIC_PATTERNS: RegExp[] = [
 	// Personal identity questions (about the user or bot)
 	/^(what('s|\s+is)\s+my\s+name|who\s+am\s+i|do\s+you\s+know\s+(me|my\s+name)|tell\s+me\s+my\s+name)[\s?!.]*$/i,
@@ -67,12 +67,18 @@ const OFF_TOPIC_PATTERNS: RegExp[] = [
 	/^(tell\s+me\s+a\s+(joke|story|poem)|sing\s+(me\s+)?a\s+song|can\s+you\s+dance)[\s?!.]*$/i,
 	/^(help\s+me(\s+please)?|i\s+need\s+help)[\s?!.]*$/i,
 
-	// Non-substantive commands
+	// Non-substantive conversational commands
 	/^(say\s+something|talk\s+to\s+me|reply\s+to\s+me|are\s+you\s+there)[\s?!.]*$/i,
+
+	// Prompt injections & adversarial system overrides
+	/\b(ignore\s+(all\s+)?(?:previous|prior)\s+instructions|system\s+prompt|dan\s+mode|jailbreak|disregard\s+(all\s+)?instructions)\b/i,
+	/\b(act\s+as\s+(an?\s+)?(unrestricted|linux\s+terminal|hacker|dan)|developer\s+mode\s+output)\b/i,
 ];
 
 /**
  * Validates whether the user query represents an appropriate UPSC / study topic.
+ * Allows all broad analytical subjects, personalities, institutions, and policies.
+ * Only restricts empty noise, conversational greetings, bot questions, and prompt injections.
  */
 export function validateTopicRelevance(query: string): TopicValidationResult {
 	if (!query || typeof query !== "string") {
@@ -101,7 +107,7 @@ export function validateTopicRelevance(query: string): TopicValidationResult {
 		};
 	}
 
-	// Check regex patterns for personal/casual questions
+	// Check regex patterns for personal/casual questions and injections
 	for (const pattern of OFF_TOPIC_PATTERNS) {
 		if (pattern.test(cleaned)) {
 			return {

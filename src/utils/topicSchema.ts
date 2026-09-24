@@ -108,3 +108,89 @@ export const StructuredTopicSchema = LlmTopicSchema.extend({
 });
 
 export type StructuredTopic = z.infer<typeof StructuredTopicSchema>;
+
+/**
+ * Unwraps common root container keys produced by LLMs (e.g. { topic: { ... } }, { data: { ... } })
+ */
+export function unwrapTopicPayload(data: unknown): unknown {
+	if (!data || typeof data !== "object" || Array.isArray(data)) {
+		return data;
+	}
+
+	const record = data as Record<string, unknown>;
+
+	// Already flat with expected root fields
+	if ("title" in record && ("meaning" in record || "pros" in record)) {
+		return record;
+	}
+
+	// Known LLM container wrappers
+	const commonWrapperKeys = [
+		"topic",
+		"data",
+		"result",
+		"studyNote",
+		"study_note",
+		"notes",
+		"note",
+		"response",
+		"output",
+		"content",
+	];
+
+	for (const key of commonWrapperKeys) {
+		const val = record[key];
+		if (
+			val &&
+			typeof val === "object" &&
+			!Array.isArray(val) &&
+			("title" in val || "meaning" in val)
+		) {
+			return val;
+		}
+	}
+
+	// Single child wrapper fallback
+	const keys = Object.keys(record);
+	if (keys.length === 1) {
+		const singleChild = record[keys[0]];
+		if (
+			singleChild &&
+			typeof singleChild === "object" &&
+			!Array.isArray(singleChild) &&
+			("title" in singleChild || "meaning" in singleChild)
+		) {
+			return singleChild;
+		}
+	}
+
+	return record;
+}
+
+/**
+ * Formats Zod validation issues into a concise, human-readable error message.
+ */
+export function formatTopicValidationError(err: unknown): string {
+	if (err instanceof z.ZodError) {
+		const missingFields = err.issues
+			.filter(
+				(i) => i.code === "invalid_type" && i.message.includes("undefined"),
+			)
+			.map((i) => i.path.join(".") || "unknown");
+
+		if (missingFields.length > 0) {
+			return `Model response format mismatch: Missing required fields (${missingFields.join(", ")}). Please try again or switch model.`;
+		}
+
+		const firstIssue = err.issues[0];
+		if (firstIssue) {
+			const pathStr =
+				firstIssue.path.length > 0 ? ` at "${firstIssue.path.join(".")}"` : "";
+			return `Model response validation failed${pathStr}: ${firstIssue.message}`;
+		}
+	}
+
+	return err instanceof Error
+		? err.message
+		: "Structured topic validation failed";
+}

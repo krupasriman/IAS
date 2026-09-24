@@ -121,25 +121,6 @@ export async function deleteApiKey(
 	}
 }
 
-export async function hasApiKey(
-	userId: string,
-	kind: ApiKeyKind,
-	provider: string,
-): Promise<boolean> {
-	const id = keyId(userId, kind, provider);
-	if (memoryApiKeys.has(id)) return true;
-	try {
-		const [row] = await db
-			.select({ id: apiKeys.id })
-			.from(apiKeys)
-			.where(and(eq(apiKeys.id, id), eq(apiKeys.userId, userId)))
-			.limit(1);
-		return row !== undefined;
-	} catch {
-		return false;
-	}
-}
-
 export async function listConfiguredApiKeys(
 	userId: string,
 ): Promise<Record<ApiKeyKind, string[]>> {
@@ -195,4 +176,9 @@ export async function listConfiguredApiKeys(
 	}
 
 	return result;
+}
+
+export async function hasAnyActiveKey(userId: string): Promise<boolean> {
+	const configured = await listConfiguredApiKeys(userId);
+	return configured.llm.length > 0;
 }

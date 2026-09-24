@@ -5,8 +5,10 @@ import { logger } from "../../src/utils/logger";
 import { validateTopicRelevance } from "../../src/utils/topicGuardrail";
 import {
 	CategorySchema,
+	formatTopicValidationError,
 	LlmTopicSchema,
 	StructuredTopicSchema,
+	unwrapTopicPayload,
 } from "../../src/utils/topicSchema";
 import { buildUserPrompt, IAS_SYSTEM_PROMPT } from "../prompts/prompts";
 import {
@@ -14,6 +16,7 @@ import {
 	getCachedTopic,
 	setCachedTopic,
 } from "../services/cache/llmCache";
+import { classifySyllabusRelevance } from "../services/guardrail/syllabusClassifier";
 import { resolveLlmApiKey } from "../services/keyResolver";
 import { executeStructuredWithFallback } from "../services/llm/fallbackRouter";
 import { sendError } from "../utils/errors";
@@ -103,6 +106,23 @@ router.post("/generate", async (req: ExpressRequest, res: Response) => {
 			return;
 		}
 
+		const classification = await classifySyllabusRelevance(
+			topic,
+			provider,
+			resolvedApiKey,
+			model,
+			baseUrl,
+		);
+		if (!classification.isValid) {
+			sendError(
+				res,
+				400,
+				classification.reason ||
+					"This topic is outside the UPSC Civil Services Examination curriculum.",
+			);
+			return;
+		}
+
 		const { result: structured, usedProvider } =
 			await executeStructuredWithFallback(
 				{ provider, apiKey: resolvedApiKey, model, baseUrl },
@@ -112,7 +132,8 @@ router.post("/generate", async (req: ExpressRequest, res: Response) => {
 				req.authUser?.id,
 			);
 
-		const validatedTopic = StructuredTopicSchema.parse(structured);
+		const unwrapped = unwrapTopicPayload(structured);
+		const validatedTopic = StructuredTopicSchema.parse(unwrapped);
 
 		const now = new Date().toISOString();
 		const finalTopic = {
@@ -131,10 +152,7 @@ router.post("/generate", async (req: ExpressRequest, res: Response) => {
 			provider: usedProvider,
 		});
 	} catch (error: unknown) {
-		const message =
-			typeof error === "object" && error !== null && "message" in error
-				? String((error as { message: unknown }).message)
-				: "Structured topic generation failed";
+		const message = formatTopicValidationError(error);
 		logger.error(
 			{ err: message, retries: maxRetries },
 			"Structured topic generation failed",

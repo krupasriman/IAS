@@ -1,10 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { LLM_PROVIDERS, SEARCH_PROVIDERS } from "../config/providers";
-import {
-	fetchConfiguredKeys,
-	storeServerApiKey,
-} from "../services/settingsApi";
+import { fetchApiKeyStatus, storeServerApiKey } from "../services/settingsApi";
 import type {
 	AppSettings,
 	LLMProvider,
@@ -138,7 +135,9 @@ interface SettingsState {
 	resetSettings: () => void;
 
 	serverKeys: { llm: string[]; search: string[] };
-	loadServerKeys: () => Promise<void>;
+	hasConfiguredKey: boolean;
+	isCheckingKeyStatus: boolean;
+	loadServerKeys: (force?: boolean) => Promise<void>;
 	clearServerKey: (kind: "llm" | "search", provider: string) => void;
 }
 
@@ -151,35 +150,31 @@ export const useSettingsStore = create<SettingsState>()(
 		(set, get) => ({
 			settings: DEFAULT_SETTINGS,
 			serverKeys: { llm: [], search: [] },
+			hasConfiguredKey: false,
+			isCheckingKeyStatus: false,
 
-			loadServerKeys: async () => {
+			loadServerKeys: async (force = false) => {
 				const now = Date.now();
 				if (inFlightLoad) return inFlightLoad;
-				if (now - lastLoadedTime < LOAD_THROTTLE_MS) return;
+				if (!force && now - lastLoadedTime < LOAD_THROTTLE_MS) return;
+
+				set({ isCheckingKeyStatus: true });
 
 				inFlightLoad = (async () => {
 					try {
-						const configured = await fetchConfiguredKeys();
-						set((state) => ({
+						const status = await fetchApiKeyStatus();
+						set({
+							hasConfiguredKey: status.hasConfiguredKey,
 							serverKeys: {
-								llm: Array.from(
-									new Set([
-										...state.serverKeys.llm,
-										...(configured?.llm || []),
-									]),
-								),
-								search: Array.from(
-									new Set([
-										...state.serverKeys.search,
-										...(configured?.search || []),
-									]),
-								),
+								llm: status.configured?.llm || [],
+								search: status.configured?.search || [],
 							},
-						}));
+						});
 						lastLoadedTime = Date.now();
 					} catch {
 						// Server unreachable or auth required; keep local keys
 					} finally {
+						set({ isCheckingKeyStatus: false });
 						inFlightLoad = null;
 					}
 				})();
@@ -188,12 +183,22 @@ export const useSettingsStore = create<SettingsState>()(
 			},
 
 			clearServerKey: (kind, provider) => {
-				set((state) => ({
-					serverKeys: {
-						...state.serverKeys,
-						[kind]: state.serverKeys[kind].filter((p) => p !== provider),
-					},
-				}));
+				set((state) => {
+					const updatedList = state.serverKeys[kind].filter(
+						(p) => p !== provider,
+					);
+					const hasConfiguredKey =
+						kind === "llm"
+							? updatedList.length > 0
+							: state.serverKeys.llm.length > 0;
+					return {
+						hasConfiguredKey,
+						serverKeys: {
+							...state.serverKeys,
+							[kind]: updatedList,
+						},
+					};
+				});
 			},
 
 			setLLMProvider: (provider) => {
@@ -236,6 +241,7 @@ export const useSettingsStore = create<SettingsState>()(
 				try {
 					await storeServerApiKey("llm", provider, trimmed);
 					set((state) => ({
+						hasConfiguredKey: true,
 						serverKeys: {
 							...state.serverKeys,
 							llm: Array.from(new Set([...state.serverKeys.llm, provider])),
@@ -396,7 +402,6 @@ export const useSettingsStore = create<SettingsState>()(
 			name: STORAGE_KEY,
 			storage: createJSONStorage(() => localStorage),
 			partialize: (state) => ({
-				serverKeys: state.serverKeys,
 				settings: {
 					...state.settings,
 					llm: {
@@ -412,25 +417,8 @@ export const useSettingsStore = create<SettingsState>()(
 			merge: (persisted, current) => {
 				if (!persisted) return current;
 				const p = persisted as Record<string, unknown>;
-				const pServerKeys = p.serverKeys as
-					| { llm?: string[]; search?: string[] }
-					| undefined;
 				return {
 					...current,
-					serverKeys: {
-						llm: Array.from(
-							new Set([
-								...(current.serverKeys?.llm || []),
-								...(pServerKeys?.llm || []),
-							]),
-						),
-						search: Array.from(
-							new Set([
-								...(current.serverKeys?.search || []),
-								...(pServerKeys?.search || []),
-							]),
-						),
-					},
 					settings: migrate(
 						(p.settings ?? persisted) as Record<string, unknown>,
 					),

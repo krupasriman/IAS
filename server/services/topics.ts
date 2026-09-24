@@ -364,10 +364,10 @@ export async function deleteTopic(
 	userId: string,
 ): Promise<boolean> {
 	try {
-		await db
+		const result = await db
 			.delete(topics)
 			.where(and(eq(topics.id, id), eq(topics.userId, userId)));
-		return true;
+		return (result.rowCount ?? 0) > 0;
 	} catch (err) {
 		logger.error({ err, id, userId }, "Failed to delete topic from DB");
 		return false;

@@ -5,9 +5,10 @@ import { z } from "zod";
 import { getLanguageModel } from "../../src/services/llm/provider";
 import { logger } from "../../src/utils/logger";
 import { validateTopicRelevance } from "../../src/utils/topicGuardrail";
+import { extractTopicPayload } from "../../src/utils/topicParser";
 import {
 	CategorySchema,
-	StructuredTopicSchema,
+	formatTopicValidationError,
 } from "../../src/utils/topicSchema";
 import { buildUserPrompt, IAS_SYSTEM_PROMPT } from "../prompts/prompts";
 import {
@@ -15,6 +16,7 @@ import {
 	getCachedTopic,
 	setCachedTopic,
 } from "../services/cache/llmCache";
+import { classifySyllabusRelevance } from "../services/guardrail/syllabusClassifier";
 import { resolveLlmApiKey } from "../services/keyResolver";
 import { sendError } from "../utils/errors";
 import { LLMProviderSchema } from "../validation/llm";
@@ -120,6 +122,23 @@ router.post("/generate/stream", async (req: ExpressRequest, res: Response) => {
 			return;
 		}
 
+		const classification = await classifySyllabusRelevance(
+			topic,
+			provider,
+			resolvedApiKey,
+			model,
+			baseUrl,
+		);
+		if (!classification.isValid) {
+			sendSSE("error", {
+				message:
+					classification.reason ||
+					"This topic is outside the UPSC Civil Services Examination curriculum.",
+			});
+			res.end();
+			return;
+		}
+
 		sendSSE("status", {
 			stage: "generating",
 			message: "Synthesizing UPSC study note with AI...",
@@ -142,6 +161,7 @@ router.post("/generate/stream", async (req: ExpressRequest, res: Response) => {
 			system: systemMessage,
 			messages: otherMessages,
 			temperature: temperature ?? 0.3,
+			maxOutputTokens: 3500,
 			onError: ({ error }) => {
 				logger.error({ err: String(error) }, "AI SDK stream error");
 			},
@@ -158,16 +178,11 @@ router.post("/generate/stream", async (req: ExpressRequest, res: Response) => {
 			message: "Validating against IAS five-part framework...",
 		});
 
-		const cleaned = accumulated.replace(/```(?:json)?/gi, "").trim();
-		const jsonStart = cleaned.indexOf("{");
-		const jsonEnd = cleaned.lastIndexOf("}");
-
-		if (jsonStart === -1 || jsonEnd === -1) {
-			throw new Error("Model response did not contain a valid JSON object");
-		}
-
-		const parsedJson = JSON.parse(cleaned.slice(jsonStart, jsonEnd + 1));
-		const validatedTopic = StructuredTopicSchema.parse(parsedJson);
+		const validatedTopic = extractTopicPayload(
+			accumulated,
+			topic,
+			category || "Polity",
+		);
 
 		const now = new Date().toISOString();
 		const finalTopic = {
@@ -183,10 +198,7 @@ router.post("/generate/stream", async (req: ExpressRequest, res: Response) => {
 
 		sendSSE("complete", { topic: finalTopic });
 	} catch (error: unknown) {
-		const message =
-			typeof error === "object" && error !== null && "message" in error
-				? String((error as { message: unknown }).message)
-				: "Streaming generation failed";
+		const message = formatTopicValidationError(error);
 		logger.error({ err: message }, "Stream error");
 		sendSSE("error", { message });
 	} finally {

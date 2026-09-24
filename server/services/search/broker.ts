@@ -183,12 +183,30 @@ async function searchDuckDuckGo(
 	};
 }
 
+export function anchorSearchQuery(query: string): string {
+	const trimmed = query.trim();
+	const lower = trimmed.toLowerCase();
+	if (
+		lower.includes("upsc") ||
+		lower.includes("ias") ||
+		lower.includes("pib") ||
+		lower.includes("mains") ||
+		lower.includes("public policy") ||
+		lower.includes("governance")
+	) {
+		return trimmed;
+	}
+	return `${trimmed} UPSC civil services policy`;
+}
+
 export async function executeServerSearch(
 	query: string,
 	preferredProvider: SearchProvider = "duckduckgo",
 	userId = "usr_local_admin_0000000000",
 	maxResults = 8,
 ): Promise<WebSearchResponse> {
+	const webQuery = anchorSearchQuery(query);
+
 	// Fallback sequence
 	const attempts: Array<{
 		name: string;
@@ -201,7 +219,7 @@ export async function executeServerSearch(
 	if (tavilyKey) {
 		attempts.push({
 			name: "Tavily",
-			run: () => searchTavily(query, tavilyKey, maxResults),
+			run: () => searchTavily(webQuery, tavilyKey, maxResults),
 		});
 	}
 
@@ -212,7 +230,7 @@ export async function executeServerSearch(
 		if (braveKey) {
 			attempts.push({
 				name: "Brave",
-				run: () => searchBrave(query, braveKey, maxResults),
+				run: () => searchBrave(webQuery, braveKey, maxResults),
 			});
 		}
 	}
@@ -220,10 +238,10 @@ export async function executeServerSearch(
 	// 3. DuckDuckGo (free)
 	attempts.push({
 		name: "DuckDuckGo",
-		run: () => searchDuckDuckGo(query, maxResults),
+		run: () => searchDuckDuckGo(webQuery, maxResults),
 	});
 
-	// 4. Wikipedia (free, highly reliable)
+	// 4. Wikipedia (free, highly reliable - searches exact conceptual title)
 	attempts.push({
 		name: "Wikipedia",
 		run: () => searchWikipedia(query, maxResults),
