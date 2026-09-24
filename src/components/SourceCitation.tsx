@@ -20,6 +20,7 @@ import {
 	getFaviconUrl,
 	getHostname,
 	isGovPortalWithoutFavicon,
+	unwrapUrl,
 } from "../utils/sourceHelpers";
 
 function SourceFavicon({
@@ -75,10 +76,12 @@ export function SourcePill({
 	sources,
 	label,
 	className = "",
+	align = "auto",
 }: {
 	sources: WebSearchResultItem[];
 	label?: string;
 	className?: string;
+	align?: "left" | "right" | "auto";
 }) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [currentIndex, setCurrentIndex] = useState(0);
@@ -95,8 +98,18 @@ export function SourcePill({
 			const screenWidth = window.innerWidth;
 			const screenHeight = window.innerHeight;
 
-			// If pill is too close to right edge (< 340px available), align popup to right
-			setAlignRight(rect.left + 340 > screenWidth);
+			if (align === "right") {
+				// Explicitly requested right alignment (opens inward to the left)
+				// Fall back to left only on extremely narrow viewports where there is not enough room to the left
+				setAlignRight(rect.right >= 300);
+			} else if (align === "left") {
+				setAlignRight(false);
+			} else {
+				// Auto mode: If pill is in right half of screen or too close to right edge (< 340px available), align popup to right
+				setAlignRight(
+					rect.left + 340 > screenWidth || rect.left > screenWidth * 0.55,
+				);
+			}
 
 			// If space below is less than 280px or closer to bottom than top, open upward
 			const spaceBelow = screenHeight - rect.bottom;
@@ -107,7 +120,7 @@ export function SourcePill({
 				setOpenUpward(false);
 			}
 		}
-	}, [isOpen]);
+	}, [isOpen, align]);
 
 	// Close on outside click
 	useEffect(() => {
@@ -135,6 +148,7 @@ export function SourcePill({
 
 	if (!activeSource) return null;
 
+	const targetUrl = unwrapUrl(activeSource.url);
 	const displayName = label || getDisplaySourceName(activeSource);
 	const extraCount = sources.length - 1;
 
@@ -164,7 +178,7 @@ export function SourcePill({
 				}`}
 				title={`View source: ${activeSource.title}`}
 			>
-				<SourceFavicon url={activeSource.url} className="w-3.5 h-3.5" />
+				<SourceFavicon url={targetUrl} className="w-3.5 h-3.5" />
 
 				<span className="truncate max-w-[140px] text-[11px] font-semibold text-[var(--text)]">
 					{displayName}
@@ -237,18 +251,18 @@ export function SourcePill({
 					<span className="block p-4 space-y-2.5">
 						{/* Source Branding */}
 						<span className="flex items-center gap-2">
-							<SourceFavicon url={activeSource.url} className="w-4 h-4" />
+							<SourceFavicon url={targetUrl} className="w-4 h-4" />
 							<span className="text-xs font-bold text-[var(--text)] truncate">
-								{getDisplaySourceName(activeSource)}
+								{displayName}
 							</span>
 							<span className="text-[11px] text-[var(--muted)] truncate">
-								· {getHostname(activeSource.url)}
+								· {getHostname(targetUrl)}
 							</span>
 						</span>
 
 						{/* Article Title Link */}
 						<a
-							href={activeSource.url}
+							href={targetUrl}
 							target="_blank"
 							rel="noopener noreferrer"
 							className="block font-semibold text-sm leading-snug text-[var(--text)] hover:text-emerald-500 transition-colors group"
@@ -266,7 +280,7 @@ export function SourcePill({
 						{/* Action Link Footer */}
 						<span className="pt-2 border-t border-[var(--border)] flex items-center justify-end">
 							<a
-								href={activeSource.url}
+								href={targetUrl}
 								target="_blank"
 								rel="noopener noreferrer"
 								className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] transition-colors group"

@@ -4,14 +4,15 @@ import {
 	CheckCircle2,
 	Database,
 	ExternalLink,
-	Eye,
-	EyeOff,
 	Globe,
+	Loader2,
 	Moon,
+	Save,
 	Search,
 	Settings,
 	Shield,
 	Sun,
+	Trash2,
 	X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -25,6 +26,7 @@ import { useSettings } from "../hooks/useSettings";
 import { useTopics } from "../hooks/useTopics";
 import { callLLM } from "../services/llm/client";
 import { DEFAULT_OPENROUTER_MODELS } from "../services/llm/models";
+import { deleteServerApiKey } from "../services/settingsApi";
 import type { LLMProvider, SearchProvider } from "../types/settings.types";
 import {
 	getApiKeyPlaceholder,
@@ -50,6 +52,8 @@ export default function SettingsModal({
 		settings,
 		isLlmProviderConfigured,
 		isSearchProviderConfigured,
+		serverKeys,
+		clearServerKey,
 		openRouterModels,
 		openRouterLoading,
 		generalComputeModels,
@@ -64,8 +68,16 @@ export default function SettingsModal({
 
 	const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
 	const [searchFilter, setSearchFilter] = useState("");
-	const [showKey, setShowKey] = useState(false);
+	const [pendingLlmKey, setPendingLlmKey] = useState("");
+	const [pendingSearchKey, setPendingSearchKey] = useState("");
+	const [isEditingLlmKey, setIsEditingLlmKey] = useState(false);
+	const [isEditingSearchKey, setIsEditingSearchKey] = useState(false);
+	const [modalLlmSaving, setModalLlmSaving] = useState(false);
+	const [modalSearchSaving, setModalSearchSaving] = useState(false);
 	const [modelVariant, setModelVariant] = useState<string>("default");
+
+	const llmInputRef = useRef<HTMLInputElement>(null);
+	const searchInputRef = useRef<HTMLInputElement>(null);
 
 	const [saved, setSaved] = useState(false);
 	const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -91,6 +103,10 @@ export default function SettingsModal({
 		if (isOpen) {
 			setActiveTab(initialTab);
 			setTestResult({ status: "idle", message: "" });
+			setIsEditingLlmKey(false);
+			setPendingLlmKey("");
+			setIsEditingSearchKey(false);
+			setPendingSearchKey("");
 		}
 	}, [isOpen, initialTab]);
 
@@ -215,26 +231,36 @@ export default function SettingsModal({
 	const currentVariant =
 		modelVariant || (settings.llm.model.includes(":free") ? "free" : "default");
 
-	const currentLLMApiKey = settings.llm.apiKeys[settings.llm.provider] || "";
-	const currentSearchApiKey =
-		settings.search.apiKeys[settings.search.provider] || "";
+	const isLlmVaultConfigured =
+		serverKeys.llm.includes(settings.llm.provider) ||
+		isLlmProviderConfigured(settings.llm.provider);
+	const isSearchVaultConfigured =
+		serverKeys.search.includes(settings.search.provider) ||
+		isSearchProviderConfigured(settings.search.provider);
 
-	const llmKeyValidation = useMemo(
-		() => validateApiKeyFormat(settings.llm.provider, currentLLMApiKey),
-		[settings.llm.provider, currentLLMApiKey],
-	);
+	const hasSavedLlmKey = isLlmVaultConfigured && !isEditingLlmKey;
+	const hasSavedSearchKey = isSearchVaultConfigured && !isEditingSearchKey;
 
-	const searchKeyValidation = useMemo(
-		() =>
-			currentSearch.requiredKey
-				? validateApiKeyFormat(settings.search.provider, currentSearchApiKey)
-				: { isValid: true },
-		[currentSearch.requiredKey, settings.search.provider, currentSearchApiKey],
-	);
+	const llmKeyValidation = useMemo(() => {
+		if (!pendingLlmKey.trim()) {
+			return { isValid: true };
+		}
+		return validateApiKeyFormat(settings.llm.provider, pendingLlmKey.trim());
+	}, [settings.llm.provider, pendingLlmKey]);
+
+	const searchKeyValidation = useMemo(() => {
+		if (!currentSearch.requiredKey || !pendingSearchKey.trim()) {
+			return { isValid: true };
+		}
+		return validateApiKeyFormat(
+			settings.search.provider,
+			pendingSearchKey.trim(),
+		);
+	}, [currentSearch.requiredKey, settings.search.provider, pendingSearchKey]);
 
 	const handleTest = async () => {
-		const key = currentLLMApiKey.trim();
-		if (!key && settings.llm.provider !== "generalcompute") {
+		const key = pendingLlmKey.trim();
+		if (!key && !isLlmVaultConfigured) {
 			setTestResult({
 				status: "error",
 				message: `Please enter a ${currentLLM.name} API key before testing connection.`,
@@ -242,7 +268,7 @@ export default function SettingsModal({
 			return;
 		}
 
-		if (!llmKeyValidation.isValid) {
+		if (key && !llmKeyValidation.isValid) {
 			setTestResult({
 				status: "error",
 				message: llmKeyValidation.error || "Invalid API key format.",
@@ -254,7 +280,7 @@ export default function SettingsModal({
 		try {
 			const testConfig = {
 				...settings.llm,
-				apiKey: key,
+				apiKey: key || undefined,
 			};
 			const response = await callLLM(
 				[
@@ -383,11 +409,6 @@ export default function SettingsModal({
 								<CheckCircle2 className="w-3 h-3" /> All changes auto-saved
 							</span>
 						)}
-						{!llmKeyValidation.isValid && (
-							<span className="text-[10px] text-center text-red-500 font-medium">
-								Fix invalid API key format
-							</span>
-						)}
 					</div>
 				</div>
 
@@ -511,11 +532,6 @@ export default function SettingsModal({
 										>
 											LLM Provider
 										</label>
-										{isLlmProviderConfigured(settings.llm.provider) && (
-											<span className="flex items-center gap-1 text-xs font-semibold text-emerald-500">
-												<CheckCircle2 className="w-3.5 h-3.5" /> Configured
-											</span>
-										)}
 									</div>
 									<select
 										id="llm-provider-select"
@@ -523,8 +539,17 @@ export default function SettingsModal({
 										onChange={(e) => {
 											const prov = e.target.value as LLMProvider;
 											setLLMProvider(prov);
+											setPendingLlmKey("");
+											setIsEditingLlmKey(false);
 											setTestResult({ status: "idle", message: "" });
-											triggerSaved();
+											const hasKey =
+												serverKeys.llm.includes(prov) ||
+												isLlmProviderConfigured(prov);
+											if (hasKey) {
+												triggerSaved();
+											} else {
+												setTimeout(() => llmInputRef.current?.focus(), 50);
+											}
 										}}
 										className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3.5 py-2.5 text-sm text-[var(--text)] outline-none"
 									>
@@ -548,49 +573,152 @@ export default function SettingsModal({
 										>
 											{currentLLM.name} API Key
 										</label>
-										{currentLLM.apiKeyUrl && (
-											<a
-												href={currentLLM.apiKeyUrl}
-												target="_blank"
-												rel="noopener noreferrer"
-												className="text-xs text-emerald-500 hover:underline flex items-center gap-1"
+										<div className="flex items-center gap-2">
+											{isLlmVaultConfigured ? (
+												<span className="flex items-center gap-1 text-xs font-semibold text-emerald-500">
+													<CheckCircle2 className="w-3.5 h-3.5" /> Vault
+													Encrypted
+												</span>
+											) : (
+												<span className="flex items-center gap-1 text-xs font-semibold text-amber-500">
+													<AlertCircle className="w-3.5 h-3.5" /> Key Required
+												</span>
+											)}
+											{currentLLM.apiKeyUrl && (
+												<a
+													href={currentLLM.apiKeyUrl}
+													target="_blank"
+													rel="noopener noreferrer"
+													className="text-xs text-emerald-500 hover:underline flex items-center gap-1"
+												>
+													Get {currentLLM.name} key{" "}
+													<ExternalLink className="w-3 h-3" />
+												</a>
+											)}
+										</div>
+									</div>
+									<div className="flex gap-2">
+										<div className="relative flex-1">
+											<input
+												ref={llmInputRef}
+												id="llm-api-key"
+												type="password"
+												autoComplete="new-password"
+												spellCheck={false}
+												value={
+													hasSavedLlmKey ? "••••••••••••••••" : pendingLlmKey
+												}
+												onFocus={(e) => {
+													if (hasSavedLlmKey) {
+														e.target.select();
+													}
+												}}
+												onChange={(e) => {
+													setIsEditingLlmKey(true);
+													const val = e.target.value;
+													setPendingLlmKey(val.replace(/•/g, ""));
+													setTestResult({ status: "idle", message: "" });
+												}}
+												placeholder={
+													isLlmVaultConfigured
+														? "•••••••••••••••• (Encrypted in Server Vault)"
+														: `Enter ${currentLLM.name} API key (${getApiKeyPlaceholder(settings.llm.provider)})`
+												}
+												className={`w-full rounded-xl border bg-[var(--surface)] px-3.5 py-2.5 text-sm text-[var(--text)] outline-none font-mono ${
+													pendingLlmKey.trim() && !llmKeyValidation.isValid
+														? "border-red-400 focus:ring-2 focus:ring-red-500/40"
+														: "border-[var(--border)] focus:border-blue-500"
+												}`}
+											/>
+										</div>
+										{pendingLlmKey.trim() ? (
+											<button
+												type="button"
+												disabled={
+													!validateApiKeyFormat(
+														settings.llm.provider,
+														pendingLlmKey.trim(),
+													).isValid || modalLlmSaving
+												}
+												onClick={async () => {
+													const key = pendingLlmKey.trim();
+													if (!key) return;
+													const validation = validateApiKeyFormat(
+														settings.llm.provider,
+														key,
+													);
+													if (!validation.isValid) {
+														setTestResult({
+															status: "error",
+															message:
+																validation.error || "Invalid API key format",
+														});
+														return;
+													}
+													setModalLlmSaving(true);
+													try {
+														await setLLMApiKeyForProvider(
+															settings.llm.provider,
+															key,
+														);
+														setPendingLlmKey("");
+														setIsEditingLlmKey(false);
+														triggerSaved();
+														setTestResult({
+															status: "success",
+															message: `${currentLLM.name} key encrypted and saved to server vault!`,
+														});
+													} catch {
+														setTestResult({
+															status: "error",
+															message:
+																"Failed to store API key in server vault.",
+														});
+													} finally {
+														setModalLlmSaving(false);
+													}
+												}}
+												className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-sm flex items-center gap-1.5 flex-shrink-0"
 											>
-												Get {currentLLM.name} key{" "}
-												<ExternalLink className="w-3 h-3" />
-											</a>
+												{modalLlmSaving ? (
+													<Loader2 className="w-3.5 h-3.5 animate-spin" />
+												) : (
+													<Save className="w-3.5 h-3.5" />
+												)}
+												Save Key
+											</button>
+										) : isLlmVaultConfigured ? (
+											<button
+												type="button"
+												onClick={async () => {
+													clearServerKey("llm", settings.llm.provider);
+													await deleteServerApiKey(
+														"llm",
+														settings.llm.provider,
+													).catch(() => {});
+													setPendingLlmKey("");
+													setIsEditingLlmKey(false);
+													setTestResult({ status: "idle", message: "" });
+													setTimeout(() => llmInputRef.current?.focus(), 50);
+												}}
+												className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/40 dark:hover:bg-red-900/50 dark:text-red-400 border border-red-200 dark:border-red-900/50 cursor-pointer transition-colors shadow-sm flex items-center gap-1.5 flex-shrink-0"
+												title="Clear this API key to enter a new one"
+											>
+												<Trash2 className="w-3.5 h-3.5" />
+												Clear
+											</button>
+										) : (
+											<button
+												type="button"
+												disabled
+												className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 text-white opacity-40 cursor-not-allowed shadow-sm flex items-center gap-1.5 flex-shrink-0"
+											>
+												<Save className="w-3.5 h-3.5" />
+												Save Key
+											</button>
 										)}
 									</div>
-									<div className="relative">
-										<input
-											id="llm-api-key"
-											type={showKey ? "text" : "password"}
-											value={currentLLMApiKey}
-											onChange={(e) => {
-												const val = e.target.value;
-												setLLMApiKeyForProvider(settings.llm.provider, val);
-												setTestResult({ status: "idle", message: "" });
-												triggerSaved();
-											}}
-											placeholder={getApiKeyPlaceholder(settings.llm.provider)}
-											className={`w-full rounded-xl border bg-[var(--surface)] px-3.5 py-2.5 pr-10 text-sm text-[var(--text)] outline-none font-mono ${
-												!llmKeyValidation.isValid
-													? "border-red-400 focus:ring-2 focus:ring-red-500/40"
-													: "border-[var(--border)]"
-											}`}
-										/>
-										<button
-											type="button"
-											onClick={() => setShowKey(!showKey)}
-											className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--text)] cursor-pointer"
-										>
-											{showKey ? (
-												<EyeOff className="w-4 h-4" />
-											) : (
-												<Eye className="w-4 h-4" />
-											)}
-										</button>
-									</div>
-									{!llmKeyValidation.isValid && (
+									{pendingLlmKey.trim() && !llmKeyValidation.isValid && (
 										<p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
 											<AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
 											{llmKeyValidation.error}
@@ -661,8 +789,7 @@ export default function SettingsModal({
 										type="button"
 										onClick={handleTest}
 										disabled={
-											(!currentLLMApiKey.trim() &&
-												settings.llm.provider !== "generalcompute") ||
+											(!pendingLlmKey.trim() && !isLlmVaultConfigured) ||
 											!llmKeyValidation.isValid ||
 											testResult.status === "testing"
 										}
@@ -701,18 +828,24 @@ export default function SettingsModal({
 										>
 											Search Engine Provider
 										</label>
-										{isSearchProviderConfigured(settings.search.provider) && (
-											<span className="flex items-center gap-1 text-xs font-semibold text-emerald-500">
-												<CheckCircle2 className="w-3.5 h-3.5" /> Configured
-											</span>
-										)}
 									</div>
 									<select
 										id="search-provider-select"
 										value={settings.search.provider}
 										onChange={(e) => {
-											setSearchProvider(e.target.value as SearchProvider);
-											triggerSaved();
+											const prov = e.target.value as SearchProvider;
+											setSearchProvider(prov);
+											setPendingSearchKey("");
+											setIsEditingSearchKey(false);
+											const info = SEARCH_PROVIDERS.find((p) => p.id === prov);
+											const hasKey =
+												serverKeys.search.includes(prov) ||
+												isSearchProviderConfigured(prov);
+											if (!info?.requiredKey || hasKey) {
+												triggerSaved();
+											} else {
+												setTimeout(() => searchInputRef.current?.focus(), 50);
+											}
 										}}
 										className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3.5 py-2.5 text-sm text-[var(--text)] outline-none"
 									>
@@ -736,43 +869,145 @@ export default function SettingsModal({
 											>
 												Search API Key
 											</label>
-											{currentSearch.apiKeyUrl && (
-												<a
-													href={currentSearch.apiKeyUrl}
-													target="_blank"
-													rel="noopener noreferrer"
-													className="text-xs text-emerald-500 hover:underline flex items-center gap-1"
+											<div className="flex items-center gap-2">
+												{isSearchVaultConfigured ? (
+													<span className="flex items-center gap-1 text-xs font-semibold text-emerald-500">
+														<CheckCircle2 className="w-3.5 h-3.5" /> Vault
+														Encrypted
+													</span>
+												) : (
+													<span className="flex items-center gap-1 text-xs font-semibold text-amber-500">
+														<AlertCircle className="w-3.5 h-3.5" /> Key Required
+													</span>
+												)}
+												{currentSearch.apiKeyUrl && (
+													<a
+														href={currentSearch.apiKeyUrl}
+														target="_blank"
+														rel="noopener noreferrer"
+														className="text-xs text-emerald-500 hover:underline flex items-center gap-1"
+													>
+														Get key <ExternalLink className="w-3 h-3" />
+													</a>
+												)}
+											</div>
+										</div>
+										<div className="flex gap-2">
+											<div className="relative flex-1">
+												<input
+													ref={searchInputRef}
+													id="search-api-key"
+													type="password"
+													autoComplete="new-password"
+													spellCheck={false}
+													value={
+														hasSavedSearchKey
+															? "••••••••••••••••"
+															: pendingSearchKey
+													}
+													onFocus={(e) => {
+														if (hasSavedSearchKey) {
+															e.target.select();
+														}
+													}}
+													onChange={(e) => {
+														setIsEditingSearchKey(true);
+														const val = e.target.value;
+														setPendingSearchKey(val.replace(/•/g, ""));
+													}}
+													placeholder={
+														isSearchVaultConfigured
+															? "•••••••••••••••• (Encrypted in Server Vault)"
+															: `Enter ${currentSearch.name} API key (${getApiKeyPlaceholder(settings.search.provider)})`
+													}
+													className={`w-full rounded-xl border bg-[var(--surface)] px-3.5 py-2.5 text-sm text-[var(--text)] outline-none font-mono ${
+														pendingSearchKey.trim() &&
+														!searchKeyValidation.isValid
+															? "border-red-400 focus:ring-2 focus:ring-red-500/40"
+															: "border-[var(--border)] focus:border-blue-500"
+													}`}
+												/>
+											</div>
+											{pendingSearchKey.trim() ? (
+												<button
+													type="button"
+													disabled={
+														!validateApiKeyFormat(
+															settings.search.provider,
+															pendingSearchKey.trim(),
+														).isValid || modalSearchSaving
+													}
+													onClick={async () => {
+														const key = pendingSearchKey.trim();
+														if (!key) return;
+														const validation = validateApiKeyFormat(
+															settings.search.provider,
+															key,
+														);
+														if (!validation.isValid) return;
+														setModalSearchSaving(true);
+														try {
+															await setSearchApiKeyForProvider(
+																settings.search.provider,
+																key,
+															);
+															setPendingSearchKey("");
+															setIsEditingSearchKey(false);
+															triggerSaved();
+														} finally {
+															setModalSearchSaving(false);
+														}
+													}}
+													className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-sm flex items-center gap-1.5 flex-shrink-0"
 												>
-													Get key <ExternalLink className="w-3 h-3" />
-												</a>
+													{modalSearchSaving ? (
+														<Loader2 className="w-3.5 h-3.5 animate-spin" />
+													) : (
+														<Save className="w-3.5 h-3.5" />
+													)}
+													Save Key
+												</button>
+											) : isSearchVaultConfigured ? (
+												<button
+													type="button"
+													onClick={async () => {
+														clearServerKey("search", settings.search.provider);
+														await deleteServerApiKey(
+															"search",
+															settings.search.provider,
+														).catch(() => {});
+														setPendingSearchKey("");
+														setIsEditingSearchKey(false);
+														setTestResult({ status: "idle", message: "" });
+														setTimeout(
+															() => searchInputRef.current?.focus(),
+															50,
+														);
+													}}
+													className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/40 dark:hover:bg-red-900/50 dark:text-red-400 border border-red-200 dark:border-red-900/50 cursor-pointer transition-colors shadow-sm flex items-center gap-1.5 flex-shrink-0"
+													title="Clear this API key to enter a new one"
+												>
+													<Trash2 className="w-3.5 h-3.5" />
+													Clear
+												</button>
+											) : (
+												<button
+													type="button"
+													disabled
+													className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 text-white opacity-40 cursor-not-allowed shadow-sm flex items-center gap-1.5 flex-shrink-0"
+												>
+													<Save className="w-3.5 h-3.5" />
+													Save Key
+												</button>
 											)}
 										</div>
-										<input
-											id="search-api-key"
-											type="password"
-											value={currentSearchApiKey}
-											onChange={(e) => {
-												setSearchApiKeyForProvider(
-													settings.search.provider,
-													e.target.value,
-												);
-												triggerSaved();
-											}}
-											placeholder={getApiKeyPlaceholder(
-												settings.search.provider,
+										{pendingSearchKey.trim() &&
+											!searchKeyValidation.isValid && (
+												<p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+													<AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+													{searchKeyValidation.error}
+												</p>
 											)}
-											className={`w-full rounded-xl border bg-[var(--surface)] px-3.5 py-2.5 text-sm text-[var(--text)] outline-none font-mono ${
-												!searchKeyValidation.isValid
-													? "border-red-400 focus:ring-2 focus:ring-red-500/40"
-													: "border-[var(--border)]"
-											}`}
-										/>
-										{!searchKeyValidation.isValid && (
-											<p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
-												<AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-												{searchKeyValidation.error}
-											</p>
-										)}
 									</div>
 								)}
 

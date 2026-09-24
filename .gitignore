@@ -17,12 +17,19 @@ dist-ssr
 .env
 .env.*
 !.env.example
+!.env.docker
 
 # Local database & secrets
 data/
 *.sqlite
 *.sqlite3
 *.db
+
+# Build artifacts
+api/
+dist/
+dist-server/
+dev-dist/
 
 # Editor directories and files
 .vscode/*
@@ -33,5 +40,6 @@ data/
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
 .opencode/
+playwright-report/
+test-results/

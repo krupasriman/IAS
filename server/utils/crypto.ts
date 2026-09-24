@@ -42,7 +42,14 @@ function loadEncryptionKey(): Buffer {
 		}
 	}
 
-	// Dev / Serverless fallback paths
+	// Strictly prohibit ephemeral keys in production
+	if (process.env.NODE_ENV === "production") {
+		throw new Error(
+			"FATAL: ENCRYPTION_KEY must be configured in production (32-byte base64 string). Ephemeral key generation is strictly forbidden in production.",
+		);
+	}
+
+	// Dev fallback paths
 	const possiblePaths = [
 		path.join(moduleDir, "../../data/.encryption.key"),
 		"/tmp/.encryption.key",
@@ -71,11 +78,15 @@ function loadEncryptionKey(): Buffer {
 		}
 	}
 
-	// In-memory fallback for read-only environments
+	// In-memory fallback for read-only dev environments
 	encryptionKey = generated;
 	return encryptionKey;
 }
 
+/**
+ * Encrypts sensitive credentials using AES-256-GCM with key versioning.
+ * Format: v1:<ivB64>:<tagB64>:<dataB64>
+ */
 export function encryptSecret(plaintext: string): string {
 	const iv = randomBytes(IV_LENGTH);
 	const cipher = createCipheriv(ALGORITHM, loadEncryptionKey(), iv);
@@ -84,14 +95,35 @@ export function encryptSecret(plaintext: string): string {
 		cipher.final(),
 	]);
 	const authTag = cipher.getAuthTag();
-	return [iv, authTag, encrypted].map((b) => b.toString("base64")).join(".");
+	return [
+		"v1",
+		iv.toString("base64"),
+		authTag.toString("base64"),
+		encrypted.toString("base64"),
+	].join(":");
 }
 
+/**
+ * Decrypts sensitive credentials, supporting both v1 versioned payloads and legacy dot-delimited payloads.
+ */
 export function decryptSecret(payload: string): string {
-	const [ivB64, tagB64, dataB64] = payload.split(".");
-	if (!ivB64 || !tagB64 || !dataB64) {
-		throw new Error("Malformed encrypted payload");
+	let ivB64: string;
+	let tagB64: string;
+	let dataB64: string;
+
+	if (payload.startsWith("v1:")) {
+		const parts = payload.split(":");
+		if (parts.length !== 4) throw new Error("Malformed v1 encrypted payload");
+		[, ivB64, tagB64, dataB64] = parts;
+	} else if (payload.includes(".")) {
+		const parts = payload.split(".");
+		if (parts.length !== 3)
+			throw new Error("Malformed legacy encrypted payload");
+		[ivB64, tagB64, dataB64] = parts;
+	} else {
+		throw new Error("Unrecognized encrypted payload format");
 	}
+
 	const decipher = createDecipheriv(
 		ALGORITHM,
 		loadEncryptionKey(),

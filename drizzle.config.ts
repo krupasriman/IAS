@@ -3,15 +3,15 @@ import { defineConfig } from "drizzle-kit";
 
 dotenv.config();
 
-const url = process.env.TURSO_DATABASE_URL || "file:./data/ias.db";
-const authToken = process.env.TURSO_AUTH_TOKEN;
+const url =
+	process.env.DATABASE_URL ||
+	"postgresql://postgres:postgres@localhost:5432/ias";
 
 export default defineConfig({
 	schema: "./server/db/schema.ts",
 	out: "./drizzle",
-	dialect: url.startsWith("libsql") ? "turso" : "sqlite",
+	dialect: "postgresql",
 	dbCredentials: {
 		url,
-		...(authToken ? { authToken } : {}),
 	},
 });

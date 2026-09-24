@@ -6,7 +6,15 @@
 		"useIgnoreFile": true
 	},
 	"files": {
-		"includes": ["**", "!**/dist", "!**/api"]
+		"includes": [
+			"**",
+			"!**/dist",
+			"!**/dist-server",
+			"!**/api",
+			"!**/playwright-report",
+			"!**/test-results",
+			"!**/drizzle"
+		]
 	},
 	"formatter": {
 		"enabled": true,

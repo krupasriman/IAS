@@ -37,6 +37,7 @@ export function useSettings() {
 	const setTheme = useSettingsStore((s) => s.setTheme);
 	const setAutoSaveWebNotes = useSettingsStore((s) => s.setAutoSaveWebNotes);
 	const resetSettings = useSettingsStore((s) => s.resetSettings);
+	const clearServerKey = useSettingsStore((s) => s.clearServerKey);
 
 	const isLlmProviderConfigured = useCallback(
 		(provider: LLMProvider) => {
@@ -107,5 +108,6 @@ export function useSettings() {
 		setTheme,
 		setAutoSaveWebNotes,
 		resetSettings,
+		clearServerKey,
 	};
 }

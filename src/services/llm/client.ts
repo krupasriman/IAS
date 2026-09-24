@@ -79,15 +79,26 @@ export async function generateStructuredTopic(
 	);
 }
 
+export interface StreamTopicCallbacks {
+	onChunk?: (chunk: string, accumulated: string) => void;
+	onStatus?: (stage: string, message: string) => void;
+}
+
 export async function streamStructuredTopic(
 	options: GenerateTopicOptions,
 	settings: LLMSettings,
-	onChunk: (text: string) => void,
-): Promise<string> {
+	callbacks?: StreamTopicCallbacks | ((text: string) => void),
+): Promise<Topic> {
 	const apiKey = getApiKey(settings);
 
 	const { provider, model, temperature, baseUrl } = settings;
 	const STREAM_URL = "/api/generate/stream";
+
+	const onChunk =
+		typeof callbacks === "function" ? undefined : callbacks?.onChunk;
+	const onStatus =
+		typeof callbacks === "object" ? callbacks?.onStatus : undefined;
+	const legacyOnChunk = typeof callbacks === "function" ? callbacks : undefined;
 
 	const response = await fetch(STREAM_URL, {
 		method: "POST",
@@ -114,33 +125,59 @@ export async function streamStructuredTopic(
 	const reader = response.body.getReader();
 	const decoder = new TextDecoder("utf-8");
 	let accumulatedText = "";
+	let completedTopic: Topic | null = null;
+	let buffer = "";
 
 	while (true) {
 		const { done, value } = await reader.read();
 		if (done) break;
 
-		const chunk = decoder.decode(value, { stream: true });
-		const lines = chunk.split("\n");
+		buffer += decoder.decode(value, { stream: true });
+		const parts = buffer.split("\n\n");
+		buffer = parts.pop() ?? "";
 
-		for (const line of lines) {
-			if (line.trim() === "" || line.trim() === "data: [DONE]") continue;
+		for (const part of parts) {
+			const lines = part.split("\n");
+			let eventType = "message";
+			let dataStr = "";
 
-			if (line.startsWith("data: ")) {
-				try {
-					const data = JSON.parse(line.slice(6));
-					if (data.error) throw new Error(data.error);
-					if (data.content) {
-						accumulatedText += data.content;
-						onChunk(accumulatedText);
-					}
-				} catch (_e) {
-					// ignore parsing error for chunk
+			for (const line of lines) {
+				if (line.startsWith("event: ")) {
+					eventType = line.slice(7).trim();
+				} else if (line.startsWith("data: ")) {
+					dataStr = line.slice(6).trim();
 				}
+			}
+
+			if (!dataStr) continue;
+
+			try {
+				const data = JSON.parse(dataStr);
+				if (eventType === "status" && data.stage && data.message) {
+					onStatus?.(data.stage, data.message);
+				} else if (eventType === "chunk" && typeof data.text === "string") {
+					accumulatedText += data.text;
+					if (legacyOnChunk) {
+						legacyOnChunk(accumulatedText);
+					} else {
+						onChunk?.(data.text, accumulatedText);
+					}
+				} else if (eventType === "complete" && data.topic) {
+					completedTopic = data.topic as Topic;
+				} else if (eventType === "error") {
+					throw new Error(data.message || "Streaming generation failed");
+				}
+			} catch (err) {
+				if (eventType === "error") throw err;
 			}
 		}
 	}
 
-	return accumulatedText;
+	if (!completedTopic) {
+		throw new Error("Stream closed before receiving validated topic");
+	}
+
+	return completedTopic;
 }
 
 /**
@@ -154,14 +191,17 @@ export async function callLLM(
 ): Promise<string> {
 	const apiKey = getApiKey(settings);
 
+	if (isBrowser) {
+		return callLLMViaProxy(messages, {
+			...settings,
+			apiKey: apiKey || undefined,
+		});
+	}
+
 	if (!apiKey) {
 		throw new Error(
 			"API key not configured. Please add your API key in Settings.",
 		);
-	}
-
-	if (isBrowser) {
-		return callLLMViaProxy(messages, { ...settings, apiKey });
 	}
 
 	return callLLMDirect(messages, { ...settings, apiKey });
@@ -169,7 +209,7 @@ export async function callLLM(
 
 async function callLLMViaProxy(
 	messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
-	settings: LLMSettings & { apiKey: string },
+	settings: LLMSettings & { apiKey?: string },
 ): Promise<string> {
 	const { provider, apiKey, model, temperature, baseUrl } = settings;
 
@@ -178,7 +218,7 @@ async function callLLMViaProxy(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({
 			provider,
-			apiKey,
+			apiKey: apiKey || undefined,
 			model,
 			messages,
 			temperature,

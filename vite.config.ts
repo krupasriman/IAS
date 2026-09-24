@@ -68,6 +68,7 @@ export default defineConfig(({ mode }) => {
 			},
 		},
 		build: {
+			sourcemap: false,
 			chunkSizeWarningLimit: 1000,
 			rollupOptions: {
 				output: {
@@ -90,6 +91,14 @@ export default defineConfig(({ mode }) => {
 					},
 				},
 			},
+		},
+		test: {
+			include: [
+				"src/**/*.test.{ts,tsx}",
+				"server/**/*.test.{ts,tsx}",
+				"tests/**/*.test.{ts,tsx}",
+			],
+			exclude: ["tests/security/**", "node_modules/**"],
 		},
 	};
 });

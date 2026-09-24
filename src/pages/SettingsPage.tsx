@@ -4,15 +4,15 @@ import {
 	Bot,
 	CheckCircle2,
 	ExternalLink,
-	Eye,
-	EyeOff,
 	Globe,
 	Key,
+	Loader2,
 	RotateCcw,
 	Save,
 	Sparkles,
+	Trash2,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import ConfirmModal from "../components/ui/ConfirmModal";
 import ModelCombobox, {
 	type ModelVariant,
@@ -21,6 +21,7 @@ import { LLM_PROVIDERS, SEARCH_PROVIDERS } from "../config/providers";
 import { useSettings } from "../hooks/useSettings";
 import { callLLM } from "../services/llm/client";
 import { DEFAULT_OPENROUTER_MODELS } from "../services/llm/models";
+import { deleteServerApiKey } from "../services/settingsApi";
 import type { LLMProvider, SearchProvider } from "../types/settings.types";
 import {
 	getApiKeyPlaceholder,
@@ -31,10 +32,10 @@ export default function SettingsPage() {
 	const settingsContext = useSettings();
 	const {
 		settings,
-		llmConfigured,
 		searchConfigured,
-		currentLLMApiKey,
-		currentSearchApiKey,
+		serverKeys,
+		isLlmProviderConfigured,
+		isSearchProviderConfigured,
 		openRouterModels,
 		openRouterLoading,
 		openRouterError,
@@ -52,28 +53,50 @@ export default function SettingsPage() {
 		SEARCH_PROVIDERS.find((p) => p.id === settings.search.provider) ??
 		SEARCH_PROVIDERS[0];
 
-	const [showKey, setShowKey] = useState(false);
+	const [pendingLlmKey, setPendingLlmKey] = useState("");
+	const [pendingSearchKey, setPendingSearchKey] = useState("");
+	const [isEditingLlmKey, setIsEditingLlmKey] = useState(false);
+	const [isEditingSearchKey, setIsEditingSearchKey] = useState(false);
+	const [keySaving, setKeySaving] = useState(false);
+	const [searchKeySaving, setSearchKeySaving] = useState(false);
 	const [saved, setSaved] = useState(false);
 	const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
-	const llmKeyValidation = useMemo(
-		() => validateApiKeyFormat(settings.llm.provider, currentLLMApiKey),
-		[settings.llm.provider, currentLLMApiKey],
-	);
+	const llmKeyInputRef = useRef<HTMLInputElement>(null);
+	const searchKeyInputRef = useRef<HTMLInputElement>(null);
 
-	const searchKeyValidation = useMemo(
-		() =>
-			currentSearch.requiredKey
-				? validateApiKeyFormat(settings.search.provider, currentSearchApiKey)
-				: { isValid: true },
-		[currentSearch.requiredKey, settings.search.provider, currentSearchApiKey],
-	);
+	const isLlmVaultConfigured =
+		serverKeys.llm.includes(settings.llm.provider) ||
+		isLlmProviderConfigured(settings.llm.provider);
+	const isSearchVaultConfigured =
+		serverKeys.search.includes(settings.search.provider) ||
+		isSearchProviderConfigured(settings.search.provider);
+
+	const hasSavedLlmKey = isLlmVaultConfigured && !isEditingLlmKey;
+	const hasSavedSearchKey = isSearchVaultConfigured && !isEditingSearchKey;
+
+	const llmKeyValidation = useMemo(() => {
+		if (!pendingLlmKey.trim()) {
+			return { isValid: true };
+		}
+		return validateApiKeyFormat(settings.llm.provider, pendingLlmKey.trim());
+	}, [settings.llm.provider, pendingLlmKey]);
+
+	const searchKeyValidation = useMemo(() => {
+		if (!currentSearch.requiredKey || !pendingSearchKey.trim()) {
+			return { isValid: true };
+		}
+		return validateApiKeyFormat(
+			settings.search.provider,
+			pendingSearchKey.trim(),
+		);
+	}, [currentSearch.requiredKey, settings.search.provider, pendingSearchKey]);
 
 	const isFormValid =
 		llmKeyValidation.isValid &&
 		(!currentSearch.requiredKey || searchKeyValidation.isValid);
 
-	const handleSave = () => {
+	const handleSave = async () => {
 		if (!llmKeyValidation.isValid) {
 			setTestResult({
 				status: "error",
@@ -88,6 +111,19 @@ export default function SettingsPage() {
 			});
 			return;
 		}
+
+		// Encrypt to server vault and scrub cleartext from DOM and React state immediately
+		if (pendingLlmKey.trim()) {
+			await settingsContext.setLLMApiKey(pendingLlmKey.trim()).catch(() => {});
+			setPendingLlmKey("");
+		}
+		if (pendingSearchKey.trim()) {
+			await settingsContext
+				.setSearchApiKey(pendingSearchKey.trim())
+				.catch(() => {});
+			setPendingSearchKey("");
+		}
+
 		setSaved(true);
 		setTimeout(() => setSaved(false), 2000);
 	};
@@ -261,8 +297,8 @@ export default function SettingsPage() {
 		modelVariant || (settings.llm.model.includes(":free") ? "free" : "default");
 
 	const handleTest = async () => {
-		const key = currentLLMApiKey.trim();
-		if (!key && settings.llm.provider !== "generalcompute") {
+		const key = pendingLlmKey.trim();
+		if (!key && !isLlmVaultConfigured) {
 			setTestResult({
 				status: "error",
 				message: `Please enter a ${currentLLM.name} API key before testing connection.`,
@@ -270,7 +306,7 @@ export default function SettingsPage() {
 			return;
 		}
 
-		if (!llmKeyValidation.isValid) {
+		if (key && !llmKeyValidation.isValid) {
 			setTestResult({
 				status: "error",
 				message: llmKeyValidation.error || "Invalid API key format.",
@@ -287,7 +323,7 @@ export default function SettingsPage() {
 					...settings.llm.apiKeys,
 					[settings.llm.provider]: key,
 				},
-				apiKey: key,
+				apiKey: key || undefined,
 				model: settings.llm.model,
 			};
 			const response = await callLLM(
@@ -366,9 +402,13 @@ export default function SettingsPage() {
 								Used for AI-powered web search analysis
 							</p>
 						</div>
-						{llmConfigured && (
+						{isLlmVaultConfigured ? (
 							<span className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-bold">
 								<CheckCircle2 className="w-3.5 h-3.5" /> Configured
+							</span>
+						) : (
+							<span className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-bold border border-amber-200">
+								<AlertCircle className="w-3.5 h-3.5" /> Key Required
 							</span>
 						)}
 					</div>
@@ -382,8 +422,15 @@ export default function SettingsPage() {
 								id="llm-provider"
 								value={settings.llm.provider}
 								onChange={(e) => {
-									settingsContext.setLLMProvider(e.target.value as LLMProvider);
+									const newProvider = e.target.value as LLMProvider;
+									settingsContext.setLLMProvider(newProvider);
+									setPendingLlmKey("");
+									setIsEditingLlmKey(false);
 									setTestResult({ status: "idle", message: "" });
+									const hasKey = serverKeys.llm.includes(newProvider);
+									if (!hasKey) {
+										setTimeout(() => llmKeyInputRef.current?.focus(), 50);
+									}
 								}}
 								className={inputClass}
 							>
@@ -484,37 +531,137 @@ export default function SettingsPage() {
 								<label className={labelClass} htmlFor="llm-api-key">
 									{currentLLM.name} API Key
 								</label>
+								{isLlmVaultConfigured ? (
+									<span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
+										<CheckCircle2 className="w-3.5 h-3.5" /> Vault Encrypted
+									</span>
+								) : (
+									<span className="inline-flex items-center gap-1 text-xs text-amber-700 font-semibold bg-amber-100 px-2 py-0.5 rounded-md">
+										<AlertCircle className="w-3.5 h-3.5" /> Key Required
+									</span>
+								)}
 							</div>
-							<div className="relative">
-								<Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-								<input
-									id="llm-api-key"
-									type={showKey ? "text" : "password"}
-									value={currentLLMApiKey}
-									onChange={(e) => {
-										settingsContext.setLLMApiKey(e.target.value);
-										setTestResult({ status: "idle", message: "" });
-									}}
-									placeholder={getApiKeyPlaceholder(settings.llm.provider)}
-									className={`${inputClass} pl-10 pr-10 ${
-										!llmKeyValidation.isValid
-											? "border-red-400 focus:ring-red-500/40 focus:border-red-500"
-											: ""
-									}`}
-								/>
-								<button
-									type="button"
-									onClick={() => setShowKey(!showKey)}
-									className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-								>
-									{showKey ? (
-										<EyeOff className="w-4 h-4" />
-									) : (
-										<Eye className="w-4 h-4" />
-									)}
-								</button>
+							<div className="flex gap-2">
+								<div className="relative flex-1">
+									<Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+									<input
+										ref={llmKeyInputRef}
+										id="llm-api-key"
+										type="password"
+										autoComplete="new-password"
+										spellCheck={false}
+										value={hasSavedLlmKey ? "••••••••••••••••" : pendingLlmKey}
+										onFocus={(e) => {
+											if (hasSavedLlmKey) {
+												e.target.select();
+											}
+										}}
+										onChange={(e) => {
+											setIsEditingLlmKey(true);
+											const val = e.target.value;
+											setPendingLlmKey(val.replace(/•/g, ""));
+											setTestResult({ status: "idle", message: "" });
+										}}
+										placeholder={
+											isLlmVaultConfigured
+												? "•••••••••••••••• (Encrypted in Server Vault)"
+												: `Enter ${currentLLM.name} API key (${getApiKeyPlaceholder(settings.llm.provider)})`
+										}
+										className={`${inputClass} pl-10 ${
+											pendingLlmKey.trim() && !llmKeyValidation.isValid
+												? "border-red-400 focus:ring-red-500/40 focus:border-red-500"
+												: ""
+										}`}
+									/>
+								</div>
+								{pendingLlmKey.trim() ? (
+									<button
+										type="button"
+										disabled={
+											!validateApiKeyFormat(
+												settings.llm.provider,
+												pendingLlmKey.trim(),
+											).isValid || keySaving
+										}
+										onClick={async () => {
+											const key = pendingLlmKey.trim();
+											if (!key) return;
+											const validation = validateApiKeyFormat(
+												settings.llm.provider,
+												key,
+											);
+											if (!validation.isValid) {
+												setTestResult({
+													status: "error",
+													message: validation.error || "Invalid API key format",
+												});
+												return;
+											}
+											setKeySaving(true);
+											try {
+												await settingsContext.setLLMApiKeyForProvider(
+													settings.llm.provider,
+													key,
+												);
+												setPendingLlmKey("");
+												setIsEditingLlmKey(false);
+												setTestResult({
+													status: "success",
+													message: `${currentLLM.name} key encrypted and saved to server vault!`,
+												});
+											} catch {
+												setTestResult({
+													status: "error",
+													message: "Failed to store API key in server vault.",
+												});
+											} finally {
+												setKeySaving(false);
+											}
+										}}
+										className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-sm flex-shrink-0"
+									>
+										{keySaving ? (
+											<Loader2 className="w-4 h-4 animate-spin" />
+										) : (
+											<Save className="w-4 h-4" />
+										)}
+										Save Key
+									</button>
+								) : isLlmVaultConfigured ? (
+									<button
+										type="button"
+										onClick={async () => {
+											settingsContext.clearServerKey(
+												"llm",
+												settings.llm.provider,
+											);
+											await deleteServerApiKey(
+												"llm",
+												settings.llm.provider,
+											).catch(() => {});
+											setPendingLlmKey("");
+											setIsEditingLlmKey(false);
+											setTestResult({ status: "idle", message: "" });
+											setTimeout(() => llmKeyInputRef.current?.focus(), 50);
+										}}
+										className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/40 dark:hover:bg-red-900/50 dark:text-red-400 border border-red-200 dark:border-red-900/50 cursor-pointer transition-colors shadow-sm flex-shrink-0"
+										title="Clear this API key to enter a new one"
+									>
+										<Trash2 className="w-4 h-4" />
+										Clear
+									</button>
+								) : (
+									<button
+										type="button"
+										disabled
+										className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 text-white opacity-40 cursor-not-allowed shadow-sm flex-shrink-0"
+									>
+										<Save className="w-4 h-4" />
+										Save Key
+									</button>
+								)}
 							</div>
-							{!llmKeyValidation.isValid && (
+							{pendingLlmKey.trim() && !llmKeyValidation.isValid && (
 								<p className="text-xs text-red-600 mt-1.5 flex items-center gap-1">
 									<AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
 									{llmKeyValidation.error}
@@ -570,16 +717,15 @@ export default function SettingsPage() {
 							type="button"
 							onClick={handleTest}
 							disabled={
-								(!currentLLMApiKey.trim() &&
+								(!pendingLlmKey.trim() &&
+									!isLlmVaultConfigured &&
 									settings.llm.provider !== "generalcompute") ||
 								!llmKeyValidation.isValid ||
 								testResult.status === "testing"
 							}
 							className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-								(
-									!currentLLMApiKey.trim() &&
-										settings.llm.provider !== "generalcompute"
-								) || !llmKeyValidation.isValid
+								(!pendingLlmKey.trim() && !isLlmVaultConfigured) ||
+								!llmKeyValidation.isValid
 									? "bg-slate-100 text-slate-400 cursor-not-allowed"
 									: "bg-slate-900 text-white hover:bg-slate-800 cursor-pointer shadow-sm"
 							}`}
@@ -617,9 +763,13 @@ export default function SettingsPage() {
 								Used to fetch recent web results for AI analysis
 							</p>
 						</div>
-						{searchConfigured && (
+						{searchConfigured ? (
 							<span className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-bold">
 								<CheckCircle2 className="w-3.5 h-3.5" /> Ready
+							</span>
+						) : (
+							<span className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-bold border border-amber-200">
+								<AlertCircle className="w-3.5 h-3.5" /> API Key Required
 							</span>
 						)}
 					</div>
@@ -632,11 +782,20 @@ export default function SettingsPage() {
 							<select
 								id="search-provider"
 								value={settings.search.provider}
-								onChange={(e) =>
-									settingsContext.setSearchProvider(
-										e.target.value as SearchProvider,
-									)
-								}
+								onChange={(e) => {
+									const newProvider = e.target.value as SearchProvider;
+									settingsContext.setSearchProvider(newProvider);
+									setPendingSearchKey("");
+									setIsEditingSearchKey(false);
+									setTestResult({ status: "idle", message: "" });
+									const info = SEARCH_PROVIDERS.find(
+										(p) => p.id === newProvider,
+									);
+									const hasKey = serverKeys.search.includes(newProvider);
+									if (info?.requiredKey && !hasKey) {
+										setTimeout(() => searchKeyInputRef.current?.focus(), 50);
+									}
+								}}
 								className={inputClass}
 							>
 								{SEARCH_PROVIDERS.map((p) => (
@@ -661,26 +820,152 @@ export default function SettingsPage() {
 						</div>
 
 						{currentSearch.requiredKey ? (
-							<div>
-								<label className={labelClass} htmlFor="search-api-key">
-									{currentSearch.name} API Key{" "}
-									{currentSearch.id === "langsearch" ? "(optional)" : ""}
-								</label>
-								<input
-									id="search-api-key"
-									type="password"
-									value={currentSearchApiKey}
-									onChange={(e) =>
-										settingsContext.setSearchApiKey(e.target.value)
-									}
-									placeholder={getApiKeyPlaceholder(settings.search.provider)}
-									className={`${inputClass} ${
-										!searchKeyValidation.isValid
-											? "border-red-400 focus:ring-red-500/40 focus:border-red-500"
-											: ""
-									}`}
-								/>
-								{!searchKeyValidation.isValid && (
+							<div className="sm:col-span-2">
+								<div className="flex items-center justify-between mb-1.5">
+									<label className={labelClass} htmlFor="search-api-key">
+										{currentSearch.name} API Key{" "}
+										{currentSearch.id === "langsearch" ? "(optional)" : ""}
+									</label>
+									{isSearchVaultConfigured ? (
+										<span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
+											<CheckCircle2 className="w-3.5 h-3.5" /> Vault Encrypted
+										</span>
+									) : (
+										<span className="inline-flex items-center gap-1 text-xs text-amber-700 font-semibold bg-amber-100 px-2 py-0.5 rounded-md">
+											<AlertCircle className="w-3.5 h-3.5" /> Key Required
+										</span>
+									)}
+								</div>
+								<div className="flex gap-2">
+									<div className="relative flex-1">
+										<Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+										<input
+											ref={searchKeyInputRef}
+											id="search-api-key"
+											type="password"
+											autoComplete="new-password"
+											spellCheck={false}
+											value={
+												hasSavedSearchKey
+													? "••••••••••••••••"
+													: pendingSearchKey
+											}
+											onFocus={(e) => {
+												if (hasSavedSearchKey) {
+													e.target.select();
+												}
+											}}
+											onChange={(e) => {
+												setIsEditingSearchKey(true);
+												const val = e.target.value;
+												setPendingSearchKey(val.replace(/•/g, ""));
+												setTestResult({ status: "idle", message: "" });
+											}}
+											placeholder={
+												isSearchVaultConfigured
+													? "•••••••••••••••• (Encrypted in Server Vault)"
+													: `Enter ${currentSearch.name} API key (${getApiKeyPlaceholder(settings.search.provider)})`
+											}
+											className={`${inputClass} pl-10 ${
+												pendingSearchKey.trim() && !searchKeyValidation.isValid
+													? "border-red-400 focus:ring-red-500/40 focus:border-red-500"
+													: ""
+											}`}
+										/>
+									</div>
+									{pendingSearchKey.trim() ? (
+										<button
+											type="button"
+											disabled={
+												!validateApiKeyFormat(
+													settings.search.provider,
+													pendingSearchKey.trim(),
+												).isValid || searchKeySaving
+											}
+											onClick={async () => {
+												const key = pendingSearchKey.trim();
+												if (!key) return;
+												const validation = validateApiKeyFormat(
+													settings.search.provider,
+													key,
+												);
+												if (!validation.isValid) {
+													setTestResult({
+														status: "error",
+														message:
+															validation.error || "Invalid API key format",
+													});
+													return;
+												}
+												setSearchKeySaving(true);
+												try {
+													await settingsContext.setSearchApiKeyForProvider(
+														settings.search.provider,
+														key,
+													);
+													setPendingSearchKey("");
+													setIsEditingSearchKey(false);
+													setTestResult({
+														status: "success",
+														message: `${currentSearch.name} key encrypted and saved to server vault!`,
+													});
+												} catch {
+													setTestResult({
+														status: "error",
+														message:
+															"Failed to store Search API key in server vault.",
+													});
+												} finally {
+													setSearchKeySaving(false);
+												}
+											}}
+											className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-sm flex-shrink-0"
+										>
+											{searchKeySaving ? (
+												<Loader2 className="w-4 h-4 animate-spin" />
+											) : (
+												<Save className="w-4 h-4" />
+											)}
+											Save Key
+										</button>
+									) : isSearchVaultConfigured ? (
+										<button
+											type="button"
+											onClick={async () => {
+												settingsContext.clearServerKey(
+													"search",
+													settings.search.provider,
+												);
+												await deleteServerApiKey(
+													"search",
+													settings.search.provider,
+												).catch(() => {});
+												setPendingSearchKey("");
+												setIsEditingSearchKey(false);
+												setTestResult({ status: "idle", message: "" });
+												setTimeout(
+													() => searchKeyInputRef.current?.focus(),
+													50,
+												);
+											}}
+											className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/40 dark:hover:bg-red-900/50 dark:text-red-400 border border-red-200 dark:border-red-900/50 cursor-pointer transition-colors shadow-sm flex-shrink-0"
+											title="Clear this API key to enter a new one"
+										>
+											<Trash2 className="w-4 h-4" />
+											Clear
+										</button>
+									) : (
+										<button
+											type="button"
+											disabled
+											className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 text-white opacity-40 cursor-not-allowed shadow-sm flex-shrink-0"
+										>
+											<Save className="w-4 h-4" />
+											Save Key
+										</button>
+									)}
+								</div>
+								{pendingSearchKey.trim() && !searchKeyValidation.isValid && (
 									<p className="text-xs text-red-600 mt-1.5 flex items-center gap-1">
 										<AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
 										{searchKeyValidation.error}
@@ -746,11 +1031,11 @@ export default function SettingsPage() {
 				{/* Privacy Note */}
 				<div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-8">
 					<p className="text-sm text-blue-800">
-						<strong>Privacy:</strong> Your API keys are stored in your browser
-						using localStorage and, when a server is running, are also synced to
-						it and encrypted with AES-256-GCM before being stored server-side.
-						Keys are only sent to the LLM/search provider you configure when you
-						trigger a generation or search.
+						<strong>Privacy & Zero-Storage Security:</strong> Your API keys are
+						never saved in cleartext in your browser's localStorage. When you
+						enter a key, it is transmitted to the server where it is encrypted
+						using AES-256-GCM. Keys are only decrypted in memory when an AI
+						generation or web search is executed.
 					</p>
 				</div>
 

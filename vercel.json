@@ -6,14 +6,21 @@
 			"maxDuration": 60
 		}
 	},
-	"rewrites": [
+	"routes": [
 		{
-			"source": "/api/(.*)",
-			"destination": "/api"
+			"src": "^/(\\.git|\\.env|.*\\.db|.*\\.zip|.*\\.map|server-status|server-info)(/.*)?$",
+			"status": 404
 		},
 		{
-			"source": "/(.*)",
-			"destination": "/index.html"
+			"src": "^/api/(.*)$",
+			"dest": "/api"
+		},
+		{
+			"handle": "filesystem"
+		},
+		{
+			"src": "^/(.*)$",
+			"dest": "/index.html"
 		}
 	]
 }

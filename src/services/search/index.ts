@@ -8,75 +8,48 @@ type SearchAttempt = () => Promise<WebSearchResponse>;
 type LabeledAttempt = { label: string; run: SearchAttempt };
 
 /**
- * Client-side web search with a resilient fallback chain.
- * Order of attempts:
- *   1. Tavily (AI-optimized) if an API key is configured
- *   2. The explicitly selected provider if it has a usable API key
- *   3. DuckDuckGo (free, no key needed)
- *   4. Wikipedia (free, reliable for factual topics)
- * The first attempt that returns non-empty results wins. If every attempt
- * fails, the empty result (with no web context) is returned so the LLM can
- * still generate a note from its own knowledge.
+ * Web search client:
+ * 1. Calls the secure server-side search broker (/api/search) with server-managed secrets.
+ * 2. Falls back to DuckDuckGo proxy and Wikipedia if the server broker is unreachable.
  */
 export async function webSearch(
 	query: string,
 	settings: SearchSettings,
 ): Promise<WebSearchResponse> {
 	const provider = settings.provider || "duckduckgo";
-	const attempts: LabeledAttempt[] = [];
+	const maxResults = settings.maxResults || 8;
 
-	if (settings.apiKeys?.tavily) {
-		attempts.push({
-			label: "Tavily",
-			run: () => searchTavily(query, settings),
-		});
-	}
-
-	if (provider !== "duckduckgo" && provider !== "tavily") {
-		const label = provider.charAt(0).toUpperCase() + provider.slice(1);
-		attempts.push({
-			label,
-			run: () => {
-				switch (provider) {
-					case "serpapi":
-						if (!settings.apiKeys?.serpapi) {
-							throw new Error("SerpAPI API key not configured");
-						}
-						return searchSerpApi(query, settings);
-					case "brave":
-						if (!settings.apiKeys?.brave) {
-							throw new Error("Brave API key not configured");
-						}
-						return searchBrave(query, settings);
-					case "langsearch":
-						if (!settings.apiKeys?.langsearch) {
-							throw new Error("LangSearch API key not configured");
-						}
-						return searchLangSearch(query, settings);
-					default:
-						throw new Error(`Unknown search provider: ${provider}`);
-				}
+	// 1. Primary: Server-side search broker with zero client-side secret leakage
+	try {
+		const res = await fetch("/api/search", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"X-Requested-With": "XMLHttpRequest",
 			},
+			body: JSON.stringify({ query, provider, maxResults }),
 		});
+		if (res.ok) {
+			const data = (await res.json()) as WebSearchResponse;
+			if (data?.results && data.results.length > 0) {
+				return data;
+			}
+		}
+	} catch {
+		// Server broker offline or not responding; fallback to direct channels
 	}
 
-	attempts.push({
-		label: "DuckDuckGo",
-		run: () => searchDuckDuckGo(query, settings),
-	});
-	attempts.push({
-		label: "Wikipedia",
-		run: () => searchWikipedia(query, settings),
-	});
-
-	if (attempts.length === 0) {
-		return {
-			query,
-			results: [],
-			provider,
-			timestamp: new Date().toISOString(),
-		};
-	}
+	// 2. Direct fallback chain (DuckDuckGo -> Wikipedia)
+	const attempts: LabeledAttempt[] = [
+		{
+			label: "DuckDuckGo",
+			run: () => searchDuckDuckGo(query, settings),
+		},
+		{
+			label: "Wikipedia",
+			run: () => searchWikipedia(query, settings),
+		},
+	];
 
 	try {
 		const fastestSuccess = await Promise.any(
@@ -228,153 +201,28 @@ async function searchWikipedia(
 	if (!res.ok) {
 		throw new Error("Wikipedia search failed");
 	}
-	const data = await res.json();
+	const data = (await res.json()) as {
+		query?: { search?: Array<{ title?: string; snippet?: string }> };
+	};
 
-	const results: WebSearchResultItem[] = (
-		(data?.query?.search ?? []) as Array<Record<string, unknown>>
-	).map((item) => {
-		const title =
-			typeof item.title === "string" ? item.title : String(item.title ?? "");
-		const snippet = typeof item.snippet === "string" ? item.snippet : "";
-		return {
-			title,
-			url: `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`,
-			snippet: stripHtml(snippet),
-			source: "Wikipedia",
-		};
-	});
+	const results: WebSearchResultItem[] = (data?.query?.search ?? []).map(
+		(item) => {
+			const title =
+				typeof item.title === "string" ? item.title : String(item.title ?? "");
+			const snippet = typeof item.snippet === "string" ? item.snippet : "";
+			return {
+				title,
+				url: `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`,
+				snippet: stripHtml(snippet),
+				source: "Wikipedia",
+			};
+		},
+	);
 
 	return {
 		query,
 		results,
 		provider: "wikipedia",
-		timestamp: new Date().toISOString(),
-	};
-}
-
-async function searchSerpApi(
-	query: string,
-	settings: SearchSettings,
-): Promise<WebSearchResponse> {
-	const apiKey = settings.apiKeys?.serpapi || "";
-	const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(query)}&api_key=${encodeURIComponent(apiKey)}`;
-	const res = await fetch(url);
-	if (!res.ok) throw new Error("SerpAPI request failed");
-	const data = await res.json();
-	const results: WebSearchResultItem[] = (
-		(data?.organic_results ?? []) as Array<Record<string, unknown>>
-	).map((r) => ({
-		title: typeof r.title === "string" ? r.title : "",
-		url: typeof r.link === "string" ? r.link : "",
-		snippet: typeof r.snippet === "string" ? r.snippet : "",
-		source: "Google",
-	}));
-	return {
-		query,
-		results,
-		provider: "serpapi",
-		timestamp: new Date().toISOString(),
-	};
-}
-
-async function searchBrave(
-	query: string,
-	settings: SearchSettings,
-): Promise<WebSearchResponse> {
-	const apiKey = settings.apiKeys?.brave || "";
-	const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${settings.maxResults || 8}`;
-	const res = await fetch(url, {
-		headers: { "X-Subscription-Token": apiKey },
-	});
-	if (!res.ok) throw new Error("Brave Search request failed");
-	const data = await res.json();
-	const results: WebSearchResultItem[] = (
-		(data?.web?.results ?? []) as Array<Record<string, unknown>>
-	).map((r) => ({
-		title: typeof r.title === "string" ? r.title : "",
-		url: typeof r.url === "string" ? r.url : "",
-		snippet: typeof r.description === "string" ? r.description : "",
-		source: "Brave",
-	}));
-	return {
-		query,
-		results,
-		provider: "brave",
-		timestamp: new Date().toISOString(),
-	};
-}
-
-async function searchTavily(
-	query: string,
-	settings: SearchSettings,
-): Promise<WebSearchResponse> {
-	const apiKey = settings.apiKeys?.tavily || "";
-	const url = "https://api.tavily.com/search";
-	const res = await fetch(url, {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({
-			api_key: apiKey,
-			query,
-			max_results: settings.maxResults || 8,
-		}),
-	});
-	if (!res.ok) throw new Error("Tavily request failed");
-	const data = await res.json();
-	const results: WebSearchResultItem[] = (
-		(data?.results ?? []) as Array<Record<string, unknown>>
-	).map((r) => ({
-		title: typeof r.title === "string" ? r.title : "",
-		url: typeof r.url === "string" ? r.url : "",
-		snippet: typeof r.content === "string" ? r.content : "",
-		source: "Tavily",
-	}));
-	return {
-		query,
-		results,
-		provider: "tavily",
-		timestamp: new Date().toISOString(),
-	};
-}
-
-async function searchLangSearch(
-	query: string,
-	settings: SearchSettings,
-): Promise<WebSearchResponse> {
-	const apiKey = settings.apiKeys?.langsearch || "";
-	const url = "https://api.langsearch.com/v1/web-search";
-	const res = await fetch(url, {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-			Authorization: `Bearer ${apiKey}`,
-		},
-		body: JSON.stringify({ query, count: settings.maxResults || 8 }),
-	});
-	if (!res.ok) throw new Error("LangSearch request failed");
-	const data = await res.json();
-	const results: WebSearchResultItem[] = (
-		(data?.results ?? data?.web ?? []) as Array<Record<string, unknown>>
-	).map((r) => ({
-		title:
-			typeof r.title === "string"
-				? r.title
-				: typeof r.name === "string"
-					? r.name
-					: "",
-		url: typeof r.url === "string" ? r.url : "",
-		snippet:
-			typeof r.snippet === "string"
-				? r.snippet
-				: typeof r.description === "string"
-					? r.description
-					: "",
-		source: "LangSearch",
-	}));
-	return {
-		query,
-		results,
-		provider: "langsearch",
 		timestamp: new Date().toISOString(),
 	};
 }

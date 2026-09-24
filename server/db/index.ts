@@ -1,184 +1,113 @@
-import fs from "node:fs";
-import { createRequire } from "node:module";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import type { Client } from "@libsql/client";
-import { createClient as createWebClient } from "@libsql/client/web";
-import { drizzle } from "drizzle-orm/libsql";
-import { migrate } from "drizzle-orm/libsql/migrator";
+import dotenv from "dotenv";
+import { drizzle } from "drizzle-orm/node-postgres";
+import pg from "pg";
 import { logger } from "../../src/utils/logger";
 import * as schema from "./schema";
 
-let customRequire: NodeRequire | undefined;
-try {
-	if (typeof import.meta !== "undefined" && import.meta?.url) {
-		customRequire = createRequire(import.meta.url);
-	}
-} catch {
-	// Ignore
-}
+dotenv.config();
 
-function getDirname(): string {
-	try {
-		if (typeof import.meta !== "undefined" && import.meta?.url) {
-			return path.dirname(fileURLToPath(import.meta.url));
-		}
-	} catch {
-		// Ignore
-	}
-	return typeof __dirname !== "undefined" ? __dirname : process.cwd();
-}
+const { Pool } = pg;
 
-const moduleDir = getDirname();
+const databaseUrl =
+	process.env.DATABASE_URL ||
+	"postgresql://postgres:postgres@localhost:5432/ias";
 
-const isServerless = Boolean(
-	process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME,
-);
+const isNeonOrSupabase =
+	databaseUrl.includes("neon.tech") ||
+	databaseUrl.includes("supabase.co") ||
+	databaseUrl.includes("pooler.supabase.com");
 
-const DATA_DIR = path.resolve(moduleDir, "../../data");
-const localDbPath =
-	isServerless && !process.env.TURSO_DATABASE_URL
-		? "/tmp/ias.db"
-		: path.join(DATA_DIR, "ias.db");
+const isSslRequired =
+	isNeonOrSupabase ||
+	process.env.DATABASE_SSL === "true" ||
+	databaseUrl.includes("sslmode=require");
 
-const url = process.env.TURSO_DATABASE_URL || `file:${localDbPath}`;
-const authToken = process.env.TURSO_AUTH_TOKEN;
+export const pool = new Pool({
+	connectionString: databaseUrl,
+	ssl: isSslRequired ? { rejectUnauthorized: false } : undefined,
+	max: 20,
+	idleTimeoutMillis: 30000,
+	connectionTimeoutMillis: 5000,
+});
 
-function createFallbackClient(): Client {
-	return {
-		execute: async () => ({
-			columns: [],
-			columnTypes: [],
-			rows: [],
-			rowsAffected: 0,
-			lastInsertRowid: undefined,
-		}),
-		batch: async () => [],
-		transaction: async () => ({
-			execute: async () => ({
-				columns: [],
-				columnTypes: [],
-				rows: [],
-				rowsAffected: 0,
-				lastInsertRowid: undefined,
-			}),
-			batch: async () => [],
-			executeMultiple: async () => {},
-			rollback: async () => {},
-			commit: async () => {},
-			close: () => {},
-			closed: false,
-		}),
-		executeMultiple: async () => {},
-		sync: async () => ({ frames_synced: 0, frame_no: 0 }),
-		close: () => {},
-		closed: false,
-		protocol: "file",
-	} as unknown as Client;
-}
+pool.on("error", (err) => {
+	logger.error({ err: err.message }, "Unexpected idle PostgreSQL client error");
+});
 
-function createDbClient(): Client {
-	if (
-		url.startsWith("libsql:") ||
-		url.startsWith("https:") ||
-		url.startsWith("http:")
-	) {
-		return createWebClient({ url, authToken });
-	}
-
-	if (isServerless && url.startsWith("file:")) {
-		logger.warn(
-			"Native SQLite driver unsupported in Serverless with local file; using fallback client",
-		);
-		return createFallbackClient();
-	}
-
-	try {
-		if (url.startsWith("file:")) {
-			try {
-				const dbDir = path.dirname(localDbPath);
-				fs.mkdirSync(dbDir, { recursive: true });
-			} catch {
-				// Ignore if in read-only environment
-			}
-		}
-		// Dynamic require for node client so native libsql is only loaded when available
-		if (!customRequire) throw new Error("createRequire not available");
-		const { createClient: createNodeClient } = customRequire("@libsql/client");
-		return createNodeClient({ url, authToken });
-	} catch (err) {
-		logger.warn(
-			{ err },
-			"Native SQLite driver unavailable; using safe fallback client",
-		);
-		return createFallbackClient();
-	}
-}
-
-export const client = createDbClient();
-export const db = drizzle(client, { schema });
+export const db = drizzle(pool, { schema });
 
 const INIT_SQL = `
-CREATE TABLE IF NOT EXISTS api_keys (
-	id text PRIMARY KEY NOT NULL,
-	kind text NOT NULL,
-	provider text NOT NULL,
-	encrypted text NOT NULL,
-	updated_at text NOT NULL
-);
-CREATE TABLE IF NOT EXISTS sessions (
-	token text PRIMARY KEY NOT NULL,
-	user_id text NOT NULL,
-	created_at text NOT NULL,
-	expires_at text NOT NULL
-);
-CREATE TABLE IF NOT EXISTS topics (
-	id text PRIMARY KEY NOT NULL,
-	title text NOT NULL,
-	category text NOT NULL,
-	meaning text NOT NULL,
-	quote_text text NOT NULL,
-	quote_source text NOT NULL,
-	pros text NOT NULL,
-	cons text NOT NULL,
-	way_forward text NOT NULL,
-	conclusion_negative text NOT NULL,
-	conclusion_positive text NOT NULL,
-	conclusion_raw text,
-	source text NOT NULL,
-	tags text,
-	created_at text NOT NULL,
-	updated_at text NOT NULL
-);
 CREATE TABLE IF NOT EXISTS users (
-	id text PRIMARY KEY NOT NULL,
-	username text NOT NULL,
-	password_hash text NOT NULL,
-	created_at text NOT NULL
+	id TEXT PRIMARY KEY NOT NULL,
+	username TEXT NOT NULL UNIQUE,
+	password_hash TEXT NOT NULL,
+	salt TEXT NOT NULL,
+	role TEXT NOT NULL DEFAULT 'user',
+	created_at TEXT NOT NULL
 );
-CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique ON users (username);
+
+CREATE TABLE IF NOT EXISTS sessions (
+	token TEXT PRIMARY KEY NOT NULL,
+	user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	created_at TEXT NOT NULL,
+	expires_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS topics (
+	id TEXT PRIMARY KEY NOT NULL,
+	user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	title TEXT NOT NULL,
+	category TEXT NOT NULL,
+	meaning TEXT NOT NULL,
+	quote_text TEXT NOT NULL,
+	quote_source TEXT NOT NULL,
+	pros TEXT NOT NULL,
+	cons TEXT NOT NULL,
+	way_forward TEXT NOT NULL,
+	conclusion_negative TEXT NOT NULL,
+	conclusion_positive TEXT NOT NULL,
+	conclusion_raw TEXT,
+	source TEXT NOT NULL,
+	tags TEXT,
+	created_at TEXT NOT NULL,
+	updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS api_keys (
+	id TEXT PRIMARY KEY NOT NULL,
+	user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	kind TEXT NOT NULL,
+	provider TEXT NOT NULL,
+	encrypted TEXT NOT NULL,
+	updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS topics_user_id_idx ON topics(user_id);
+CREATE INDEX IF NOT EXISTS topics_category_idx ON topics(user_id, category);
+CREATE INDEX IF NOT EXISTS topics_user_updated_idx ON topics(user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS topics_user_cat_updated_idx ON topics(user_id, category, updated_at DESC);
+CREATE INDEX IF NOT EXISTS api_keys_user_id_idx ON api_keys(user_id);
 `;
 
-// Auto-run migrations without top-level await for maximum environment compatibility
 export async function runMigrations(): Promise<void> {
-	try {
-		// Ensure base schema exists via direct DDL (works in serverless and standalone)
-		await client.executeMultiple(INIT_SQL);
-		logger.info(
-			{ target: url.startsWith("file:") ? localDbPath : "Turso Cloud" },
-			"Database schema initialized and ready",
+	if (!process.env.DATABASE_URL) {
+		logger.warn(
+			"DATABASE_URL is not configured. Using fallback local connection; PostgreSQL operations may fail if server is not running.",
 		);
-
-		const migrationsFolder = path.join(moduleDir, "../../drizzle");
-		if (fs.existsSync(migrationsFolder)) {
-			try {
-				await migrate(db, { migrationsFolder });
-			} catch {
-				// Base tables were already created via INIT_SQL
-			}
+	}
+	try {
+		const client = await pool.connect();
+		try {
+			await client.query(INIT_SQL);
+			logger.info("PostgreSQL schema initialized and verified successfully");
+		} finally {
+			client.release();
 		}
 	} catch (err) {
-		logger.warn({ err }, "Database schema init completed or skipped");
+		logger.warn(
+			{ err: err instanceof Error ? err.message : String(err) },
+			"PostgreSQL schema initialization deferred or connection unavailable",
+		);
 	}
 }
 

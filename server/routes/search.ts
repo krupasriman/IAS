@@ -1,5 +1,7 @@
 import { Router } from "express";
+import { z } from "zod";
 import { logger } from "../../src/utils/logger";
+import { executeServerSearch } from "../services/search/broker";
 import { sendError } from "../utils/errors";
 
 const router = Router();
@@ -9,8 +11,6 @@ interface DdgCacheEntry {
 	expiresAt: number;
 }
 
-// Short-lived in-memory cache to blunt DuckDuckGo rate limiting and speed up
-// repeated searches. Capped so repeated distinct queries cannot grow unbounded.
 const DDG_CACHE_TTL_MS = 5 * 60 * 1000;
 const DDG_CACHE_MAX_ENTRIES = 200;
 const ddgCache = new Map<string, DdgCacheEntry>();
@@ -18,10 +18,6 @@ const ddgCache = new Map<string, DdgCacheEntry>();
 const DDG_USER_AGENT =
 	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36";
 
-// DuckDuckGo sometimes serves a captcha/anomaly interstitial instead of results
-// (typically when the host IP is rate-limited). We detect this so we can return a
-// 403 instead of feeding the client an unparseable page that always yields "no
-// results".
 const DDG_BLOCKED_MARKERS = [
 	"are you a robot",
 	"captcha",
@@ -35,6 +31,35 @@ function isDdgBlocked(html: string): boolean {
 	const sample = html.slice(0, 8192).toLowerCase();
 	return DDG_BLOCKED_MARKERS.some((marker) => sample.includes(marker));
 }
+
+const SearchRequestSchema = z.object({
+	query: z.string().min(1).max(300),
+	provider: z
+		.enum(["duckduckgo", "serpapi", "brave", "tavily", "langsearch"])
+		.optional(),
+	maxResults: z.number().int().min(1).max(20).optional(),
+});
+
+router.post("/search", async (req, res) => {
+	const parsed = SearchRequestSchema.safeParse(req.body);
+	if (!parsed.success) {
+		sendError(res, 400, "Invalid search request payload");
+		return;
+	}
+	const userId = req.authUser?.id || "usr_local_admin_0000000000";
+	try {
+		const result = await executeServerSearch(
+			parsed.data.query,
+			parsed.data.provider,
+			userId,
+			parsed.data.maxResults,
+		);
+		res.json(result);
+	} catch (err) {
+		const message = err instanceof Error ? err.message : "Search failed";
+		sendError(res, 502, message);
+	}
+});
 
 router.get("/search/duckduckgo", async (req, res) => {
 	const query = req.query.q as string;

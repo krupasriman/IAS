@@ -66,13 +66,13 @@ function migrate(parsed: Record<string, unknown>): AppSettings {
 	const searchKeys = (search.apiKeys ?? {}) as Record<string, unknown>;
 
 	// Clean out any previously saved default/placeholder keys
-	if (llmKeys.generalcompute === "gc_z8JDf42M5wo1KZ0-xkaZ3zEhxnR-RP1I") {
-		llmKeys.generalcompute = "";
-	}
 	for (const [k, v] of Object.entries(llmKeys)) {
 		if (
 			typeof v === "string" &&
-			(v === "sk-..." || v === "gsk_..." || v.trim() === "")
+			(v === "sk-..." ||
+				v === "gsk_..." ||
+				v.trim() === "" ||
+				v.startsWith("gc_z8JDf4"))
 		) {
 			llmKeys[k] = "";
 		}
@@ -83,18 +83,55 @@ function migrate(parsed: Record<string, unknown>): AppSettings {
 	return parsed as unknown as AppSettings;
 }
 
+// Active startup scrubber to immediately clean all apiKeys from localStorage on boot
+if (typeof window !== "undefined" && window.localStorage) {
+	try {
+		const raw = localStorage.getItem(STORAGE_KEY);
+		if (raw) {
+			const parsed = JSON.parse(raw) as Record<string, unknown>;
+			const state = (parsed.state ?? parsed) as Record<string, unknown>;
+			const currentSettings = (state.settings ?? state) as Record<
+				string,
+				unknown
+			>;
+			const sanitized = migrate(currentSettings);
+			localStorage.setItem(
+				STORAGE_KEY,
+				JSON.stringify({
+					state: {
+						settings: {
+							...sanitized,
+							llm: { ...sanitized.llm, apiKeys: EMPTY_LLM_KEYS },
+							search: { ...sanitized.search, apiKeys: EMPTY_SEARCH_KEYS },
+						},
+					},
+					version: 0,
+				}),
+			);
+		}
+	} catch {
+		// ignore
+	}
+}
+
 interface SettingsState {
 	settings: AppSettings;
 
 	setLLMProvider: (provider: LLMProvider) => void;
-	setLLMApiKey: (key: string) => void;
-	setLLMApiKeyForProvider: (provider: LLMProvider, key: string) => void;
+	setLLMApiKey: (key: string) => Promise<void>;
+	setLLMApiKeyForProvider: (
+		provider: LLMProvider,
+		key: string,
+	) => Promise<void>;
 	setLLMModel: (model: string) => void;
 	setLLMBaseUrl: (url: string) => void;
 	setTemperature: (temp: number) => void;
 	setSearchProvider: (provider: SearchProvider) => void;
-	setSearchApiKey: (key: string) => void;
-	setSearchApiKeyForProvider: (provider: SearchProvider, key: string) => void;
+	setSearchApiKey: (key: string) => Promise<void>;
+	setSearchApiKeyForProvider: (
+		provider: SearchProvider,
+		key: string,
+	) => Promise<void>;
 	setMaxResults: (n: number) => void;
 	setTheme: (theme: AppSettings["theme"]) => void;
 	setAutoSaveWebNotes: (val: boolean) => void;
@@ -123,7 +160,22 @@ export const useSettingsStore = create<SettingsState>()(
 				inFlightLoad = (async () => {
 					try {
 						const configured = await fetchConfiguredKeys();
-						set({ serverKeys: configured });
+						set((state) => ({
+							serverKeys: {
+								llm: Array.from(
+									new Set([
+										...state.serverKeys.llm,
+										...(configured?.llm || []),
+									]),
+								),
+								search: Array.from(
+									new Set([
+										...state.serverKeys.search,
+										...(configured?.search || []),
+									]),
+								),
+							},
+						}));
 						lastLoadedTime = Date.now();
 					} catch {
 						// Server unreachable or auth required; keep local keys
@@ -160,26 +212,56 @@ export const useSettingsStore = create<SettingsState>()(
 				}));
 			},
 
-			setLLMApiKey: (key) => {
+			setLLMApiKey: async (key) => {
 				const provider = get().settings.llm.provider;
-				get().setLLMApiKeyForProvider(provider, key);
+				await get().setLLMApiKeyForProvider(provider, key);
 			},
 
-			setLLMApiKeyForProvider: (provider, key) => {
+			setLLMApiKeyForProvider: async (provider, key) => {
 				const trimmed = key.trim();
-				set((state) => ({
-					settings: {
-						...state.settings,
-						llm: {
-							...state.settings.llm,
-							apiKeys: { ...state.settings.llm.apiKeys, [provider]: trimmed },
+				if (!trimmed) {
+					set((state) => ({
+						settings: {
+							...state.settings,
+							llm: {
+								...state.settings.llm,
+								apiKeys: { ...state.settings.llm.apiKeys, [provider]: "" },
+							},
 						},
-					},
-				}));
-				if (trimmed) {
-					storeServerApiKey("llm", provider, trimmed).catch(() => {
-						// ignore sync failures; local key remains usable
-					});
+					}));
+					return;
+				}
+
+				// Encrypt in server key vault; scrub cleartext key from in-memory state upon success
+				try {
+					await storeServerApiKey("llm", provider, trimmed);
+					set((state) => ({
+						serverKeys: {
+							...state.serverKeys,
+							llm: Array.from(new Set([...state.serverKeys.llm, provider])),
+						},
+						settings: {
+							...state.settings,
+							llm: {
+								...state.settings.llm,
+								apiKeys: { ...state.settings.llm.apiKeys, [provider]: "" },
+							},
+						},
+					}));
+				} catch (err) {
+					set((state) => ({
+						settings: {
+							...state.settings,
+							llm: {
+								...state.settings.llm,
+								apiKeys: {
+									...state.settings.llm.apiKeys,
+									[provider]: trimmed,
+								},
+							},
+						},
+					}));
+					throw err;
 				}
 			},
 
@@ -226,29 +308,64 @@ export const useSettingsStore = create<SettingsState>()(
 				}));
 			},
 
-			setSearchApiKey: (key) => {
+			setSearchApiKey: async (key) => {
 				const provider = get().settings.search.provider;
-				get().setSearchApiKeyForProvider(provider, key);
+				await get().setSearchApiKeyForProvider(provider, key);
 			},
 
-			setSearchApiKeyForProvider: (provider, key) => {
+			setSearchApiKeyForProvider: async (provider, key) => {
 				const trimmed = key.trim();
-				set((state) => ({
-					settings: {
-						...state.settings,
-						search: {
-							...state.settings.search,
-							apiKeys: {
-								...state.settings.search.apiKeys,
-								[provider]: trimmed,
+				if (!trimmed) {
+					set((state) => ({
+						settings: {
+							...state.settings,
+							search: {
+								...state.settings.search,
+								apiKeys: {
+									...state.settings.search.apiKeys,
+									[provider]: "",
+								},
 							},
 						},
-					},
-				}));
-				if (trimmed) {
-					storeServerApiKey("search", provider, trimmed).catch(() => {
-						// ignore sync failures; local key remains usable
-					});
+					}));
+					return;
+				}
+
+				// Encrypt in server key vault; scrub cleartext key from in-memory state upon success
+				try {
+					await storeServerApiKey("search", provider, trimmed);
+					set((state) => ({
+						serverKeys: {
+							...state.serverKeys,
+							search: Array.from(
+								new Set([...state.serverKeys.search, provider]),
+							),
+						},
+						settings: {
+							...state.settings,
+							search: {
+								...state.settings.search,
+								apiKeys: {
+									...state.settings.search.apiKeys,
+									[provider]: "",
+								},
+							},
+						},
+					}));
+				} catch (err) {
+					set((state) => ({
+						settings: {
+							...state.settings,
+							search: {
+								...state.settings.search,
+								apiKeys: {
+									...state.settings.search.apiKeys,
+									[provider]: trimmed,
+								},
+							},
+						},
+					}));
+					throw err;
 				}
 			},
 
@@ -278,14 +395,44 @@ export const useSettingsStore = create<SettingsState>()(
 		{
 			name: STORAGE_KEY,
 			storage: createJSONStorage(() => localStorage),
-			partialize: (state) => ({ settings: state.settings }),
+			partialize: (state) => ({
+				serverKeys: state.serverKeys,
+				settings: {
+					...state.settings,
+					llm: {
+						...state.settings.llm,
+						apiKeys: EMPTY_LLM_KEYS,
+					},
+					search: {
+						...state.settings.search,
+						apiKeys: EMPTY_SEARCH_KEYS,
+					},
+				},
+			}),
 			merge: (persisted, current) => {
 				if (!persisted) return current;
+				const p = persisted as Record<string, unknown>;
+				const pServerKeys = p.serverKeys as
+					| { llm?: string[]; search?: string[] }
+					| undefined;
 				return {
 					...current,
+					serverKeys: {
+						llm: Array.from(
+							new Set([
+								...(current.serverKeys?.llm || []),
+								...(pServerKeys?.llm || []),
+							]),
+						),
+						search: Array.from(
+							new Set([
+								...(current.serverKeys?.search || []),
+								...(pServerKeys?.search || []),
+							]),
+						),
+					},
 					settings: migrate(
-						((persisted as Record<string, unknown>).settings ??
-							persisted) as Record<string, unknown>,
+						(p.settings ?? persisted) as Record<string, unknown>,
 					),
 				};
 			},

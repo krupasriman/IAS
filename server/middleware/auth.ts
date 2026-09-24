@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import type { AuthUser } from "../services/auth";
 import {
+	getOrCreateLocalUser,
 	getSessionUser,
 	isAuthEnabled,
 	SESSION_COOKIE,
@@ -20,7 +21,13 @@ export async function attachAuthUser(
 ): Promise<void> {
 	try {
 		const token = req.cookies?.[SESSION_COOKIE] ?? "";
-		req.authUser = token ? await getSessionUser(token) : null;
+		if (token) {
+			req.authUser = await getSessionUser(token);
+		} else if (!isAuthEnabled()) {
+			req.authUser = await getOrCreateLocalUser();
+		} else {
+			req.authUser = null;
+		}
 	} catch {
 		req.authUser = null;
 	}
@@ -39,7 +46,6 @@ export function requireAuth(
 	sendError(res, 401, "Authentication required");
 }
 
-// Requires a session only when AUTH_MODE=session; otherwise allows local (auth-free) access.
 export function maybeRequireAuth(
 	req: Request,
 	res: Response,

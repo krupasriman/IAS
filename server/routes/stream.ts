@@ -1,11 +1,20 @@
-import { type ModelMessage, pipeTextStreamToResponse, streamText } from "ai";
+import { type ModelMessage, streamText } from "ai";
 import type { Request as ExpressRequest, Response } from "express";
 import { Router } from "express";
 import { z } from "zod";
 import { getLanguageModel } from "../../src/services/llm/provider";
 import { logger } from "../../src/utils/logger";
-import { buildUserPrompt, IAS_SYSTEM_PROMPT } from "../../src/utils/prompts";
-import { CategorySchema } from "../../src/utils/topicSchema";
+import { validateTopicRelevance } from "../../src/utils/topicGuardrail";
+import {
+	CategorySchema,
+	StructuredTopicSchema,
+} from "../../src/utils/topicSchema";
+import { buildUserPrompt, IAS_SYSTEM_PROMPT } from "../prompts/prompts";
+import {
+	generateTopicCacheKey,
+	getCachedTopic,
+	setCachedTopic,
+} from "../services/cache/llmCache";
 import { resolveLlmApiKey } from "../services/keyResolver";
 import { sendError } from "../utils/errors";
 import { LLMProviderSchema } from "../validation/llm";
@@ -22,6 +31,7 @@ const StreamRequestSchema = z.object({
 		(val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
 		z.string().url().optional(),
 	),
+	forceRefresh: z.boolean().optional(),
 });
 
 const router = Router();
@@ -50,7 +60,45 @@ router.post("/generate/stream", async (req: ExpressRequest, res: Response) => {
 		model,
 		temperature,
 		baseUrl,
+		forceRefresh,
 	} = parsed.data;
+
+	// Initialize SSE Headers
+	res.writeHead(200, {
+		"Content-Type": "text/event-stream",
+		"Cache-Control": "no-cache, no-transform",
+		Connection: "keep-alive",
+		"X-Accel-Buffering": "no",
+	});
+
+	const sendSSE = (event: string, data: unknown) => {
+		res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+	};
+
+	const relevance = validateTopicRelevance(topic);
+	if (!relevance.isRelevant) {
+		sendSSE("error", {
+			message:
+				relevance.reason ||
+				"The query is not a recognized UPSC / IAS syllabus topic.",
+		});
+		res.end();
+		return;
+	}
+
+	const cacheKey = generateTopicCacheKey(topic, category, webContext);
+	if (!forceRefresh) {
+		const cached = await getCachedTopic(cacheKey);
+		if (cached) {
+			sendSSE("status", {
+				stage: "cached",
+				message: "Retrieved instantly from cache (<50ms)",
+			});
+			sendSSE("complete", { topic: cached, cached: true });
+			res.end();
+			return;
+		}
+	}
 
 	const messages = [
 		{ role: "system" as const, content: IAS_SYSTEM_PROMPT },
@@ -61,11 +109,22 @@ router.post("/generate/stream", async (req: ExpressRequest, res: Response) => {
 	];
 
 	try {
-		const resolvedApiKey = await resolveLlmApiKey(provider, apiKey);
+		const resolvedApiKey = await resolveLlmApiKey(
+			provider,
+			apiKey,
+			req.authUser?.id,
+		);
 		if (!resolvedApiKey) {
-			sendError(res, 400, "No API key configured for this provider");
+			sendSSE("error", { message: "No API key configured for this provider" });
+			res.end();
 			return;
 		}
+
+		sendSSE("status", {
+			stage: "generating",
+			message: "Synthesizing UPSC study note with AI...",
+		});
+
 		const systemMessage = messages.find((m) => m.role === "system")?.content;
 		const otherMessages = messages.filter(
 			(m) => m.role !== "system",
@@ -88,21 +147,50 @@ router.post("/generate/stream", async (req: ExpressRequest, res: Response) => {
 			},
 		});
 
-		await pipeTextStreamToResponse({
-			response: res as unknown as Parameters<
-				typeof pipeTextStreamToResponse
-			>[0]["response"],
-			stream: result.textStream,
+		let accumulated = "";
+		for await (const chunk of result.textStream) {
+			accumulated += chunk;
+			sendSSE("chunk", { text: chunk });
+		}
+
+		sendSSE("status", {
+			stage: "validating",
+			message: "Validating against IAS five-part framework...",
 		});
+
+		const cleaned = accumulated.replace(/```(?:json)?/gi, "").trim();
+		const jsonStart = cleaned.indexOf("{");
+		const jsonEnd = cleaned.lastIndexOf("}");
+
+		if (jsonStart === -1 || jsonEnd === -1) {
+			throw new Error("Model response did not contain a valid JSON object");
+		}
+
+		const parsedJson = JSON.parse(cleaned.slice(jsonStart, jsonEnd + 1));
+		const validatedTopic = StructuredTopicSchema.parse(parsedJson);
+
+		const now = new Date().toISOString();
+		const finalTopic = {
+			...validatedTopic,
+			id: crypto.randomUUID(),
+			source: "web" as const,
+			createdAt: now,
+			updatedAt: now,
+		};
+
+		// Store in cache for future instant hits
+		void setCachedTopic(cacheKey, finalTopic);
+
+		sendSSE("complete", { topic: finalTopic });
 	} catch (error: unknown) {
 		const message =
 			typeof error === "object" && error !== null && "message" in error
 				? String((error as { message: unknown }).message)
-				: "Streaming failed";
+				: "Streaming generation failed";
 		logger.error({ err: message }, "Stream error");
-		if (!res.headersSent) {
-			sendError(res, 500, message);
-		}
+		sendSSE("error", { message });
+	} finally {
+		res.end();
 	}
 });
 

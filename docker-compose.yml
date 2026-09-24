@@ -1,0 +1,60 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ias-app
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env.docker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3001/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: ias-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: ias
+    ports:
+      - "5432:5432"
+    volumes:
+      - ias_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ias"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  redis:
+    image: redis:7-alpine
+    container_name: ias-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - ias_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  ias_postgres_data:
+  ias_redis_data:

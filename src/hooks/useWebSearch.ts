@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { generateStructuredTopic } from "../services/llm/client";
+import { streamStructuredTopic } from "../services/llm/client";
 import { webSearch } from "../services/search";
 import type {
 	GenerationProgress,
 	WebSearchResponse,
 } from "../types/search.types";
 import type { Topic } from "../types/topic.types";
+import { validateTopicRelevance } from "../utils/topicGuardrail";
 import { validateTopic } from "../utils/validator";
 import { useSettings } from "./useSettings";
 
@@ -79,14 +80,8 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 		}
 	});
 
-	const [error, setError] = useState<string | null>(() => {
-		try {
-			const raw = sessionStorage.getItem(STORAGE_KEY);
-			return raw ? JSON.parse(raw).error || null : null;
-		} catch {
-			return null;
-		}
-	});
+	const [error, setError] = useState<string | null>(null);
+	const [loading, setLoading] = useState<boolean>(false);
 
 	const [history, setHistory] = useState<SearchHistoryItem[]>(() => {
 		try {
@@ -107,14 +102,16 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 					query,
 					searchResults,
 					generatedTopic,
-					progress,
-					error,
+					progress:
+						progress.stage === "error"
+							? { stage: "idle", message: "", progressPercentage: 0 }
+							: progress,
 				}),
 			);
 		} catch {
 			// ignore
 		}
-	}, [query, searchResults, generatedTopic, progress, error]);
+	}, [query, searchResults, generatedTopic, progress]);
 
 	useEffect(() => {
 		try {
@@ -184,6 +181,21 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 			setGeneratedTopic(null);
 			setSearchResults(null);
 
+			const relevance = validateTopicRelevance(topicQuery);
+			if (!relevance.isRelevant) {
+				const reason =
+					relevance.reason ||
+					"This query is not a recognized UPSC / IAS study topic.";
+				setError(reason);
+				setProgress({
+					stage: "error",
+					message: "Off-topic query detected",
+					progressPercentage: 100,
+				});
+				return null;
+			}
+
+			setLoading(true);
 			setProgress({
 				stage: "searching_web",
 				message: "Searching the web...",
@@ -194,7 +206,8 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 				results = await webSearch(topicQuery, settings.search);
 				setSearchResults(results);
 			} catch (e: unknown) {
-				console.warn("Web search failed, proceeding without results:", e);
+				const msg = e instanceof Error ? e.message : String(e);
+				console.warn("Web search failed, proceeding without results:", msg);
 			}
 
 			setProgress({
@@ -211,16 +224,37 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 				: "";
 
 			try {
-				const topic = await generateStructuredTopic(
+				const topic = await streamStructuredTopic(
 					{ topic: topicQuery, category, webContext },
 					settings.llm,
+					{
+						onStatus: (stage, message) => {
+							setProgress({
+								stage: stage as GenerationProgress["stage"],
+								message,
+								progressPercentage: stage === "generating" ? 60 : 85,
+							});
+						},
+						onChunk: (_chunk, accumulated) => {
+							const dynamicPct = Math.min(
+								90,
+								55 + Math.floor(accumulated.length / 50),
+							);
+							setProgress((prev) => ({
+								...prev,
+								stage: "processing_llm",
+								message: "Generating UPSC study note...",
+								progressPercentage: dynamicPct,
+							}));
+						},
+					},
 				);
 
 				const validation = validateTopic(topic);
 				setProgress({
 					stage: "validating",
 					message: "Validating against IAS format...",
-					progressPercentage: 90,
+					progressPercentage: 95,
 				});
 
 				setGeneratedTopic(topic);
@@ -237,7 +271,8 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 
 				return { topic, validation };
 			} catch (e: unknown) {
-				console.error("LLM processing failed:", e);
+				const errMsg = e instanceof Error ? e.message : String(e);
+				console.error("LLM processing failed:", errMsg);
 				setProgress({
 					stage: "error",
 					message: "LLM processing failed",
@@ -249,6 +284,8 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 						: "Failed to process with LLM. Check your API key in Settings.",
 				);
 				return null;
+			} finally {
+				setLoading(false);
 			}
 		},
 		[onSuccess, settings.llm, settings.search, addToHistory],
@@ -263,6 +300,21 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 			setGeneratedTopic(null);
 			setSearchResults(null);
 
+			const relevance = validateTopicRelevance(topicQuery);
+			if (!relevance.isRelevant) {
+				const reason =
+					relevance.reason ||
+					"This query is not a recognized UPSC / IAS study topic.";
+				setError(reason);
+				setProgress({
+					stage: "error",
+					message: "Off-topic query detected",
+					progressPercentage: 100,
+				});
+				return null;
+			}
+
+			setLoading(true);
 			setProgress({
 				stage: "processing_llm",
 				message: "Generating study note...",
@@ -270,16 +322,37 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 			});
 
 			try {
-				const topic = await generateStructuredTopic(
+				const topic = await streamStructuredTopic(
 					{ topic: topicQuery, category, webContext: "" },
 					settings.llm,
+					{
+						onStatus: (stage, message) => {
+							setProgress({
+								stage: stage as GenerationProgress["stage"],
+								message,
+								progressPercentage: stage === "generating" ? 50 : 85,
+							});
+						},
+						onChunk: (_chunk, accumulated) => {
+							const dynamicPct = Math.min(
+								90,
+								35 + Math.floor(accumulated.length / 45),
+							);
+							setProgress((prev) => ({
+								...prev,
+								stage: "processing_llm",
+								message: "Generating UPSC study note...",
+								progressPercentage: dynamicPct,
+							}));
+						},
+					},
 				);
 
 				const validation = validateTopic(topic);
 				setProgress({
 					stage: "validating",
 					message: "Validating against IAS format...",
-					progressPercentage: 80,
+					progressPercentage: 95,
 				});
 
 				setGeneratedTopic(topic);
@@ -292,7 +365,8 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 
 				return { topic, validation };
 			} catch (e: unknown) {
-				console.error("LLM processing failed:", e);
+				const errMsg = e instanceof Error ? e.message : String(e);
+				console.error("LLM processing failed:", errMsg);
 				setProgress({
 					stage: "error",
 					message: "LLM processing failed",
@@ -304,6 +378,8 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 						: "Failed to process with LLM. Check your API key in Settings.",
 				);
 				return null;
+			} finally {
+				setLoading(false);
 			}
 		},
 		[settings.llm, addToHistory],
@@ -316,6 +392,7 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 	}, []);
 
 	const reset = useCallback(() => {
+		setLoading(false);
 		setQuery("");
 		setSearchResults(null);
 		setGeneratedTopic(null);
@@ -327,12 +404,23 @@ export function useWebSearch({ onSuccess }: UseWebSearchOptions = {}) {
 		} catch {}
 	}, []);
 
+	const clearError = useCallback(() => {
+		setError(null);
+		setProgress((prev) =>
+			prev.stage === "error"
+				? { stage: "idle", message: "", progressPercentage: 0 }
+				: prev,
+		);
+	}, []);
+
 	return {
 		query,
 		searchResults,
 		generatedTopic,
 		progress,
 		error,
+		loading,
+		clearError,
 		history,
 		addToHistory,
 		process,

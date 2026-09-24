@@ -1,9 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	clearAndReplaceStoredTopics,
+	getAllStoredTopics,
+	migrateFromLocalStorage,
+} from "../services/storage/idbTopics";
 import { ServerTopicsApi } from "../services/topicsApi";
 import type { CategoryType, Topic } from "../types/topic.types";
 
-const TOPICS_STORAGE_KEY = "ias_topics";
 const TOPICS_QUERY_KEY = ["topics"] as const;
 
 type SyncState = "offline" | "syncing" | "online";
@@ -27,26 +31,32 @@ export function useTopics() {
 
 	const api = useMemo(() => new ServerTopicsApi(), []);
 
-	const loadFromStorage = useCallback((): Topic[] | null => {
-		try {
-			const raw = localStorage.getItem(TOPICS_STORAGE_KEY);
-			if (raw) return deduplicateTopics(JSON.parse(raw) as Topic[]);
-		} catch (e) {
-			console.error("Failed to load topics from storage", e);
-		}
-		return null;
-	}, []);
-
-	const saveToStorage = useCallback((items: Topic[]) => {
-		try {
-			localStorage.setItem(
-				TOPICS_STORAGE_KEY,
-				JSON.stringify(deduplicateTopics(items)),
-			);
-		} catch (e) {
-			console.error("Failed to save topics to storage", e);
-		}
-	}, []);
+	// Background migration and fast cold-start cache restore from IndexedDB
+	useEffect(() => {
+		let isMounted = true;
+		void (async () => {
+			const migrated = await migrateFromLocalStorage();
+			if (!isMounted) return;
+			if (migrated && migrated.length > 0) {
+				queryClient.setQueryData<Topic[]>(
+					TOPICS_QUERY_KEY,
+					(old) => old ?? migrated,
+				);
+			} else {
+				const idbStored = await getAllStoredTopics();
+				if (!isMounted) return;
+				if (idbStored && idbStored.length > 0) {
+					queryClient.setQueryData<Topic[]>(
+						TOPICS_QUERY_KEY,
+						(old) => old ?? idbStored,
+					);
+				}
+			}
+		})();
+		return () => {
+			isMounted = false;
+		};
+	}, [queryClient]);
 
 	const {
 		data: topics = [],
@@ -58,20 +68,27 @@ export function useTopics() {
 			try {
 				const serverTopics = deduplicateTopics(await api.list());
 				initialTopicsRef.current = serverTopics;
-				saveToStorage(serverTopics);
+				void clearAndReplaceStoredTopics(serverTopics);
 				return serverTopics;
 			} catch {
-				const stored = loadFromStorage();
-				if (stored && stored.length > 0) return stored;
+				const idbStored = await getAllStoredTopics();
+				if (idbStored && idbStored.length > 0) {
+					initialTopicsRef.current = idbStored;
+					return idbStored;
+				}
+				const migrated = await migrateFromLocalStorage();
+				if (migrated && migrated.length > 0) {
+					initialTopicsRef.current = migrated;
+					return migrated;
+				}
 				const res = await fetch("/data/topics.json");
 				if (!res.ok) throw new Error("Failed to load topics data");
 				const seedTopics = deduplicateTopics((await res.json()) as Topic[]);
 				initialTopicsRef.current = seedTopics;
-				saveToStorage(seedTopics);
+				void clearAndReplaceStoredTopics(seedTopics);
 				return seedTopics;
 			}
 		},
-		placeholderData: () => loadFromStorage() ?? undefined,
 	});
 
 	const error = isError
@@ -82,11 +99,11 @@ export function useTopics() {
 		(updater: (old: Topic[] | undefined) => Topic[]) => {
 			queryClient.setQueryData<Topic[]>(TOPICS_QUERY_KEY, (old) => {
 				const next = deduplicateTopics(updater(old));
-				saveToStorage(next);
+				void clearAndReplaceStoredTopics(next);
 				return next;
 			});
 		},
-		[queryClient, saveToStorage],
+		[queryClient],
 	);
 
 	const rollbackCache = useCallback(
@@ -94,10 +111,10 @@ export function useTopics() {
 			if (previous) {
 				const deduped = deduplicateTopics(previous);
 				queryClient.setQueryData<Topic[]>(TOPICS_QUERY_KEY, deduped);
-				saveToStorage(deduped);
+				void clearAndReplaceStoredTopics(deduped);
 			}
 		},
-		[queryClient, saveToStorage],
+		[queryClient],
 	);
 
 	const addTopicMutation = useMutation({
@@ -265,7 +282,8 @@ export function useTopics() {
 				replaceAllMutation.mutate(parsed as Topic[]);
 				return true;
 			} catch (e) {
-				console.error("Failed to import topics", e);
+				const msg = e instanceof Error ? e.message : String(e);
+				console.error("Failed to import topics:", msg);
 				return false;
 			}
 		},

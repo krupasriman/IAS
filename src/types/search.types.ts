@@ -17,8 +17,10 @@ export interface GenerationProgress {
 		| "idle"
 		| "searching_web"
 		| "processing_llm"
+		| "generating"
 		| "streaming_llm"
 		| "validating"
+		| "cached"
 		| "complete"
 		| "error";
 	message: string;

@@ -23,7 +23,7 @@ export default function QueryBar({
 	onToggleWeb,
 	loading = false,
 	stage = "",
-	progress = 0,
+	progress: _progress = 0,
 	focusTrigger,
 }: QueryBarProps) {
 	const { llmConfigured } = useSettings();
@@ -60,20 +60,6 @@ export default function QueryBar({
 						: undefined,
 				}}
 			>
-				{/* Progress bar running along the top edge of the card */}
-				{loading && (
-					<div className="absolute top-0 left-0 right-0 h-1 bg-[var(--surface-3)] overflow-hidden">
-						<div
-							className={`h-full bg-emerald-500 transition-all duration-300 ${
-								progress > 0 && progress < 100 ? "" : "animate-pulse"
-							}`}
-							style={{
-								width: progress > 0 ? `${progress}%` : "100%",
-							}}
-						/>
-					</div>
-				)}
-
 				<div className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-3">
 					{/* ChatGPT Plus / Attach Trigger */}
 					<button
@@ -96,8 +82,8 @@ export default function QueryBar({
 							loading
 								? stage || "Researching & generating study note…"
 								: webEnabled
-									? "Search the web and generate IAS study note…"
-									: "Ask anything or enter a UPSC topic…"
+									? "Search web & generate UPSC study note (e.g. Electoral Bonds)…"
+									: "Enter a UPSC syllabus topic (e.g. Uniform Civil Code, PM Gati Shakti)…"
 						}
 						disabled={loading}
 						className="flex-1 min-w-0 bg-transparent outline-none text-[15px] placeholder:text-[var(--faint)] leading-normal"

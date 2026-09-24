@@ -1,5 +1,6 @@
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Loader2, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import TopicRow from "../components/TopicRow";
 import { CATEGORIES } from "../data/categories";
 import { useTopics } from "../hooks/useTopics";
@@ -22,6 +23,7 @@ export default function AllTopicsPage() {
 	const { topics, loading } = useTopics();
 	const [query, setQuery] = useState("");
 	const [category, setCategory] = useState<"All" | CategoryType>("All");
+	const parentRef = useRef<HTMLDivElement>(null);
 
 	const filtered = useMemo(() => {
 		let result = topics;
@@ -37,6 +39,13 @@ export default function AllTopicsPage() {
 		}
 		return result;
 	}, [topics, category, query]);
+
+	const rowVirtualizer = useVirtualizer({
+		count: filtered.length,
+		getScrollElement: () => parentRef.current,
+		estimateSize: () => 48,
+		overscan: 10,
+	});
 
 	return (
 		<div className="flex flex-col h-full overflow-hidden">
@@ -127,7 +136,7 @@ export default function AllTopicsPage() {
 			</div>
 
 			{/* Topic rows */}
-			<div className="flex-1 overflow-y-auto min-h-0">
+			<div ref={parentRef} className="flex-1 overflow-y-auto min-h-0">
 				{loading ? (
 					<div className="flex items-center justify-center py-16">
 						<Loader2
@@ -146,12 +155,33 @@ export default function AllTopicsPage() {
 						</p>
 					</div>
 				) : (
-					filtered.map((topic, idx) => (
-						<TopicRow
-							key={topic.id ? `${topic.id}-${idx}` : `topic-${idx}`}
-							topic={topic}
-						/>
-					))
+					<div
+						style={{
+							height: `${rowVirtualizer.getTotalSize()}px`,
+							width: "100%",
+							position: "relative",
+						}}
+					>
+						{rowVirtualizer.getVirtualItems().map((virtualRow) => {
+							const topic = filtered[virtualRow.index];
+							return (
+								<div
+									key={topic.id || `topic-${virtualRow.index}`}
+									data-index={virtualRow.index}
+									ref={rowVirtualizer.measureElement}
+									style={{
+										position: "absolute",
+										top: 0,
+										left: 0,
+										width: "100%",
+										transform: `translateY(${virtualRow.start}px)`,
+									}}
+								>
+									<TopicRow topic={topic} />
+								</div>
+							);
+						})}
+					</div>
 				)}
 			</div>
 		</div>

@@ -397,6 +397,7 @@ export default function TopicDetail({ topic, sources }: TopicDetailProps) {
 												{conSources.length > 0 && (
 													<SourcePill
 														sources={conSources}
+														align="right"
 														className="ml-1.5 align-middle inline-flex"
 													/>
 												)}

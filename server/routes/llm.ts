@@ -19,6 +19,7 @@ router.post(
 			const resolvedApiKey = await resolveLlmApiKey(
 				request.provider,
 				request.apiKey,
+				req.authUser?.id,
 			);
 			if (!resolvedApiKey) {
 				sendError(res, 400, "No API key configured for this provider");
@@ -63,26 +64,37 @@ router.post(
 					message?: string;
 					responseBody?: string;
 				};
-				if (typeof errObj.statusCode === "number" && errObj.statusCode >= 400) {
+				if (
+					typeof errObj.statusCode === "number" &&
+					errObj.statusCode >= 400 &&
+					errObj.statusCode < 600
+				) {
 					statusCode = errObj.statusCode;
-				} else if (typeof errObj.status === "number" && errObj.status >= 400) {
+				} else if (
+					typeof errObj.status === "number" &&
+					errObj.status >= 400 &&
+					errObj.status < 600
+				) {
 					statusCode = errObj.status;
 				}
 
 				if (errObj.responseBody) {
 					try {
 						const parsed = JSON.parse(errObj.responseBody);
-						if (parsed?.error?.message) {
+						if (typeof parsed?.error?.message === "string") {
 							message = parsed.error.message;
 						} else if (typeof parsed?.error === "string") {
 							message = parsed.error;
-						} else if (errObj.message) {
+						} else if (typeof errObj.message === "string") {
 							message = errObj.message;
 						}
 					} catch {
-						message = errObj.message || errObj.responseBody;
+						message =
+							typeof errObj.message === "string"
+								? errObj.message
+								: "Upstream LLM provider returned an unparseable response";
 					}
-				} else if (errObj.message) {
+				} else if (typeof errObj.message === "string") {
 					message = errObj.message;
 				}
 			}
@@ -91,11 +103,16 @@ router.post(
 				(req.body as Partial<LLMRequest>)?.provider || "provider";
 			if (
 				message.includes("Missing Authentication header") ||
-				message.includes("No API key")
+				message.includes("No API key") ||
+				message.includes("Unauthorized") ||
+				message.includes("unauthorized")
 			) {
-				message = `Missing API key for ${provider}. Please enter a valid ${provider.toUpperCase()} API key in Settings.`;
+				message = `Invalid or missing API key for ${provider}. Please verify your ${provider.toUpperCase()} API key in Settings.`;
 				statusCode = 400;
-			} else if (message.includes("Upstream idle timeout")) {
+			} else if (
+				message.includes("Upstream idle timeout") ||
+				message.includes("ETIMEDOUT")
+			) {
 				message =
 					"Upstream provider timed out due to high traffic on free models. Please retry or select another model.";
 				statusCode = 504;

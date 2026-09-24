@@ -9,9 +9,11 @@ import {
 	Save,
 	Search,
 	Sparkles,
+	X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import GenerationLoadingState from "../components/GenerationLoadingState";
 import QueryBar from "../components/QueryBar";
 import SaveCategoryModal from "../components/SaveCategoryModal";
 import TopicDetail from "../components/TopicDetail";
@@ -47,10 +49,21 @@ export default function HomePage() {
 		urlCat ?? "All",
 	);
 
-	// Ensure legacy localStorage search state is removed
+	// Ensure legacy localStorage search state and stale sessionStorage errors are removed
 	useEffect(() => {
 		try {
 			localStorage.removeItem("ias_web_search_state");
+			const raw = sessionStorage.getItem("ias_web_search_state");
+			if (raw) {
+				const parsed = JSON.parse(raw);
+				if (parsed.error) {
+					delete parsed.error;
+					sessionStorage.setItem(
+						"ias_web_search_state",
+						JSON.stringify(parsed),
+					);
+				}
+			}
 		} catch {}
 	}, []);
 	const [webEnabled, setWebEnabled] = useState(() => {
@@ -79,6 +92,13 @@ export default function HomePage() {
 		try {
 			localStorage.setItem("ias_web_search_enabled", String(v));
 		} catch {}
+	};
+
+	const handleQueryChange = (v: string) => {
+		setQuery(v);
+		if (webSearch.error) {
+			webSearch.clearError();
+		}
 	};
 
 	// 1. Handle loading from history (via sidebar click or dropdown)
@@ -197,17 +217,13 @@ export default function HomePage() {
 			setTimeout(() => {
 				setSavedFromWeb(false);
 				webSearch.reset();
-				handleToggleWeb(false);
 				setQuery("");
 				navigate(`/topic/${topicToSave.id}`);
 			}, 600);
 		}
 	};
 
-	const isGenerating =
-		webSearch.progress.stage === "searching_web" ||
-		webSearch.progress.stage === "processing_llm" ||
-		webSearch.progress.stage === "validating";
+	const isGenerating = webSearch.loading;
 
 	const categoryTopics =
 		activeCategory !== "All"
@@ -220,20 +236,38 @@ export default function HomePage() {
 		<div className="flex flex-col h-full overflow-hidden bg-[var(--bg)] text-[var(--text)]">
 			{/* ── Main Canvas Scroll Area ── */}
 			<div className="flex-1 overflow-y-auto min-h-0">
-				{/* Error Notification */}
+				{/* Error / Guidance Notification */}
 				{webSearch.error && (
-					<div className="max-w-4xl mx-auto px-4 mt-4">
+					<div className="max-w-4xl mx-auto px-4 mt-4 animate-in fade-in slide-in-from-top-2 duration-200">
 						<div
-							className="flex items-start gap-2.5 p-3.5 rounded-2xl text-sm border border-red-200 dark:border-red-900/40"
-							style={{ background: "var(--danger-bg)", color: "var(--danger)" }}
+							className={`flex items-start justify-between gap-3 p-3.5 rounded-2xl text-sm border ${
+								webSearch.error.includes("UPSC")
+									? "border-amber-200 dark:border-amber-900/40 bg-amber-500/10 text-amber-900 dark:text-amber-200"
+									: "border-red-200 dark:border-red-900/40 bg-[var(--danger-bg)] text-[var(--danger)]"
+							}`}
 						>
-							<AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-							<div>
-								<p className="font-semibold text-xs uppercase tracking-wide">
-									Generation failed
-								</p>
-								<p className="text-xs mt-0.5 opacity-90">{webSearch.error}</p>
+							<div className="flex items-start gap-2.5">
+								<AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+								<div>
+									<p className="font-semibold text-xs uppercase tracking-wide">
+										{webSearch.error.includes("UPSC")
+											? "Topic Guidance"
+											: "Generation Failed"}
+									</p>
+									<p className="text-xs mt-0.5 opacity-90 leading-relaxed">
+										{webSearch.error}
+									</p>
+								</div>
 							</div>
+							<button
+								type="button"
+								onClick={() => webSearch.clearError()}
+								className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex-shrink-0 text-current opacity-70 hover:opacity-100 cursor-pointer"
+								title="Dismiss notification"
+								aria-label="Dismiss notification"
+							>
+								<X className="w-4 h-4" />
+							</button>
 						</div>
 					</div>
 				)}
@@ -267,7 +301,6 @@ export default function HomePage() {
 											type="button"
 											onClick={() => {
 												webSearch.reset();
-												handleToggleWeb(false);
 												setQuery("");
 											}}
 											className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] transition-colors cursor-pointer"
@@ -391,8 +424,18 @@ export default function HomePage() {
 					</div>
 				)}
 
-				{/* ── STATE 3: ChatGPT Hero Landing Screen (Default Clean State) ── */}
-				{!webSearch.generatedTopic && !isCategoryView && (
+				{/* ── STATE 3: Loading Screen (When Generating UPSC Note) ── */}
+				{isGenerating && !webSearch.generatedTopic && (
+					<GenerationLoadingState
+						query={webSearch.query || query}
+						progress={webSearch.progress}
+						webEnabled={webEnabled}
+						onCancel={() => webSearch.reset()}
+					/>
+				)}
+
+				{/* ── STATE 4: ChatGPT Hero Landing Screen (Default Clean State) ── */}
+				{!webSearch.generatedTopic && !isCategoryView && !isGenerating && (
 					<div className="flex flex-col items-center justify-center min-h-[calc(100vh-14rem)] px-4 sm:px-6 text-center animate-in fade-in duration-300">
 						{/* Centered Heading */}
 						<h1 className="text-2xl sm:text-4xl font-semibold tracking-tight text-[var(--text)] mb-8">
@@ -403,7 +446,7 @@ export default function HomePage() {
 						<div className="w-full max-w-3xl">
 							<QueryBar
 								value={query}
-								onChange={setQuery}
+								onChange={handleQueryChange}
 								onSearch={handleSearch}
 								webEnabled={webEnabled}
 								onToggleWeb={handleToggleWeb}
@@ -417,13 +460,13 @@ export default function HomePage() {
 				)}
 			</div>
 
-			{/* ── Bottom Prompt Bar (Only in Category List View when no topic is currently open) ── */}
-			{!webSearch.generatedTopic && isCategoryView && (
+			{/* ── Bottom Prompt Bar (When Generating or in Category List View) ── */}
+			{!webSearch.generatedTopic && (isCategoryView || isGenerating) && (
 				<div className="p-3 sm:px-6 pb-4 sm:pb-5 pt-2 flex-shrink-0 relative z-30 bg-gradient-to-t from-[var(--bg)] via-[var(--bg)] to-transparent">
 					<div className="max-w-4xl mx-auto w-full">
 						<QueryBar
 							value={query}
-							onChange={setQuery}
+							onChange={handleQueryChange}
 							onSearch={handleSearch}
 							webEnabled={webEnabled}
 							onToggleWeb={handleToggleWeb}
