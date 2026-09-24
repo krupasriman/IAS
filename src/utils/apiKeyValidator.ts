@@ -26,7 +26,11 @@ export function validateApiKeyFormat(
 	provider: string,
 	key: string,
 ): KeyValidationResult {
-	const trimmed = key.trim();
+	const trimmed = key
+		.trim()
+		.replace(/^Bearer\s+/i, "")
+		.replace(/^["']|["']$/g, "")
+		.trim();
 	if (!trimmed) {
 		return { isValid: true };
 	}

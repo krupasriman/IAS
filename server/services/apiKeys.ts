@@ -24,8 +24,17 @@ export async function storeApiKey(
 	provider: string,
 	value: string,
 ): Promise<void> {
-	const trimmed = value.trim();
-	if (!trimmed || trimmed === "sk-..." || trimmed === "gsk_...") {
+	const trimmed = value
+		.trim()
+		.replace(/^Bearer\s+/i, "")
+		.replace(/^["']|["']$/g, "")
+		.trim();
+	if (
+		!trimmed ||
+		trimmed === "sk-..." ||
+		trimmed === "gsk_..." ||
+		trimmed === "gc_..."
+	) {
 		await deleteApiKey(userId, kind, provider);
 		return;
 	}

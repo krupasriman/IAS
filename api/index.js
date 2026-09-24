@@ -958,8 +958,8 @@ function keyId(userId, kind, provider) {
   return `${userId}:${kind}:${provider}`;
 }
 async function storeApiKey(userId, kind, provider, value) {
-  const trimmed = value.trim();
-  if (!trimmed || trimmed === "sk-..." || trimmed === "gsk_...") {
+  const trimmed = value.trim().replace(/^Bearer\s+/i, "").replace(/^["']|["']$/g, "").trim();
+  if (!trimmed || trimmed === "sk-..." || trimmed === "gsk_..." || trimmed === "gc_...") {
     await deleteApiKey(userId, kind, provider);
     return;
   }
@@ -1051,9 +1051,9 @@ async function listConfiguredApiKeys(userId) {
 // server/services/keyResolver.ts
 var DEFAULT_LOCAL_USER_ID2 = "usr_local_admin_0000000000";
 async function resolveLlmApiKey(provider, requestKey, userId = DEFAULT_LOCAL_USER_ID2) {
-  if (requestKey?.trim()) return requestKey.trim();
-  const stored = await getApiKey(userId, "llm", provider);
-  return stored?.trim() ? stored.trim() : null;
+  const raw = requestKey?.trim() || (await getApiKey(userId, "llm", provider))?.trim();
+  if (!raw) return null;
+  return raw.replace(/^Bearer\s+/i, "").replace(/^["']|["']$/g, "").trim();
 }
 
 // src/config/providers.ts
@@ -1213,6 +1213,7 @@ var PROVIDER_DEFAULTS = {
 function getLanguageModel(config) {
   const { provider, apiKey, model, baseUrl } = config;
   const url = (baseUrl || PROVIDER_DEFAULTS[provider]).replace(/\/$/, "");
+  const cleanedApiKey = apiKey.replace(/^Bearer\s+/i, "").replace(/^["']|["']$/g, "").trim();
   const headers = {};
   if (provider === "openrouter") {
     headers["HTTP-Referer"] = "https://ias-black.vercel.app";
@@ -1220,7 +1221,7 @@ function getLanguageModel(config) {
   }
   const compat = createOpenAICompatible({
     name: provider,
-    apiKey,
+    apiKey: cleanedApiKey,
     baseURL: url,
     headers
   });

@@ -15,6 +15,11 @@ export function getLanguageModel(config: ProviderConfig): LanguageModel {
 	const { provider, apiKey, model, baseUrl } = config;
 	const url = (baseUrl || PROVIDER_DEFAULTS[provider]).replace(/\/$/, "");
 
+	const cleanedApiKey = apiKey
+		.replace(/^Bearer\s+/i, "")
+		.replace(/^["']|["']$/g, "")
+		.trim();
+
 	const headers: Record<string, string> = {};
 	if (provider === "openrouter") {
 		headers["HTTP-Referer"] = "https://ias-black.vercel.app";
@@ -23,7 +28,7 @@ export function getLanguageModel(config: ProviderConfig): LanguageModel {
 
 	const compat = createOpenAICompatible({
 		name: provider,
-		apiKey,
+		apiKey: cleanedApiKey,
 		baseURL: url,
 		headers,
 	});

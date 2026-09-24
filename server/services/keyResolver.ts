@@ -7,7 +7,11 @@ export async function resolveLlmApiKey(
 	requestKey?: string,
 	userId: string = DEFAULT_LOCAL_USER_ID,
 ): Promise<string | null> {
-	if (requestKey?.trim()) return requestKey.trim();
-	const stored = await getApiKey(userId, "llm", provider);
-	return stored?.trim() ? stored.trim() : null;
+	const raw =
+		requestKey?.trim() || (await getApiKey(userId, "llm", provider))?.trim();
+	if (!raw) return null;
+	return raw
+		.replace(/^Bearer\s+/i, "")
+		.replace(/^["']|["']$/g, "")
+		.trim();
 }
